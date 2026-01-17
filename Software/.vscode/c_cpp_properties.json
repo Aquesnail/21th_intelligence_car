@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "name": "STC32 / C251",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Keil_v5/C251/INC",        
+                "C:/Keil_v5/C251/INC/STC",    
+                "./Sources/FreeRTOS/include",
+                "./Sources/FreeRTOS/portable/STC32G12K128"
+            ],
+           "defines": [
+                "__C251__",
+                
+                "interrupt=",  
+                "using=",
+                "sbit=unsigned char",
+                "sfr=unsigned char",
+                "sfr16=unsigned short",
+                "bit=unsigned char",
+                "code=",     
+                "xdata=",    
+                "data=",
+                "idata=",
+                "pdata=",
+                "far=",
+                "reentrant="
+            ],
+            "compilerPath": "C:/Keil_v5/C251/BIN/C251.EXE", 
+            "cStandard": "c99",
+            "intelliSenseMode": "windows-msvc-x64" 
+        }
+    ],
+    "version": 4
+}
