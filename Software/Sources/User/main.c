@@ -6,8 +6,9 @@
 
 void sys_init(void);
 void main(){
-	    EAXFR = 1; //扩展寄存器(XFR)访问使能
+	  EAXFR = 1; //扩展寄存器(XFR)访问使能
 		CKCON = 0; //提高访问XRAM速
+	
 		sys_init();
 		app_init();
 		while(1){}

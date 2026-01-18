@@ -359,6 +359,16 @@
               <FileType>1</FileType>
               <FilePath>.\Sources\User\main.c</FilePath>
             </File>
+            <File>
+              <FileName>debug_arch.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\User\debug_arch.c</FilePath>
+            </File>
+            <File>
+              <FileName>debug_arch.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\User\debug_arch.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

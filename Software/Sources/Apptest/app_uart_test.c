@@ -9,11 +9,13 @@
 #include <string.h>
 #include <stdio.h>
 
+#pragma warning disable = 138
+
 // ==========================================
 // 任务句柄与堆栈大小定义
 // ==========================================
 #define UART_TEST_TASK_PRIORITY     ( tskIDLE_PRIORITY + 2 )
-#define UART_TEST_STACK_SIZE        ( 256 ) // 根据实际FreeRTOS配置调整
+#define UART_TEST_STACK_SIZE        ( 512 ) // 根据实际FreeRTOS配置调整
 
 TaskHandle_t xUartTestTaskHandle = NULL;
 /**
@@ -21,80 +23,97 @@ TaskHandle_t xUartTestTaskHandle = NULL;
  * @param  pvParameters: 任务参数
  * @retval None
  */
-static void int_to_str(uint32_t num, char *str) {
-    char temp[12];
-    int i = 0;
-    int j = 0;
-    
-    if (num == 0) {
-        str[0] = '0';
-        str[1] = '\0';
-        return;
-    }
-
-    while (num > 0) {
-        temp[i++] = (num % 10) + '0';
-        num /= 10;
-    }
-
-    // 反转字符串
-    for (j = 0; j < i; j++) {
-        str[j] = temp[i - 1 - j];
-    }
-    str[i] = '\0';
-}
 void vUartTestTask(void *pvParameters)
 {
-    // C99: 变量必须在函数开头定义
-    uint8_t rx_byte;
-    char tx_buffer[64];
-    char num_str[12];
-    TickType_t xLastWakeTime;
-    const TickType_t xFrequency = pdMS_TO_TICKS(1000); // 1秒心跳
-    TickType_t xCurrentTick;
-    static uint32_t loop_count = 0;
+    // ============================================================
+    // C99: 所有变量必须在函数最开头定义
+    // ============================================================
+    
+    // Echo (回显) 功能专用变量
+    uint8_t echo_buffer[64];    // 临时接收缓冲区
+    uint16_t rx_len;            // 本次接收到的长度
 
-    // 避免编译器警告未使用参数
+    // Heartbeat (心跳) 功能专用变量
+    char tx_buffer[64];
+    static uint32_t loop_count = 0;
+    
+    // FreeRTOS 时间管理变量
+    TickType_t xLastWakeTime;
+    TickType_t xCurrentTick;
+    const TickType_t xHeartbeatFreq = pdMS_TO_TICKS(1000); // 1秒心跳间隔
+
+    // 避免编译器警告
     (void)pvParameters;
 
-    // 1. 初始化 UART5
+    // ============================================================
+    // 1. 初始化
+    // ============================================================
     UART5_Init();
+    
+    // 初始化 IO (根据你的代码保留)
+    P0M1 = 0x00; P0M0 = 0x20;   // P0.5 推挽输出
+    P0PU |= 0x10;               // P0.4 内部上拉
 
-    // 2. 发送启动欢迎信息
-    UART5_Write((uint8_t *)"\r\n============================\r\n", 32);
-    UART5_Write((uint8_t *)"   STC32 DMA UART RingBuffer\r\n", 31);
-    UART5_Write((uint8_t *)"   FreeRTOS Test Task Start\r\n", 30);
-    UART5_Write((uint8_t *)"============================\r\n", 32);
+    // 发送启动信息
+    UART5_Write((uint8_t *)"\r\n--- UART5 Loopback Test Start ---\r\n", 35);
 
-    // 获取当前 Tick
+    // 获取当前 Tick 作为基准
     xLastWakeTime = xTaskGetTickCount();
 
+    // ============================================================
+    // 2. 任务主循环
+    // ============================================================
     for (;;)
     {
         // ---------------------------------------------------------
-        // 功能 B: 定时心跳包 (Heartbeat) - 每1秒发送一次
+        // 功能 A: 回显服务 (Echo Service)
+        // 逻辑: 只要 RX RingBuffer 里有数据，就读出来原样发回去
+        // ---------------------------------------------------------
+        
+        // 1. 查询有多少数据可读
+        rx_len = UART5_Available();
+
+        if (rx_len > 0)
+        {
+            // 2. 限制单次读取长度，防止超过临时缓冲区大小
+            if (rx_len > sizeof(echo_buffer)) 
+            {
+                rx_len = sizeof(echo_buffer);
+            }
+
+            // 3. 从 RingBuffer 读取数据
+            UART5_Read(echo_buffer, rx_len);
+
+            // 4. 立即原样发送回去 (关键测试步骤)
+            UART5_Write(echo_buffer, rx_len);
+        }
+
+        // ---------------------------------------------------------
+        // 功能 B: 定时心跳 (Heartbeat) - 非阻塞检查
         // ---------------------------------------------------------
         xCurrentTick = xTaskGetTickCount();
-        
-        // 检查是否距离上次发送心跳超过了1秒
-        // 注意：这里没有使用 vTaskDelayUntil 阻塞整个循环，
-        // 因为我们还需要上面的 Echo 逻辑保持响应。
-        if ((xCurrentTick - xLastWakeTime) >= xFrequency)
+
+        // 检查是否到达 1秒 时间点
+        // 注意：使用无符号减法 (Current - Last) 处理 Tick 溢出是安全的
+        if ((xCurrentTick - xLastWakeTime) >= xHeartbeatFreq)
         {
+            // 更新上次唤醒时间
             xLastWakeTime = xCurrentTick;
             loop_count++;
 
-            // 构造字符串: "Heartbeat: 123 ticks\r\n"
-            // 如果没有 sprintf，我们手动拼装
-            strcpy(tx_buffer, "Time: ");
-            int_to_str(loop_count, num_str);
-            strcat(tx_buffer, num_str);
-            strcat(tx_buffer, "\r\n");
-
-            // 发送
-            UART5_Write((uint8_t *)tx_buffer, strlen(tx_buffer));
+            // 格式化心跳包 (建议使用 sprintf，比手写安全且标准)
+            sprintf(tx_buffer, "Heartbeat: %lu\r\n", (unsigned long)loop_count);
             
+            // 发送心跳
+            UART5_Write((uint8_t *)tx_buffer, strlen(tx_buffer));
         }
+
+        // ---------------------------------------------------------
+        // 任务调度让步
+        // ---------------------------------------------------------
+        // 这是一个死循环，如果没有任何延时，低优先级任务会被饿死。
+        // 加一个极短的延时 (2ms)，既不影响串口吞吐体验，又能释放 CPU。
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 }
 /**

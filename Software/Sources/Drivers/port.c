@@ -34,7 +34,8 @@ void PORT0_Init(void)
     SetP0nInitLevelHigh(PIN_ALL);       //设置P0初始化电平
     SetP0nQuasiMode(PIN_ALL);           //设置P0为无弱上拉准双向口模式
 
-    DisableP0nPullUp(PIN_ALL);          //关闭P0内部上拉电阻
+    EnableP0nPullUp(PIN_4);             //使能P0.4内部上拉电阻
+    DisableP0nPullUp(PIN_7 | PIN_6 | PIN_5 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //关闭P0.7,P0.6,P0.5,P0.3,P0.2,P0.1,P0.0内部上拉电阻
     DisableP0nPullDown(PIN_ALL);        //关闭P0内部下拉电阻
     DisableP0nSchmitt(PIN_ALL);         //使能P0施密特触发
     SetP0nSlewRateNormal(PIN_ALL);      //设置P0一般翻转速度
