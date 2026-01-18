@@ -7,7 +7,11 @@
                 "C:/Keil_v5/C251/INC",        
                 "C:/Keil_v5/C251/INC/STC",    
                 "./Sources/FreeRTOS/include",
-                "./Sources/FreeRTOS/portable/STC32G12K128"
+                "./Sources/FreeRTOS/portable/STC32G12K128",
+                "./Sources/User",
+                "./Sources/Comm",
+                "./Sources/Drivers",
+                "./Sources/Apptest"
             ],
            "defines": [
                 "__C251__",

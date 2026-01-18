@@ -22,7 +22,7 @@ extern uint8_t xdata pu8UR5DMARxBuffer[16];
 
 
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>
-// 在此添加用户外部函数和外部变量声明  
+uint8_t UART5_Write(char * str,uint16_t len);  
 //<<AICUBE_USER_EXTERNAL_DECLARE_END>>
 
 

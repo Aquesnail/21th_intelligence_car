@@ -202,7 +202,7 @@
 		<PortIE_0>0</PortIE_0>
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
-		<PortMD_1>1</PortMD_1>
+		<PortMD_1>0</PortMD_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -1522,7 +1522,7 @@
 		<UartBit>0</UartBit>
 		<UartBaudrate>115200</UartBaudrate>
 		<AutoParity>0</AutoParity>
-		<UartPort>3</UartPort>
+		<UartPort>0</UartPort>
 		<TMOInterval>10</TMOInterval>
 		<TMOUnit>0</TMOUnit>
 		<IntPriority>1</IntPriority>
@@ -1537,7 +1537,7 @@
 		<RxDMAAmount>16</RxDMAAmount>
 		<RxDMAInterval>0</RxDMAInterval>
 		<RxDMAIntPriority>0</RxDMAIntPriority>
-		<RxDMABusPriority>1</RxDMABusPriority>
+		<RxDMABusPriority>0</RxDMABusPriority>
 		<TxDMABuffer>pu8UR5DMATxBuffer</TxDMABuffer>
 		<RxDMABuffer>pu8UR5DMARxBuffer</RxDMABuffer>
 		<EnableP2PA>0</EnableP2PA>
@@ -2720,7 +2720,7 @@
 		<CaptureFilter_CC1>0</CaptureFilter_CC1>
 		<CaptureDivider_CC1>0</CaptureDivider_CC1>
 		<EnableCCnInt_CC2>0</EnableCCnInt_CC2>
-		<CCnPort_CC2>-1</CCnPort_CC2>
+		<CCnPort_CC2>0</CCnPort_CC2>
 		<EnableChannel_CC2>0</EnableChannel_CC2>
 		<CCnDirection_CC2>0</CCnDirection_CC2>
 		<POutputMode_CC2>0</POutputMode_CC2>
@@ -3529,6 +3529,7 @@
 	<PINMAP>
 		<PinCount>256</PinCount>
 		<Pin01Map>2</Pin01Map>
+		<Pin02Map>16</Pin02Map>
 		<Pin17Map>-1</Pin17Map>
 		<Pin23Map>4</Pin23Map>
 		<Pin24Map>4</Pin24Map>
@@ -3544,9 +3545,9 @@
 		<Pin41Map>16</Pin41Map>
 		<Pin44Map>-1</Pin44Map>
 		<Pin67Map>-1</Pin67Map>
-		<Pin72Map>2</Pin72Map>
-		<Pin73Map>2</Pin73Map>
+		<Pin73Map>8</Pin73Map>
 		<Pin92Map>-1</Pin92Map>
+		<Pin99Map>16</Pin99Map>
 		<Pin100Map>2</Pin100Map>
 	</PINMAP>
 	<PINALIAS></PINALIAS>

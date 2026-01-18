@@ -1,97 +1,241 @@
 import os
+import time
 import shutil
-import sys
+import logging
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from pathlib import Path
 
-def copy_matching_files(sources_root, drivers_root):
+class TwoWaySyncHandler(FileSystemEventHandler):
     """
-    从sources_root目录及其子目录中查找与drivers_root目录中同名的文件，
-    并将sources中的文件复制到drivers中对应的位置
+    双向同步处理器 - 监控两个目录的文件变化并自动同步
     """
+    
+    def __init__(self, source_dir, target_dir, file_extensions=('.c', '.h'), sync_delay=0.5):
+        self.source_dir = Path(source_dir)
+        self.target_dir = Path(target_dir)
+        self.file_extensions = file_extensions
+        self.sync_delay = sync_delay
+        self.last_sync_time = {}
+        self.setup_logging()
+        
+    def setup_logging(self):
+        """设置日志"""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler('sync_log.txt'),
+                logging.StreamHandler()
+            ]
+        )
+        self.logger = logging.getLogger(__name__)
+    
+    def should_sync(self, file_path):
+        """判断是否应该同步文件（避免频繁同步）"""
+        current_time = time.time()
+        file_path = str(file_path)
+        
+        if file_path in self.last_sync_time:
+            if current_time - self.last_sync_time[file_path] < self.sync_delay:
+                return False
+        
+        self.last_sync_time[file_path] = current_time
+        return True
+    
+    def is_target_file(self, file_path):
+        """判断是否是目标文件类型"""
+        return any(str(file_path).endswith(ext) for ext in self.file_extensions)
+    
+    def find_matching_files(self, filename, search_dir):
+        """在目录中查找匹配的文件名"""
+        matching_files = []
+        for root, dirs, files in os.walk(search_dir):
+            if filename in files:
+                matching_files.append(Path(root) / filename)
+        return matching_files
+    
+    def sync_file(self, src_path, event_type="modified"):
+        """
+        同步单个文件
+        event_type: created, modified, moved, deleted
+        """
+        if not self.is_target_file(src_path):
+            return
+        
+        if not self.should_sync(src_path):
+            return
+        
+        src_path = Path(src_path)
+        filename = src_path.name
+        
+        # 确定源目录和目标目录
+        if src_path.is_relative_to(self.source_dir):
+            from_dir, to_dir = self.source_dir, self.target_dir
+            direction = "Source → Driver"
+        else:
+            from_dir, to_dir = self.target_dir, self.source_dir
+            direction = "Driver → Source"
+        
+        try:
+            if event_type in ["created", "modified", "moved"]:
+                # 文件创建、修改或移动
+                if src_path.exists():
+                    # 在目标目录中查找同名文件
+                    target_files = self.find_matching_files(filename, to_dir)
+                    
+                    if target_files:
+                        # 同步到所有找到的目标文件
+                        for target_file in target_files:
+                            shutil.copy2(src_path, target_file)
+                            self.logger.info(f"🔄 {direction}: {src_path} -> {target_file}")
+                    else:
+                        self.logger.warning(f"⚠️  跳过: {filename} (在目标目录中未找到匹配文件)")
+                else:
+                    self.logger.warning(f"⚠️  源文件不存在: {src_path}")
+            
+            elif event_type == "deleted":
+                # 文件删除 - 我们不自动删除另一边的文件，只是记录
+                self.logger.info(f"🗑️  文件被删除: {src_path} (不会同步删除操作)")
+                
+        except Exception as e:
+            self.logger.error(f"❌ 同步失败 {src_path}: {str(e)}")
+    
+    def on_created(self, event):
+        """文件创建事件"""
+        if not event.is_directory:
+            self.sync_file(event.src_path, "created")
+    
+    def on_modified(self, event):
+        """文件修改事件"""
+        if not event.is_directory:
+            self.sync_file(event.src_path, "modified")
+    
+    def on_moved(self, event):
+        """文件移动事件"""
+        if not event.is_directory:
+            self.sync_file(event.dest_path, "moved")
+    
+    def on_deleted(self, event):
+        """文件删除事件"""
+        if not event.is_directory:
+            self.sync_file(event.src_path, "deleted")
+
+def setup_directories():
+    """设置监控目录"""
+    current_dir = Path.cwd()
+    
+    # 根据您的项目结构设置目录
+    source_dir = current_dir / "Sources" / "AiCube"
+    driver_dir = current_dir / "Sources" / "Drivers"
     
     # 确保目录存在
-    if not os.path.exists(sources_root):
-        print(f"错误: Sources目录不存在: {sources_root}")
-        return False
-        
-    if not os.path.exists(drivers_root):
-        print(f"错误: Drivers目录不存在: {drivers_root}")
-        return False
+    for directory in [source_dir, driver_dir]:
+        if not directory.exists():
+            print(f"警告: 目录不存在: {directory}")
+            directory.mkdir(parents=True, exist_ok=True)
+            print(f"已创建目录: {directory}")
     
-    # 获取Drivers目录下所有的.c和.h文件（包括子目录）
-    drivers_files = {}
-    for root, dirs, files in os.walk(drivers_root):
+    return source_dir, driver_dir
+
+def start_monitoring():
+    """开始监控和同步"""
+    source_dir, driver_dir = setup_directories()
+    
+    print("=" * 60)
+    print("🔍 开始实时双向文件同步监控")
+    print("=" * 60)
+    print(f"监控目录 1 (Source): {source_dir}")
+    print(f"监控目录 2 (Driver): {driver_dir}")
+    print(f"监控文件类型: {('.c', '.h')}")
+    print("=" * 60)
+    print("操作说明:")
+    print("  🔄 - 文件已同步")
+    print("  ⚠️  - 跳过同步 (目标目录无匹配文件)")
+    print("  🗑️  - 文件被删除 (仅记录)")
+    print("  ❌ - 同步失败")
+    print("=" * 60)
+    print("按 Ctrl+C 停止监控")
+    print("=" * 60)
+    
+    # 创建观察者
+    observer = Observer()
+    
+    # 为每个目录创建事件处理器
+    # 监控Source目录，同步到Driver
+    source_handler = TwoWaySyncHandler(source_dir, driver_dir)
+    observer.schedule(source_handler, str(source_dir), recursive=True)
+    
+    # 监控Driver目录，同步到Source
+    driver_handler = TwoWaySyncHandler(driver_dir, source_dir)
+    observer.schedule(driver_handler, str(driver_dir), recursive=True)
+    
+    # 开始监控
+    observer.start()
+    
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n🛑 停止监控...")
+        observer.stop()
+    
+    observer.join()
+    print("监控已停止")
+
+def initial_sync():
+    """初始同步 - 确保两边文件一致"""
+    source_dir, driver_dir = setup_directories()
+    
+    print("执行初始同步检查...")
+    
+    # 同步Source → Driver
+    sync_count = 0
+    for root, dirs, files in os.walk(source_dir):
         for file in files:
             if file.endswith(('.c', '.h')):
-                # 存储相对路径到Drivers根目录的映射
-                rel_path = os.path.relpath(os.path.join(root, file), drivers_root)
-                drivers_files[file] = {
-                    'rel_path': rel_path,
-                    'src_path': os.path.join(root, file)
-                }
+                source_file = Path(root) / file
+                target_files = find_matching_files(file, driver_dir)
+                
+                for target_file in target_files:
+                    shutil.copy2(source_file, target_file)
+                    print(f"🔁 初始同步: {source_file} -> {target_file}")
+                    sync_count += 1
     
-    if not drivers_files:
-        print("警告: Drivers目录下没有找到.c或.h文件")
-        return False
-    
-    print(f"在Drivers目录中找到 {len(drivers_files)} 个.c/.h文件:")
-    for filename in drivers_files:
-        print(f"  - {filename} (位置: {drivers_files[filename]['rel_path']})")
-    print()
-    
-    # 在Sources目录中查找匹配的文件
-    files_copied = 0
-    files_skipped = 0
-    
-    for root, dirs, files in os.walk(sources_root):
+    # 同步Driver → Source
+    for root, dirs, files in os.walk(driver_dir):
         for file in files:
             if file.endswith(('.c', '.h')):
-                if file in drivers_files:
-                    # 构建源文件路径和目标文件路径
-                    source_file = os.path.join(root, file)
-                    target_rel_path = drivers_files[file]['rel_path']
-                    target_file = os.path.join(drivers_root, target_rel_path)
-                    
-                    # 确保目标目录存在
-                    target_dir = os.path.dirname(target_file)
-                    if not os.path.exists(target_dir):
-                        os.makedirs(target_dir)
-                    
-                    try:
-                        # 复制文件
-                        shutil.copy2(source_file, target_file)
-                        files_copied += 1
-                        print(f"✓ 已复制: {source_file} -> {target_file}")
-                    except Exception as e:
-                        print(f"✗ 复制失败 {source_file} -> {target_file}: {e}")
-                else:
-                    files_skipped += 1
+                driver_file = Path(root) / file
+                target_files = find_matching_files(file, source_dir)
+                
+                for target_file in target_files:
+                    shutil.copy2(driver_file, target_file)
+                    print(f"🔁 初始同步: {driver_file} -> {target_file}")
+                    sync_count += 1
     
-    print(f"\n操作完成:")
-    print(f"  - 已复制文件: {files_copied} 个")
-    print(f"  - 跳过文件: {files_skipped} 个 (Drivers中没有同名文件)")
-    
-    return True
+    print(f"初始同步完成，共同步 {sync_count} 个文件")
+
+def find_matching_files(filename, search_dir):
+    """查找匹配的文件"""
+    matching_files = []
+    for root, dirs, files in os.walk(search_dir):
+        if filename in files:
+            matching_files.append(Path(root) / filename)
+    return matching_files
 
 if __name__ == "__main__":
-    # 根据图片中的目录结构设置路径
-    # 假设脚本运行在SOFTWARE目录下
-    current_dir = os.getcwd()
+    # 安装依赖: pip install watchdog
     
-    # Sources目录路径 (根据图片，这是包含inc和lib的目录)
-    # 注意: 图片中Sources目录下还有一个Sources子目录，但不确定具体结构
-    # 这里假设从最顶层的Sources开始搜索
-    sources_dir = os.path.join(current_dir, "Sources\\AiCube")
+    print("双向文件同步监控工具")
+    print("1. 执行初始同步 + 开始监控")
+    print("2. 仅开始监控")
+    print("3. 仅执行初始同步")
     
-    # Drivers目录路径
-    drivers_dir = os.path.join(current_dir, "Sources\\Drivers")
+    choice = input("请选择操作 (1-3, 默认1): ").strip() or "1"
     
-    print("开始复制匹配的.c/.h文件...")
-    print(f"Sources目录: {sources_dir}")
-    print(f"Drivers目录: {drivers_dir}")
-    print("-" * 50)
+    if choice in ["1", "3"]:
+        initial_sync()
     
-    if copy_matching_files(sources_dir, drivers_dir):
-        print("\n所有匹配的文件已成功更新！")
-    else:
-        print("\n操作失败，请检查目录结构和权限。")
-        sys.exit(1)
+    if choice in ["1", "2"]:
+        start_monitoring()

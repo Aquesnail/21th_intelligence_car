@@ -5,7 +5,7 @@
 // 文件描述: 
 // 文件版本: V1.0
 // 修改记录:
-//   1. (2026-01-17) 创建文件
+//   1. (2026-01-18) 创建文件
 ////////////////////////////////////////
 //<<AICUBE_USER_HEADER_REMARK_END>>
 
@@ -39,7 +39,7 @@ void UART5_Init(void)
 #define BAUDRATE                (115200)
 #define T2_RELOAD               (65536 - (SYSCLK / BAUDRATE + 2) / 4)
 
-    UART5_SwitchP2021();                //设置串口数据端口: RxD5 (P2.0), TxD5 (P2.1)
+    UART5_SwitchP0405();                //设置串口数据端口: RxD5 (P0.4), TxD5 (P0.5)
 
     UART5_Timer2BRT();                  //选择定时器2作为串口5波特率发生器
     TIMER2_TimerMode();                 //设置定时器2为定时模式
@@ -73,7 +73,7 @@ void UART5_Init(void)
     DMA_UART5_SetInterval(0);           //设置串口DMA发送/接收字节间隔时间（系统时钟）
     DMA_UART5_ClearFIFO();              //清空串口DMA接收FIFO缓冲区
     DMA_UART5_ClearRxFlag();            //清除串口接收DMA中断标志
-    DMA_UART5_SetRxBusPriority(1);      //设置总线访问为较低优先级
+    DMA_UART5_SetRxBusPriority(0);      //设置总线访问为最低优先级
     DMA_UART5_SetRxIntPriority(0);      //设置中断为最低优先级
     DMA_UART5_EnableRxInt();            //使能串口5DMA接收中断
     DMA_UART5_EnableRx();               //使能串口5DMA接收功能
@@ -145,7 +145,10 @@ void DMA_UART5RX_ISR(void) interrupt DMA_UR5R_VECTOR
 
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_BEGIN>>
-// 在此添加用户函数实现代码  
+uint8_t UART5_Write(char* str,uint16_t len){
+	return 0;
+
+}
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_END>>
 
 

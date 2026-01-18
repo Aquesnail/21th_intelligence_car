@@ -584,6 +584,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Comm\stc32g144k246_def.h</FilePath>
             </File>
+            <File>
+              <FileName>ringbuffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Comm\ringbuffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>ringbuffer.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Comm\ringbuffer.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -633,6 +643,26 @@
               <FileName>port.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\port.h</FilePath>
+            </File>
+            <File>
+              <FileName>dma_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\dma_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>dma_uart.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\dma_uart.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Apptest</GroupName>
+          <Files>
+            <File>
+              <FileName>app_uart_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_uart_test.c</FilePath>
             </File>
           </Files>
         </Group>
