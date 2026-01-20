@@ -3,11 +3,14 @@
 #include "config.h"
 #include "application.h"
 #include "port.h"
+#include "clock.h"
 
 void sys_init(void);
 void main(){
-	  EAXFR = 1; //扩展寄存器(XFR)访问使能
-		CKCON = 0; //提高访问XRAM速
+	  EnableAccessXFR();                  //??????XFR
+    AccessCodeFastest();                //????????????
+    AccessIXramFastest();               //??????????XDATA
+    IAP_SetTimeBase();                  //??IAP????,??1us??
 	
 		sys_init();
 		app_init();
@@ -28,4 +31,5 @@ void sys_init(void){
 	PORT9_Init();
 	PORTA_Init();
 	PORTB_Init();
+	CLK_Init();    
 }

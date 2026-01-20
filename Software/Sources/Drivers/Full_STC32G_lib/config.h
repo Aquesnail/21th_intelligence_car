@@ -19,7 +19,7 @@
 
 
 #define HIRC                    48000000UL
-#define FOSC                    48000000UL
+#define FOSC                    90000000UL
 #define SYSCLK                  FOSC
 #define MAIN_Fosc               FOSC
 
@@ -46,6 +46,7 @@
 #include "uart.h"
 #include "pwm.h"
 #include "mathlib.h"
+#include "crc.h"
 
 void SYS_Init(void);
 void delay_us(uint16_t us);

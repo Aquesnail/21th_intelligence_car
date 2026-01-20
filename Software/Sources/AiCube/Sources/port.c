@@ -79,7 +79,8 @@ void PORT1_Init(void)
 void PORT2_Init(void)
 {
     SetP2nInitLevelHigh(PIN_ALL);       //设置P2初始化电平
-    SetP2nQuasiMode(PIN_ALL);           //设置P2为无弱上拉准双向口模式
+    SetP2nQuasiMode(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_3 | PIN_2); //设置P2.7,P2.6,P2.5,P2.4,P2.3,P2.2为无弱上拉准双向口模式
+    SetP2nPushPullMode(PIN_1 | PIN_0);  //设置P2.1,P2.0为推挽输出模式
 
     DisableP2nPullUp(PIN_ALL);          //关闭P2内部上拉电阻
     DisableP2nPullDown(PIN_ALL);        //关闭P2内部下拉电阻

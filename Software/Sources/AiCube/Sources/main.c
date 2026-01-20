@@ -83,6 +83,7 @@ void SYS_Init(void)
     UART5_Init();                       //串口5初始化
     PWMA_Init();                        //高级PWMA初始化
     MATHLIB_Init();                     //MATH库初始化
+    CRC_Init();                         //CRC初始化
 
     //<<AICUBE_USER_INITIAL_CODE_BEGIN>>
     // 在此添加用户初始化代码  
@@ -101,7 +102,8 @@ void delay_us(uint16_t us)
     do
     {
         NOP(40);
-        NOP(2);                         //(MAIN_Fosc + 500000) / 1000000 - 6
+        NOP(40);
+        NOP(4);                         //(MAIN_Fosc + 500000) / 1000000 - 6
     } while (--us);
 }
 

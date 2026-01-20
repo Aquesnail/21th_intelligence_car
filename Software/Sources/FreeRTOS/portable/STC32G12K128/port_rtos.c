@@ -37,7 +37,7 @@
 
 /* Constants required to setup the tick ISR. */
 
-#define portRELOAD_VALUE                    ( 65536 - configCPU_CLOCK_HZ / configTICK_RATE_HZ )
+#define portRELOAD_VALUE                    ( 65536 - configCPU_CLOCK_HZ / configTICK_RATE_HZ / 45 )
 
 
 static StackType_t data xPCL;
@@ -218,6 +218,7 @@ static void prvPortSetupTimerInterrupt( void )
     /* Timer0 work at mode0 (16-bit auto reload mode) */
     TMOD &= ~0x0f;
 
+    TM0PS = 45 - 1;
     /* Initial timer0 reload value (1ms per cycle). */
     TL0 = ( uint8_t )( portRELOAD_VALUE );
     TH0 = ( uint8_t )( portRELOAD_VALUE >> 8 );

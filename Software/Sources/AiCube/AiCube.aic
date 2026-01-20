@@ -192,7 +192,7 @@
 	<PORT2>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
-		<PortMD_0>0</PortMD_0>
+		<PortMD_0>1</PortMD_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -202,7 +202,7 @@
 		<PortIE_0>0</PortIE_0>
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
-		<PortMD_1>0</PortMD_1>
+		<PortMD_1>1</PortMD_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -1035,31 +1035,31 @@
 		<HIRCFrequency>48000000</HIRCFrequency>
 		<HIRCSource>1</HIRCSource>
 		<HIRCPreset>4</HIRCPreset>
-		<EnableXOSC>0</EnableXOSC>
+		<EnableXOSC>1</EnableXOSC>
 		<XOSCFrequency>24000000</XOSCFrequency>
-		<XOSCType>0</XOSCType>
+		<XOSCType>1</XOSCType>
 		<XOSCGain>0</XOSCGain>
 		<EnableLIRC>0</EnableLIRC>
 		<EnableX32K>0</EnableX32K>
 		<EnableIRC48M>1</EnableIRC48M>
 		<EnableHPLL1>1</EnableHPLL1>
-		<HPLL1ClockSource>1</HPLL1ClockSource>
-		<HPLL1ClockInDivider>8</HPLL1ClockInDivider>
-		<HPLL1ClockOutSel>0</HPLL1ClockOutSel>
-		<HPLL1Frequency>312000000</HPLL1Frequency>
+		<HPLL1ClockSource>0</HPLL1ClockSource>
+		<HPLL1ClockInDivider>4</HPLL1ClockInDivider>
+		<HPLL1ClockOutSel>4</HPLL1ClockOutSel>
+		<HPLL1Frequency>360000000</HPLL1Frequency>
 		<EnableHPLL2>1</EnableHPLL2>
 		<HPLL2ClockSource>1</HPLL2ClockSource>
 		<HPLL2ClockInDivider>8</HPLL2ClockInDivider>
-		<HPLL2ClockOutSel>0</HPLL2ClockOutSel>
-		<HPLL2Frequency>312000000</HPLL2Frequency>
-		<MCLKClockSource>0</MCLKClockSource>
-		<BASEClockSource>0</BASEClockSource>
-		<MCLKDivider>1</MCLKDivider>
-		<SYSCLKFrequency>48000000</SYSCLKFrequency>
+		<HPLL2ClockOutSel>4</HPLL2ClockOutSel>
+		<HPLL2Frequency>360000000</HPLL2Frequency>
+		<MCLKClockSource>4</MCLKClockSource>
+		<BASEClockSource>1</BASEClockSource>
+		<MCLKDivider>2</MCLKDivider>
+		<SYSCLKFrequency>90000000</SYSCLKFrequency>
 		<EnableMCLKO>1</EnableMCLKO>
-		<MCLKOClockSource>0</MCLKOClockSource>
-		<MCLKODivider>12</MCLKODivider>
-		<MCLKOPort>-1</MCLKOPort>
+		<MCLKOClockSource>1</MCLKOClockSource>
+		<MCLKODivider>45</MCLKODivider>
+		<MCLKOPort>0</MCLKOPort>
 		<HSIOClockSource>0</HSIOClockSource>
 		<HSI2SClockSource>0</HSI2SClockSource>
 		<HSSPI1Divider>1</HSSPI1Divider>
@@ -3519,7 +3519,7 @@
 		<TFPUCLockSource>0</TFPUCLockSource>
 	</MATHLIB>
 	<CRC>
-		<PeriEnable>0</PeriEnable>
+		<PeriEnable>1</PeriEnable>
 		<Mode>0</Mode>
 		<INVOUT>0</INVOUT>
 		<REVIN>1</REVIN>

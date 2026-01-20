@@ -1,107 +1,286 @@
 #include "debug_arch.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "event_groups.h" // 务必在 FreeRTOSConfig.h 中启用 Event Groups
 #include <string.h>
 #include <stdio.h>
 
+
 #pragma warning disable = 138
 
-// 调试对象定义
+/* ================= 配置与定义 ================= */
+#define MAX_DEBUG_VARS  16
+#define TX_BUF_SIZE     80  // 统一发送缓冲区
+#define RX_BUF_SIZE     64  // 接收缓冲区
+
+// 协议常量
+#define CMD_HANDSHAKE   0x00
+#define CMD_WRITE       0x55
+#define CMD_REGISTER    0x56
+#define CMD_TEXT        0x57
+
+// RTOS 事件位
+#define EVT_CONNECTED   (1 << 0) // Bit 0: 上位机已连接
+
+/* ================= 类型定义 ================= */
+
 typedef struct {
-    char name[12];
-    uint8_t type; 
-    void* addr;
+    char name[11];      // 10 chars + \0
+    uint8_t type;       // VarType_t
+    void* addr;         // 4字节指针
 } DebugObj_t;
 
-static DebugObj_t xdata debugTable[8];
+/* ================= 静态变量 ================= */
+static DebugObj_t debugTable[MAX_DEBUG_VARS];
 static uint8_t debugVarCount = 0;
-static uint8_t xdata txPkt[12]; // 增加到12字节以容纳 CRC16
+static uint8_t txPkt[TX_BUF_SIZE]; // 统一发送缓冲
 
+// RTOS 句柄
+static EventGroupHandle_t xDebugEventGroup = NULL;
+
+/* ================= 外部回调 ================= */
+extern void Debug_OnTextReceived(char* str, uint8_t len);
+
+/* ================= 核心工具函数 ================= */
+static uint16_t Debug_Arch_CRC16(uint8_t *pData, uint16_t len) {
+    uint16_t crc_res;
+    taskENTER_CRITICAL();
+    CRC_CR = 0x83; 
+    CRC_SetInitial16(0xFFFF);
+    while(len--) {
+        CRC_DIN = *pData++;
+    }
+    crc_res = ((uint16_t)CRC_DOH << 8) | CRC_DOL;
+    taskEXIT_CRITICAL();
+    return crc_res;
+}
+
+// 串口写入封装
+static void Debug_Arch_Write(uint8_t *pData, uint16_t len) {
+    UART5_Write((char *)pData, len);
+}
+
+// 串口读取封装
+static uint16_t Debug_Arch_Read(uint8_t *pData, uint16_t len) {
+    return UART5_Read((char *)pData, len);
+}
+// 获取类型长度
+static uint8_t GetTypeSize(uint8_t type) {
+    switch(type) {
+        case DBG_UINT8: case DBG_INT8: return 1;
+        case DBG_UINT16: case DBG_INT16: return 2;
+        case DBG_UINT32: case DBG_INT32: case DBG_FLOAT: return 4;
+        default: return 0;
+    }
+}
+
+/**
+ * @brief [核心精简] 通用发送函数
+ * @param id   Packet ID (0x00-0x0F:变量, 0xFE:元数据, 0xFF:日志, 0xFD:握手)
+ * @param type Packet Type (用于变量/日志类型，握手时填0)
+ * @param payload 指向数据负载
+ * @param len  负载长度
+ */
+static void Debug_TxCore(uint8_t id, uint8_t type, uint8_t *payload, uint8_t len) {
+    uint16_t crc;
+    uint8_t pktLen = 4 + len; // Head(1)+ID(1)+Type(1)+Len(1) + Payload(n)
+
+    // 1. 组包头
+    txPkt[0] = 0xAA;
+    txPkt[1] = id;
+    txPkt[2] = type;
+    txPkt[3] = len;
+
+    // 2. 拷贝负载
+    if(len > 0 && payload != NULL) {
+        memcpy(&txPkt[4], payload, len);
+    }
+
+    // 3. 计算 CRC (范围: ID ~ Payload结束)
+    crc = Debug_Arch_CRC16(&txPkt[1], pktLen - 1);
+
+    // 4. 填充 CRC
+    txPkt[pktLen]     = (uint8_t)(crc >> 8);
+    txPkt[pktLen + 1] = (uint8_t)(crc & 0xFF);
+
+    // 5. 发送
+    Debug_Arch_Write(txPkt, pktLen + 2);
+}
+
+/* ================= 业务发送函数 ================= */
+
+// 发送元数据 (ID=0xFE)
+static void Debug_SendMetaPacket(uint8_t id) {
+    uint8_t buf[16]; // 临时组装 [ID][Type][Addr4][Name10]
+    if(id >= debugVarCount) return;
+
+    buf[0] = id;
+    buf[1] = debugTable[id].type;
+    memcpy(&buf[2], &debugTable[id].addr, 4); // C251 4字节指针拷贝
+    memset(&buf[6], 0, 10);
+    strncpy((char*)&buf[6], debugTable[id].name, 10);
+
+    Debug_TxCore(0xFE, 0xFF, buf, 16);
+}
+
+// 发送变量值 (ID=0..N)
+static void Debug_SendValuePacket(uint8_t id) {
+    uint8_t len = GetTypeSize(debugTable[id].type);
+    if(len > 0) {
+        Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+    }
+}
+
+// 发送日志 (ID=0xFF)
+void Debug_Log(char* str) {
+    uint8_t len = strlen(str);
+    if(len > 60) len = 60;
+    Debug_TxCore(0xFF, DBG_STRING, (uint8_t*)str, len);
+}
+
+/* ================= 注册与接收逻辑 ================= */
+
+// 注册变量
 void Debug_Register(char* name, uint8_t type, void* addr) {
-    if(debugVarCount < 8) {
-        strncpy(debugTable[debugVarCount].name, name, 11);
+    if(debugVarCount < MAX_DEBUG_VARS) {
+        memset(debugTable[debugVarCount].name, 0, 11);
+        strncpy(debugTable[debugVarCount].name, name, 10);
         debugTable[debugVarCount].type = type;
         debugTable[debugVarCount].addr = addr;
         debugVarCount++;
     }
 }
 
-/* --- 上行：发送带 CRC16 的二进制包 --- */
-static void Debug_SendBinary(uint8_t id) {
-    uint8_t i, len;
-    uint16_t crc;
-    uint8_t* pData = (uint8_t*)debugTable[id].addr;
-    
-    if(debugTable[id].type == 0) len = 1;
-    else if(debugTable[id].type == 1) len = 2;
-    else len = 4;
-
-    txPkt[0] = 0xAA; // 帧头
-    txPkt[1] = id;
-    txPkt[2] = len;
-    
-    // 拷贝数据
-    for(i = 0; i < len; i++) {
-        txPkt[3+i] = pData[i];
-    }
-
-    // 计算 CRC16 (计算范围: 从 ID 到数据结束)
-    crc = Debug_Arch_CRC16(&txPkt[1], 2 + len);
-    
-    txPkt[3+len] = (uint8_t)(crc >> 8);   // CRC 高位
-    txPkt[4+len] = (uint8_t)(crc & 0xFF); // CRC 低位
-    
-    Debug_Arch_Write(txPkt, 5 + len);
-}
-
-/* --- 下行：处理带 CRC16 的修改指令 --- */
+// [核心精简] 统一接收处理
 static void Debug_ProcessIncoming(void) {
-    uint8_t rxBuf[12];
+    uint8_t rxBuf[RX_BUF_SIZE];
     uint16_t crc_calc, crc_recv;
-    uint8_t id, len, i;
-    uint8_t* pTarget;
+    uint8_t cmd, len;
+		uint8_t i;
+		uint8_t id;
+		uint8_t vLen;
+        volatile uint8_t *ptr;
+        char logbuf[32];
+    // 1. 预读头部 [0x55] [CMD] [LEN]
+    if(Debug_Arch_Read(rxBuf, 3) == 3) {
+        if(rxBuf[0] != 0x55) return;
+        
+        cmd = rxBuf[1];
+        len = rxBuf[2];
+        if(len > RX_BUF_SIZE - 5) return; // 保护
 
-    // 探测下行帧头 0x55
-    if(Debug_Arch_Read(rxBuf, 1) > 0 && rxBuf[0] == 0x55) {
-        // 读取 ID 和长度
-        if(Debug_Arch_Read(&rxBuf[1], 2) == 2) {
-            id = rxBuf[1];
-            len = rxBuf[2];
+        // 2. 读取 [Payload...] + [CRC(2)]
+        if(Debug_Arch_Read(&rxBuf[3], len + 2) == (len + 2)) {
             
-            // 接收剩余负载 (Data + 2字节CRC)
-            if(id < debugVarCount && Debug_Arch_Read(&rxBuf[3], len + 2) == (len + 2)) {
-                // 计算 CRC
-                crc_calc = Debug_Arch_CRC16(&rxBuf[1], 2 + len);
-                crc_recv = ((uint16_t)rxBuf[3+len] << 8) | rxBuf[4+len];
-                
-                if(crc_calc == crc_recv) {
-                    // 校验通过，写入内存
-                    pTarget = (uint8_t*)debugTable[id].addr;
-                    for(i = 0; i < len; i++) {
-                        pTarget[i] = rxBuf[3+i];
+            // 3. 校验 CRC (范围: CMD, LEN, Payload)
+            crc_calc = Debug_Arch_CRC16(&rxBuf[1], len + 2);
+            crc_recv = ((uint16_t)rxBuf[3+len] << 8) | rxBuf[4+len];
+
+            if(crc_calc != crc_recv) return;
+
+            // 4. 命令分发
+            switch(cmd) {
+                // ---> 握手请求 (Payload: 4 Bytes Magic)
+                case CMD_HANDSHAKE:
+                    if(len == 4) {
+                        // 回复 Pong (ID=0xFD)
+                        Debug_TxCore(0xFD, 0x00, &rxBuf[3], 4);
+                        
+                        // RTOS 事件组：标记连接并触发元数据发送
+                        if((xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) == 0) {
+                            xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
+                            vTaskDelay(pdMS_TO_TICKS(10)); // 防止突发
+                            // 首次连接，发送所有元数据
+                            for(i=0; i<debugVarCount; i++) {
+                                Debug_SendMetaPacket(i);
+                                vTaskDelay(pdMS_TO_TICKS(5)); // 防止突发
+                            }
+                        }
                     }
-                }
+                    break;
+
+                // ---> 写变量 (Payload: ID, Len, Data...)
+                case CMD_WRITE:
+                    {
+                        id = rxBuf[3]; 
+                        vLen = rxBuf[4];
+                        if(id < debugVarCount) {
+                            // 直接内存拷贝修改
+                            taskENTER_CRITICAL();
+                            //memcpy(debugTable[id].addr, &rxBuf[5], vLen);
+							ptr = (uint8_t *)(debugTable[id].addr);
+                            ptr[0] = rxBuf[5];
+                            if(vLen > 1) ptr[1] = rxBuf[6];
+                            if(vLen > 2) ptr[2] = rxBuf[7];
+                            if(vLen > 3) ptr[3] = rxBuf[8];
+                            sprintf(logbuf, "Wr Addr: %p", debugTable[id].addr); // %p 在 C251 会打印类型和偏移
+Debug_Log(logbuf);
+                            taskEXIT_CRITICAL();
+                        }
+                    }
+                    break;
+
+                // ---> 动态注册 (Payload: Type, Addr4, Name10)
+                case CMD_REGISTER:
+                    if(len == 15 && debugVarCount < MAX_DEBUG_VARS) {
+                        debugTable[debugVarCount].type = rxBuf[3];
+                        memcpy(&debugTable[debugVarCount].addr, &rxBuf[4], 4);
+                        memset(debugTable[debugVarCount].name, 0, 11);
+                        strncpy(debugTable[debugVarCount].name, (char*)&rxBuf[8], 10);
+                        
+                        // 注册成功，补发 Meta
+                        Debug_SendMetaPacket(debugVarCount);
+                        debugVarCount++;
+                    }
+                    break;
+
+                // ---> 文本传输
+                case CMD_TEXT:
+                    rxBuf[3+len] = '\0'; // 安全截断
+                    Debug_OnTextReceived((char*)&rxBuf[3], len);
+                    break;
             }
         }
     }
 }
 
+/* ================= 任务主体 ================= */
+
 void vDebugTask(void *pvParameters) {
     uint8_t i;
-    char xdata msg[32];
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS(100); // 10Hz 发送频率
+    
     (void)pvParameters;
 
-    // 宣告阶段
-    Debug_Arch_Write((uint8_t*)"META_START\r\n", 12);
-    for(i = 0; i < debugVarCount; i++) {
-        sprintf(msg, "ID:%bu,N:%s,T:%bu\r\n", i, debugTable[i].name, debugTable[i].type);
-        Debug_Arch_Write((uint8_t*)msg, strlen(msg));
-    }
-    Debug_Arch_Write((uint8_t*)"META_END\r\n", 10);
+    // 1. 初始化事件组
+    xDebugEventGroup = xEventGroupCreate();
+    xEventGroupClearBits(xDebugEventGroup, EVT_CONNECTED);
+
+    // 初始化时间戳
+    xLastWakeTime = xTaskGetTickCount();
 
     for(;;) {
-        for(i = 0; i < debugVarCount; i++) {
-            Debug_SendBinary(i);
-        }
+        // A. 快速处理接收指令 (Poll)
         Debug_ProcessIncoming();
-        vTaskDelay(pdMS_TO_TICKS(100)); 
+        
+        // 这里的延时决定了对下行指令的响应速度
+        // 20ms 的延时意味着每秒检查 50 次指令，足够流畅
+        vTaskDelay(pdMS_TO_TICKS(20)); 
+
+        // B. 周期性发送数据 (Time Slicing)
+        // 检查是否距离上次发送超过了 100ms
+        if ((xTaskGetTickCount() - xLastWakeTime) >= xFrequency) {
+            xLastWakeTime = xTaskGetTickCount(); // 更新基准时间
+
+            // 检查连接状态
+            if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) {
+                for(i = 0; i < debugVarCount; i++) {
+                    Debug_SendValuePacket(i);
+                    // 给 DMA 一点点喘息时间，避免环形缓冲溢出
+                    vTaskDelay(pdMS_TO_TICKS(2)); 
+                }
+            }
+        }
     }
 }

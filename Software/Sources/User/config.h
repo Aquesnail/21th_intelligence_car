@@ -17,12 +17,11 @@
 
 #define __ENCODING              "UTF-8" //DO NOT DELETE or MODIFY
 
-
 #define HIRC                    48000000UL
-#define FOSC                    48000000UL
-#define MAIN_Fosc               FOSC
+#define FOSC                    90000000UL
 #define SYSCLK                  FOSC
 #define MAIN_Fosc               FOSC
+
 
 #include <stc32g144k246.h>
 #include <stdio.h>

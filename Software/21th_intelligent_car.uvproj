@@ -640,11 +640,6 @@
               <FilePath>.\Sources\Drivers\stc32_fpmu_large.lib</FilePath>
             </File>
             <File>
-              <FileName>STC32_MDU32_LARGE.LIB</FileName>
-              <FileType>4</FileType>
-              <FilePath>.\Sources\Drivers\STC32_MDU32_LARGE.LIB</FilePath>
-            </File>
-            <File>
               <FileName>port.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Drivers\port.c</FilePath>
@@ -664,6 +659,36 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\dma_uart.h</FilePath>
             </File>
+            <File>
+              <FileName>delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\delay.c</FilePath>
+            </File>
+            <File>
+              <FileName>delay.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\delay.h</FilePath>
+            </File>
+            <File>
+              <FileName>crc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\crc.c</FilePath>
+            </File>
+            <File>
+              <FileName>crc.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\crc.h</FilePath>
+            </File>
+            <File>
+              <FileName>clock.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\clock.c</FilePath>
+            </File>
+            <File>
+              <FileName>clock.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\clock.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -673,6 +698,16 @@
               <FileName>app_uart_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_uart_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_debug_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_debug_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_clk_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_clk_test.c</FilePath>
             </File>
           </Files>
         </Group>
