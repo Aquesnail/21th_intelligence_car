@@ -9,6 +9,9 @@
 #define DEBUG_TASK_STACK_SIZE 512
 #define DEBUG_TASK_PRIORITY (tskIDLE_PRIORITY + 2 )
 
+#pragma warning disable = 138
+#pragma warning disable = 47
+
 TaskHandle_t xDebugTaskHandle = NULL;
 TaskHandle_t xDebugTaskHandle2 = NULL;
 SemaphoreHandle_t xRegistrationSemaphore = NULL;
@@ -95,9 +98,13 @@ void vTestLoopTask(void *pvParameters) {
     (void)pvParameters;
 
     // 1. [启动注册] 注册部分变量，故意漏掉 hidden_secret
-    Debug_Register("Counter", DBG_UINT16, &test_counter);
-    Debug_Register("SineWave", DBG_FLOAT, &test_sine);
-    Debug_Register("Control", DBG_UINT8, &target_val);
+    Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
+    Debug_Register("SineWave", DBG_FLOAT|HIGH_FREQ_TYPE, &test_sine);
+    Debug_Register("Control", DBG_UINT8|LOW_FREQ_TYPE, &target_val);
+		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
+		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
+		Debug_Register("Counter", DBG_UINT16|HIGH_FREQ_TYPE, &test_counter);
+		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
 
     xSemaphoreGive(xRegistrationSemaphore);
     // 2. [重要] 打印隐藏变量的物理地址
@@ -131,6 +138,6 @@ void vTestLoopTask(void *pvParameters) {
       //      UART5_Write((uint8_t*)info, strlen(info));
        // }
 
-        vTaskDelay(pdMS_TO_TICKS(500)); // 100ms 更新一次
+        vTaskDelay(pdMS_TO_TICKS(5)); // 100ms 更新一次
     }
 }

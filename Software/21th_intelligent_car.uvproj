@@ -325,11 +325,6 @@
           <GroupName>User Sources</GroupName>
           <Files>
             <File>
-              <FileName>FreeRTOSConfig.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\User\FreeRTOSConfig.h</FilePath>
-            </File>
-            <File>
               <FileName>application.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\User\application.c</FilePath>
@@ -348,11 +343,6 @@
               <FileName>params.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\User\params.h</FilePath>
-            </File>
-            <File>
-              <FileName>config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\User\config.h</FilePath>
             </File>
             <File>
               <FileName>main.c</FileName>
@@ -604,6 +594,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Comm\ringbuffer.h</FilePath>
             </File>
+            <File>
+              <FileName>config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Comm\config.h</FilePath>
+            </File>
+            <File>
+              <FileName>FreeRTOSConfig.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Comm\FreeRTOSConfig.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -688,6 +688,26 @@
               <FileName>clock.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\clock.h</FilePath>
+            </File>
+            <File>
+              <FileName>pwm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\pwm.c</FilePath>
+            </File>
+            <File>
+              <FileName>pwm.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\pwm.h</FilePath>
+            </File>
+            <File>
+              <FileName>ws2812.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\ws2812.c</FilePath>
+            </File>
+            <File>
+              <FileName>ws2812.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\ws2812.h</FilePath>
             </File>
           </Files>
         </Group>

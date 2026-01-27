@@ -82,6 +82,7 @@ void SYS_Init(void)
     IAP_Init();                         //EEPROM初始化
     UART5_Init();                       //串口5初始化
     PWMA_Init();                        //高级PWMA初始化
+    PWME_Init();                        //高级PWME初始化
     MATHLIB_Init();                     //MATH库初始化
     CRC_Init();                         //CRC初始化
 
@@ -103,7 +104,7 @@ void delay_us(uint16_t us)
     {
         NOP(40);
         NOP(40);
-        NOP(4);                         //(MAIN_Fosc + 500000) / 1000000 - 6
+        NOP(34);                        //(MAIN_Fosc + 500000) / 1000000 - 6
     } while (--us);
 }
 

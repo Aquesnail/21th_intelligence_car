@@ -13,8 +13,8 @@ void app_init(void){
     UART5_Init(); 
     CRC_Init();
     //App_UartTest_Init();
-	  App_DebugTask_Init();
-	  //APP_CLK_TEST_Init();
+ App_DebugTask_Init();
+	APP_CLK_TEST_Init();
     vTaskStartScheduler();
 
 }

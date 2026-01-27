@@ -19,7 +19,11 @@ typedef enum {
     DBG_STRING = 7
 } VarType_t;
 
+#define DataType_Msk    0x0F
+#define FreqType_Msk    0x10
 
+#define HIGH_FREQ_TYPE 0x10
+#define LOW_FREQ_TYPE  0x00
 void vDebugTask(void *pvParameters);
 void Debug_Register(char* name, uint8_t type, void* addr);
 void Debug_Log(char*str);
