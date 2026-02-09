@@ -19,7 +19,7 @@
 
 
 #define HIRC                    48000000UL
-#define FOSC                    90000000UL
+#define FOSC                    120000000UL
 #define SYSCLK                  FOSC
 #define MAIN_Fosc               FOSC
 

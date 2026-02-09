@@ -268,7 +268,7 @@ def send_register_cmd(ser, mem_type, address_u24, name, var_type):
     # 1. 构建核心负载
     inner_payload = bytearray()
     inner_payload.append(var_type)  # Type
-    inner_payload.append(mem_type)            
+    #inner_payload.append(mem_type)            
     inner_payload.append((address_u24 >> 16) & 0xFF)
     inner_payload.append((address_u24 >> 8) & 0xFF)
     inner_payload.append(address_u24 & 0xFF)

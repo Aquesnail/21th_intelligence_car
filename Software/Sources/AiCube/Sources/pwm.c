@@ -14,7 +14,7 @@
 
 
 //<<AICUBE_USER_INCLUDE_BEGIN>>
-// 在此添加用户头文件包含  
+#include "pwm.h" 
 //<<AICUBE_USER_INCLUDE_END>>
 
 
@@ -23,6 +23,7 @@
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
+uint8_t xdata pu8PWMEDMATxBuffer[12];   //PWMEDMA发送缓冲区数组
 
 ////////////////////////////////////////
 // PWMA初始化函数
@@ -36,27 +37,19 @@ void PWMA_Init(void)
 
     HSPWMA_Disable();                   //关闭高速模式，使用同步方式进行初始化
     PWMA_InternalClockMode();           //选择内部时钟模式
-    PWMA_SetClockDivider(499);          //设置16位预分频
+    PWMA_SetClockDivider(11999);        //设置16位预分频
     PWMA_SetReload16(999);              //设置16位重载值
-    PWMA_UnbufferARR();                 //关闭重载值寄存器预装载功能
+    PWMA_BufferARR();                   //使能重载值寄存器预装载功能
     PWMA_SetCounter(0);                 //初始化计数值
-    PWMA_SetDeadTime(0);                //设置死区时间为：无死区
-    PWMA_EdgeAlignMode();               //设置计数器计数为边沿对齐模式
-    PWMA_UpCounter();                   //设置计数方向为向上计数
-    PWMA_ContinueMode();                //设置计数器为连续计数模式
-    PWMA_SetRepeatCounter(0);           //设置重复计数次数
-    PWMA_EnableUpdate();                //使能更新事件
-    PWMA_UpdateRequestMode2();          //更新事件选择模式2
 
     PWMA_CC3PDisable();                 //关闭通道
     PWMA_CC3Output();                   //使能通道输出功能
     PWMA_CC3PEnable();                  //打开通道
     PWM_UpdateDuty(PWMA_CH3, 500);      //设置通道的PWM占空比
     PWMA_OC3REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
-    PWMA_DisableOC3FastMode();          //关闭通道快速输出
-    PWMA_UnbufferCCR3();                //关闭CCRn预装载功能
-    PWMA_DisableETRFClearOC3REF();      //通道输出不受ETI信号影响
-    PWMA_DisablePWM3POutput();          //关闭正极通道输出
+    PWMA_BufferCCR3();                  //使能CCRn预装载功能
+    PWMA_CC3PNonInverted();             //设置正极通道输出高电平有效
+    PWMA_EnablePWM3POutput();           //使能正极通道输出
     PWMA_DisablePWM3NOutput();          //关闭负极通道输出
 
     PWMA_CC4PDisable();                 //关闭通道
@@ -64,30 +57,66 @@ void PWMA_Init(void)
     PWMA_CC4PEnable();                  //打开通道
     PWM_UpdateDuty(PWMA_CH4, 500);      //设置通道的PWM占空比
     PWMA_OC4REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
-    PWMA_DisableOC4FastMode();          //关闭通道快速输出
-    PWMA_UnbufferCCR4();                //关闭CCRn预装载功能
-    PWMA_DisableETRFClearOC4REF();      //通道输出不受ETI信号影响
-    PWMA_DisablePWM4POutput();          //关闭正极通道输出
+    PWMA_BufferCCR4();                  //使能CCRn预装载功能
+    PWMA_CC4PNonInverted();             //设置正极通道输出高电平有效
+    PWMA_EnablePWM4POutput();           //使能正极通道输出
     PWMA_DisablePWM4NOutput();          //关闭负极通道输出
 
-    PWMA_StandaloneMode();              //设置PWM定时器为独立模式
-    PWMA_UnbufferCCOC();                //捕获/比较控制位直接改写，不预装载
-    PWMA_DisableTRGI();                 //关闭触发输入信号
-    PWMA_PWM1PToTI();                   //关闭霍尔传感器控制功能
-    PWMA_ResetAsTRGO();                 //软件设置UG产生的复位信号作为TRGO
-    PWMA_DisableExternalClock2();       //禁止外部时钟模式2
-    PWMA_BRKDisable();                  //禁止刹车输入
-    PWMA_DisableAutoOutput();           //禁止自动输出功能（只能软件设置MOE）
-    PWMA_RunInactiveNoOutput();         //运行模式PWM不工作时禁止输出
-    PWMA_IdleInactiveNoOutput();        //空闲模式PWM不工作时禁止输出
     PWMA_EnableMainOutput();            //使能PWM主输出
-    PWMA_SetUnLock();                   //寄存器无写保护
 
     PWMA_Run();                         //PWMA开始运行
 
     //<<AICUBE_USER_PWM0_INITIAL_BEGIN>>
     // 在此添加用户初始化代码  
     //<<AICUBE_USER_PWM0_INITIAL_END>>
+}
+
+////////////////////////////////////////
+// PWME初始化函数
+// 入口参数: 无
+// 函数返回: 无
+////////////////////////////////////////
+void PWME_Init(void)
+{
+    PWME_C5SwitchP95();                 //设置PWME通道5数据端口: PWME5P (P9.5)
+
+    HSPWME_Disable();                   //关闭高速模式，使用同步方式进行初始化
+    PWME_InternalClockMode();           //选择内部时钟模式
+    PWME_SetClockDivider(1);            //设置16位预分频
+    PWME_SetReload16(74);               //设置16位重载值
+    PWME_BufferARR();                   //使能重载值寄存器预装载功能
+    PWME_SetCounter(0);                 //初始化计数值
+
+    PWME_CC5PEnable();                  //打开通道
+    PWM_UpdateDuty(PWME_CH5, 4);        //设置通道的PWM占空比
+    PWME_OC5REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
+    PWME_BufferCCR5();                  //使能CCRn预装载功能
+    PWME_CC5PNonInverted();             //设置正极通道输出高电平有效
+    PWME_EnablePWM5POutput();           //使能正极通道输出
+
+    PWME_EnableMainOutput();            //使能PWM主输出
+
+    PWME_UpdateIntAsDMAEvent();         //设置PWME更新中断作为DMA事件
+    PWME_SetDMABaseAddress(22);         //设置PWME DMA的寄存器基地址
+    PWME_SetDMABurstCount(0);           //设置PWME DMA突发传输次数
+    PWME_SetDMABurst4Bytes();           //设置PWME DMA突发传输字节数
+    PWME_DMANeverSkipSpace();           //设置PWME DMA时不跳过保留寄存器（会对保留字节进行无效读写）
+    PWME_SetDMAOutput();                //设置PWME DMA方向为输出（DMA输出PWM波形）
+
+    DMA_PWME_SetTxAmount(11);           //设置PWME发送DMA总字节数
+    DMA_PWME_SetTxAddress(pu8PWMEDMATxBuffer); //设置PWME发送DMA缓冲区地址
+    DMA_PWME_SetInterval(0);            //设置PWME发送DMA字节间隔时间（系统时钟）
+    DMA_PWME_ClearTxFlag();             //清除PWME发送DMA中断标志
+    DMA_PWME_SetTxBusPriority(0);       //设置总线访问为最低优先级
+    DMA_PWME_EnableTx();                //使能PWME发送DMA功能
+    PWME_EnableDMA();                   //设置PWME DMA方向为输出（DMA输出PWM波形）
+
+    PWME_Run();                         //PWME开始运行
+//  DMA_PWME_TriggerTx();               //触发PWME发送DMA
+
+    //<<AICUBE_USER_PWM4_INITIAL_BEGIN>>
+    PWME_EnableUpdate(); // 确保PWM计数器溢出时能产生事件
+    //<<AICUBE_USER_PWM4_INITIAL_END>>
 }
 
 ////////////////////////////////////////
@@ -555,7 +584,55 @@ void HSPWMF_WriteReg(uint8_t addr, uint8_t dat)
 
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_BEGIN>>
-// 在此添加用户函数实现代码  
+// 定义符合 0x16 (CCR5X基地址) 的4字节结构
+typedef struct {
+    uint8_t CCR5X;     // 填0
+    uint8_t Reserved;  // 填0
+    uint8_t CCR5H;     // 填0 (你的值<256, 高位为0)
+    uint8_t CCR5L;     // 【关键】占空比数值
+} DMA_Burst4_Packet;
+
+// 定义缓冲区：发送3个数据 (0码, 1码, 结束码)
+// 3个数据点 * 4字节 = 12字节
+DMA_Burst4_Packet xdata TestBuffer[3]; 
+
+void PWM_Test_Simple(void)
+{
+    // --- 1. 填充测试数据 ---
+    
+    // 第1个波形：发送 "0码" (CCR = 18)
+    TestBuffer[0].CCR5X = 0;
+    TestBuffer[0].Reserved = 0;
+    TestBuffer[0].CCR5H = 0;
+    TestBuffer[0].CCR5L = 18;  // 理论高电平约 300ns
+
+    // 第2个波形：发送 "1码" (CCR = 45)
+    TestBuffer[1].CCR5X = 0;
+    TestBuffer[1].Reserved = 0;
+    TestBuffer[1].CCR5H = 0;
+    TestBuffer[1].CCR5L = 45;  // 理论高电平约 750ns
+
+    // 第3个波形：全0 (用于拉低总线，作为结束)
+    TestBuffer[2].CCR5X = 0;
+    TestBuffer[2].Reserved = 0;
+    TestBuffer[2].CCR5H = 0;
+    TestBuffer[2].CCR5L = 0;   // 占空比0，强制低电平
+
+    // --- 2. 这里的初始化需确保使用了你调整后的参数 ---
+    // (假设 PWME_Init 已经调用，且分频=1, ARR=74)
+    
+    // 强制更新一下关键的DMA配置，防止Init里没改对
+   // PWME_SetDMABaseAddress(22);     // 目标地址 0x16
+    PWME_SetDMABurst4Bytes();        // 【核心】必须是4字节突发
+    
+    // --- 3. 启动DMA发送 ---
+    DMA_PWME_DisableTx();
+    DMA_PWME_SetTxAddress((uint8_t *)TestBuffer); // 强转指针
+    DMA_PWME_SetTxAmount(12);     // 发送 12 个字节
+    DMA_PWME_ClearTxFlag();
+    DMA_PWME_EnableTx();
+    DMA_PWME_TriggerTx();
+}
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_END>>
 
 

@@ -12,6 +12,7 @@
 #include <stdio.h>
 
 #pragma warning disable = 138
+#pragma warning disable = 174
 
 /* 任务句柄与堆栈大小定义 */
 #define UART_TEST_TASK_PRIORITY     ( tskIDLE_PRIORITY + 2 )

@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 
+#pragma warning disable = 188
 #pragma warning disable = 138
 
 /* ================= 配置与定义 ================= */
@@ -18,6 +19,7 @@
 #define CMD_WRITE       0x55
 #define CMD_REGISTER    0x56
 #define CMD_TEXT        0x57
+
 
 // RTOS 事件位
 #define EVT_CONNECTED   (1 << 0) // Bit 0: 上位机已连接
@@ -130,7 +132,12 @@ static void Debug_SendValuePacket(uint8_t id) {
         Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
     }
 }
-
+static void Debug_SendHighFreqValuePacket(uint8_t id){
+    uint8_t len = GetTypeSize(debugTable[id].type&DataType_Msk);
+    if(len > 0) {
+        Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+    }
+}
 // 发送日志 (ID=0xFF)
 void Debug_Log(char* str) {
     uint8_t len = strlen(str);
@@ -229,8 +236,11 @@ Debug_Log(logbuf);
                         strncpy(debugTable[debugVarCount].name, (char*)&rxBuf[8], 10);
                         
                         // 注册成功，补发 Meta
-                        Debug_SendMetaPacket(debugVarCount);
-                        debugVarCount++;
+                        //delay_ms(2);
+                        debugVarCount++;//先增加计数器
+                        Debug_SendMetaPacket(debugVarCount-1);
+                        //delay_ms(2);
+                        
                     }
                     break;
 
@@ -245,12 +255,15 @@ Debug_Log(logbuf);
 }
 
 /* ================= 任务主体 ================= */
-
+#define RECEIVE_FREQ 2
+#define HIGH_FREQ 1
+#define LOW_FREQ 10
 void vDebugTask(void *pvParameters) {
     uint8_t i;
-    TickType_t xLastWakeTime;
-    const TickType_t xFrequency = pdMS_TO_TICKS(100); // 10Hz 发送频率
-    
+    //TickType_t xLastWakeTime;
+    //TickType_t xLastWakeTimeHighFreq;
+    //const TickType_t xFrequency = pdMS_TO_TICKS(100); // 10Hz 发送频率
+    TickType_t t=0;
     (void)pvParameters;
 
     // 1. 初始化事件组
@@ -258,29 +271,64 @@ void vDebugTask(void *pvParameters) {
     xEventGroupClearBits(xDebugEventGroup, EVT_CONNECTED);
 
     // 初始化时间戳
-    xLastWakeTime = xTaskGetTickCount();
+    //xLastWakeTime = xTaskGetTickCount();
+    //xLastWakeTimeHighFreq = xTaskGetTickCount();
 
     for(;;) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        t++;
         // A. 快速处理接收指令 (Poll)
-        Debug_ProcessIncoming();
-        
-        // 这里的延时决定了对下行指令的响应速度
-        // 20ms 的延时意味着每秒检查 50 次指令，足够流畅
-        vTaskDelay(pdMS_TO_TICKS(20)); 
-
-        // B. 周期性发送数据 (Time Slicing)
-        // 检查是否距离上次发送超过了 100ms
-        if ((xTaskGetTickCount() - xLastWakeTime) >= xFrequency) {
-            xLastWakeTime = xTaskGetTickCount(); // 更新基准时间
-
-            // 检查连接状态
-            if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) {
+        if(t%RECEIVE_FREQ==0){
+            Debug_ProcessIncoming();
+            //Receive=0;
+        }
+        if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED){
+            if(t%HIGH_FREQ==0){
+                //HighFreqTx=0;
                 for(i = 0; i < debugVarCount; i++) {
-                    Debug_SendValuePacket(i);
+                    if((debugTable[i].type&FreqType_Msk)!=0){
+                        Debug_SendHighFreqValuePacket(i);
+                    }
+                }
+            }
+            if(t%LOW_FREQ==0){
+               // LowFreqTx=0;
+                for(i = 0; i < debugVarCount; i++) {
+                    if((debugTable[i].type&FreqType_Msk)==0){
+                        Debug_SendValuePacket(i);
+                    }
                     // 给 DMA 一点点喘息时间，避免环形缓冲溢出
-                    vTaskDelay(pdMS_TO_TICKS(2)); 
+                    //vTaskDelay(pdMS_TO_TICKS(2)); 
                 }
             }
         }
+        // 这里的延时决定了对下行指令的响应速度
+        // 20ms 的延时意味着每秒检查 50 次指令，足够流畅
+        //vTaskDelay(pdMS_TO_TICKS(20)); 
+
+        // B. 周期性发送数据 (Time Slicing)
+        // 检查是否距离上次发送超过了 100ms
+        // if ((xTaskGetTickCount() - xLastWakeTime) >= xFrequency) {
+        //     xLastWakeTime = xTaskGetTickCount(); // 更新基准时间
+        //     // 检查连接状态
+        //     if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) {
+        //         for(i = 0; i < debugVarCount; i++) {
+        //             if((debugTable[i].type&FreqType_Msk)==0){
+        //                 Debug_SendValuePacket(i);
+        //             }
+        //             // 给 DMA 一点点喘息时间，避免环形缓冲溢出
+        //             vTaskDelay(pdMS_TO_TICKS(2)); 
+        //         }
+        //     }
+        // }
+        // if((xTaskGetTickCount() - xLastWakeTimeHighFreq >= 20 )){
+        //     if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) {
+        //         for(i = 0; i < debugVarCount; i++){
+        //             if(debugTable[i].type&FreqType_Msk){
+        //                 Debug_SendHighFreqValuePacket(i);
+        //             }
+        //         }
+        //     }
+        // }
     }
 }
