@@ -183,12 +183,19 @@ uint16_t UART5_Write(char* dat, uint16_t len) {
     uint16_t i;
     uint16_t freeSpace;
     
+
+    if(len > UART_TxRingBufferLength) len = UART_TxRingBufferLength; //超出缓冲长度直接截断
     // 等待缓冲区有足够空间 (简单的阻塞模式，也可改为非阻塞返回写入数量)
     do {
-        taskENTER_CRITICAL();
+       // taskENTER_CRITICAL();
         freeSpace = UART_TxRingBufferLength - txCount;
-        taskEXIT_CRITICAL();
+       // taskEXIT_CRITICAL();
         // 如果是 RTOS，这里可以加个 vTaskDelay(1) 避免死等占满 CPU
+
+        if(freeSpace < len){
+            vTaskDelay(pdMS_TO_TICKS(1));
+        }
+
     } while (freeSpace < len);
 
     // 写入 RingBuffer
@@ -196,9 +203,9 @@ uint16_t UART5_Write(char* dat, uint16_t len) {
         uartTxRingBuffer[txTail] = dat[i];
         txTail = (txTail + 1) % UART_TxRingBufferLength;
         
-        taskENTER_CRITICAL();
+      //  taskENTER_CRITICAL();
         txCount++;
-        taskEXIT_CRITICAL();
+      //  taskEXIT_CRITICAL();
     }
 
     // 如果 DMA 当前没有在工作，手动触发第一次发送

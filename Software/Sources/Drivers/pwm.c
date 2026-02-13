@@ -45,7 +45,7 @@ void PWMA_Init(void)
     PWMA_CC3PDisable();                 //关闭通道
     PWMA_CC3Output();                   //使能通道输出功能
     PWMA_CC3PEnable();                  //打开通道
-    PWM_UpdateDuty(PWMA_CH3, 500);      //设置通道的PWM占空比
+    PWM_UpdateDuty(PWMA_CH3, 0);        //设置通道的PWM占空比
     PWMA_OC3REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
     PWMA_BufferCCR3();                  //使能CCRn预装载功能
     PWMA_CC3PNonInverted();             //设置正极通道输出高电平有效
@@ -55,7 +55,7 @@ void PWMA_Init(void)
     PWMA_CC4PDisable();                 //关闭通道
     PWMA_CC4Output();                   //使能通道输出功能
     PWMA_CC4PEnable();                  //打开通道
-    PWM_UpdateDuty(PWMA_CH4, 500);      //设置通道的PWM占空比
+    PWM_UpdateDuty(PWMA_CH4, 0);        //设置通道的PWM占空比
     PWMA_OC4REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
     PWMA_BufferCCR4();                  //使能CCRn预装载功能
     PWMA_CC4PNonInverted();             //设置正极通道输出高电平有效

@@ -1057,9 +1057,9 @@
 		<MCLKDivider>2</MCLKDivider>
 		<SYSCLKFrequency>120000000</SYSCLKFrequency>
 		<EnableMCLKO>1</EnableMCLKO>
-		<MCLKOClockSource>1</MCLKOClockSource>
+		<MCLKOClockSource>0</MCLKOClockSource>
 		<MCLKODivider>60</MCLKODivider>
-		<MCLKOPort>0</MCLKOPort>
+		<MCLKOPort>-1</MCLKOPort>
 		<HSIOClockSource>0</HSIOClockSource>
 		<HSI2SClockSource>0</HSI2SClockSource>
 		<HSSPI1Divider>1</HSSPI1Divider>
@@ -1090,7 +1090,7 @@
 		<WDTPrescale>3</WDTPrescale>
 	</WDT>
 	<LVR>
-		<PeriEnable>1</PeriEnable>
+		<PeriEnable>0</PeriEnable>
 		<ResetPin>0</ResetPin>
 		<EnableLvr>1</EnableLvr>
 		<LvdSel>2</LvdSel>
@@ -2577,8 +2577,8 @@
 		<PreloadCCR_CC3>0</PreloadCCR_CC3>
 		<IdlePOutputState_CC3>0</IdlePOutputState_CC3>
 		<IdleNOutputState_CC3>0</IdleNOutputState_CC3>
-		<PWMDuty_CC3>50.000</PWMDuty_CC3>
-		<CompareValue_CC3>500</CompareValue_CC3>
+		<PWMDuty_CC3>0.000</PWMDuty_CC3>
+		<CompareValue_CC3>0</CompareValue_CC3>
 		<CaptureMap_CC3>0</CaptureMap_CC3>
 		<CaptureMode_CC3>0</CaptureMode_CC3>
 		<CaptureFilter_CC3>0</CaptureFilter_CC3>
@@ -2595,8 +2595,8 @@
 		<PreloadCCR_CC4>0</PreloadCCR_CC4>
 		<IdlePOutputState_CC4>0</IdlePOutputState_CC4>
 		<IdleNOutputState_CC4>0</IdleNOutputState_CC4>
-		<PWMDuty_CC4>50.000</PWMDuty_CC4>
-		<CompareValue_CC4>500</CompareValue_CC4>
+		<PWMDuty_CC4>0.000</PWMDuty_CC4>
+		<CompareValue_CC4>0</CompareValue_CC4>
 		<CaptureMap_CC4>0</CaptureMap_CC4>
 		<CaptureMode_CC4>0</CaptureMode_CC4>
 		<CaptureFilter_CC4>0</CaptureFilter_CC4>
@@ -3530,23 +3530,23 @@
 		<PinCount>256</PinCount>
 		<Pin01Map>2</Pin01Map>
 		<Pin02Map>16</Pin02Map>
-		<Pin17Map>-1</Pin17Map>
+		<Pin17Map>255</Pin17Map>
 		<Pin23Map>4</Pin23Map>
 		<Pin24Map>4</Pin24Map>
-		<Pin25Map>-1</Pin25Map>
-		<Pin26Map>-1</Pin26Map>
-		<Pin28Map>-1</Pin28Map>
-		<Pin29Map>-1</Pin29Map>
-		<Pin30Map>-1</Pin30Map>
+		<Pin25Map>255</Pin25Map>
+		<Pin26Map>255</Pin26Map>
+		<Pin28Map>255</Pin28Map>
+		<Pin29Map>255</Pin29Map>
+		<Pin30Map>255</Pin30Map>
 		<Pin32Map>16</Pin32Map>
 		<Pin33Map>16</Pin33Map>
 		<Pin34Map>16</Pin34Map>
 		<Pin35Map>16</Pin35Map>
 		<Pin41Map>16</Pin41Map>
-		<Pin44Map>-1</Pin44Map>
-		<Pin67Map>-1</Pin67Map>
+		<Pin44Map>255</Pin44Map>
+		<Pin67Map>255</Pin67Map>
 		<Pin73Map>8</Pin73Map>
-		<Pin92Map>-1</Pin92Map>
+		<Pin92Map>255</Pin92Map>
 		<Pin99Map>16</Pin99Map>
 		<Pin100Map>2</Pin100Map>
 	</PINMAP>

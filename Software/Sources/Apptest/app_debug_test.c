@@ -48,6 +48,7 @@ void vDebugTaskDelayedStart(void *pvParameters) {
     (void)pvParameters;
     // 延时等待系统稳定
    //vTaskDelay(pdMS_TO_TICKS(2000)); // 延时2秒
+    Debug_Init();
     if (xSemaphoreTake(xRegistrationSemaphore, portMAX_DELAY) == pdTRUE) {
         // 注册完成后创建真正的调试任务
         xTaskCreate(vDebugTask,
@@ -85,6 +86,7 @@ static uint8_t target_val = 10;
 // 4. [隐藏变量] 不在启动时注册，等待上位机动态添加 (测试 0x56 指令)
 static uint32_t hidden_secret = 0x12345678;
 
+static float test_sine2 = 0.0;
 // 辅助函数：简单的正弦模拟
 float fake_sin(uint16_t step) {
     // 简化的周期变化，非标准sin
@@ -100,6 +102,7 @@ void vTestLoopTask(void *pvParameters) {
     // 1. [启动注册] 注册部分变量，故意漏掉 hidden_secret
     Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
     Debug_Register("SineWave", DBG_FLOAT|HIGH_FREQ_TYPE, &test_sine);
+		Debug_Register("SineWave2", DBG_FLOAT|HIGH_FREQ_TYPE, &test_sine2);
     Debug_Register("Control", DBG_UINT8|LOW_FREQ_TYPE, &target_val);
 		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
 		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
@@ -127,7 +130,7 @@ void vTestLoopTask(void *pvParameters) {
 
         // 2. 正弦波更新
         test_sine = fake_sin(test_counter);
-
+				test_sine2 = test_sine+1.0;
         // 3. 隐藏变量更新 (验证动态注册后能否看到它在变)
         hidden_secret += 1;
 

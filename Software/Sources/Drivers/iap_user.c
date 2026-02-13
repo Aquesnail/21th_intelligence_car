@@ -31,6 +31,7 @@
 ////////////////////////////////////////
 void IAP_Init(void)
 {
+    IAP_TPS = MAIN_Fosc / 1000000;
     IAP_Enable();                       //使能EEPROM操作
     IAP_Idle();                         //设置EEPROM为空闲模式
 
@@ -84,6 +85,108 @@ uint8_t IAP_ReadByte(uint32_t dwAddress)
 
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_BEGIN>>
+void IAP_Write_16Bytes_Aligned(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    for(i=0;i<16;i++){
+       pIapData[i]=dat[i];
+    }
+    IAP_TriggerProgram16Bytes();
+    IAP_Idle();  
+}
+void IAP_Write_16Bytes(uint32_t dwAddress,uint8_t far * dat){
+     uint8_t i;
+    for(i=0;i<16;i++){
+        IAP_ProgramByte(dwAddress+i,dat[i]);
+    }
+}
+void IAP_Write_8Bytes_Aligned(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    for(i=0;i<8;i++){
+       pIapData[i]=dat[i];
+    }
+    IAP_TriggerProgram8Bytes();
+    IAP_Idle();  
+}
+void IAP_Write_4Bytes_Aligned(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    for(i=0;i<4;i++){
+       pIapData[i]=dat[i];
+    }
+    IAP_TriggerProgram4Bytes();
+    IAP_Idle();  
+}
+void IAP_Write_4Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    for(i=0;i<4;i++){
+        IAP_ProgramByte(dwAddress+i,dat[i]);
+    }
+}
+void IAP_Read_16Bytes_Aligned(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    IAP_TriggerRead16Bytes();
+    for(i=0;i<16;i++){
+        dat[i]=pIapData[i];
+    }
+    IAP_Idle();
+}
+void IAP_Read_16Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    for(i=0;i<16;i++){
+        dat[i] = IAP_ReadByte(dwAddress+i);
+    }
+}
+void IAP_Read_4Bytes_Aligned(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    IAP_TriggerRead4Bytes();
+    for(i=0;i<4;i++){
+        dat[i]=pIapData[i];
+    }
+    IAP_Idle();
+}
+
+void IAP_Read_8Bytes_Aligned(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    IAP_TriggerRead8Bytes();
+    for(i=0;i<8;i++){
+        dat[i]=pIapData[i];
+    }
+    IAP_Idle();
+}
+void IAP_Read_2Bytes_Aligned(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    IAP_TriggerRead4Bytes();
+    for(i=0;i<2;i++){
+        dat[i]=pIapData[i];
+    }
+    IAP_Idle();
+}
+void IAP_Read_4Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    for(i=0;i<4;i++){
+        dat[i] = IAP_ReadByte(dwAddress+i);
+    }
+}
+void IAP_Read_2Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    for(i=0;i<2;i++){
+        dat[i] = IAP_ReadByte(dwAddress+i);
+    }
+}
+
 // 在此添加用户函数实现代码  
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_END>>
 

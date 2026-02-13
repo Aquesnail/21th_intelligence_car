@@ -15,6 +15,15 @@ typedef enum {
     DBG_STATIC = 0x80
 } VarType_t;
 
+union Converter{
+    uint32_t UINT32;
+    int32_t INT32;
+    float F32;
+    uint16_t UINT16[2];
+    int16_t INT16[2];
+    uint8_t UINT8[4];
+    int8_t INT8[4];
+};
 
 
 #endif

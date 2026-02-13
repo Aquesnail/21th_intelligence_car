@@ -78,7 +78,6 @@ void SYS_Init(void)
     PORTA_Init();                       //PA口初始化
     PORTB_Init();                       //PB口初始化
     CLK_Init();                         //时钟模块初始化
-    LVR_Init();                         //低压复位初始化
     IAP_Init();                         //EEPROM初始化
     UART5_Init();                       //串口5初始化
     PWMA_Init();                        //高级PWMA初始化

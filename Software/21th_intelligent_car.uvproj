@@ -335,16 +335,6 @@
               <FilePath>.\Sources\User\application.h</FilePath>
             </File>
             <File>
-              <FileName>params.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\User\params.c</FilePath>
-            </File>
-            <File>
-              <FileName>params.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\User\params.h</FilePath>
-            </File>
-            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\User\main.c</FilePath>
@@ -358,6 +348,21 @@
               <FileName>debug_arch.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\User\debug_arch.h</FilePath>
+            </File>
+            <File>
+              <FileName>storage.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\User\storage.c</FilePath>
+            </File>
+            <File>
+              <FileName>storage.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\User\storage.h</FilePath>
+            </File>
+            <File>
+              <FileName>vartype.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\User\vartype.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -610,16 +615,6 @@
           <GroupName>Drivers</GroupName>
           <Files>
             <File>
-              <FileName>iap.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Drivers\iap.c</FilePath>
-            </File>
-            <File>
-              <FileName>iap.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\iap.h</FilePath>
-            </File>
-            <File>
               <FileName>stc_usb_cdc_32.LIB</FileName>
               <FileType>4</FileType>
               <FilePath>.\Sources\Drivers\stc_usb_cdc_32.LIB</FilePath>
@@ -709,6 +704,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\ws2812.h</FilePath>
             </File>
+            <File>
+              <FileName>iap_user.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\iap_user.c</FilePath>
+            </File>
+            <File>
+              <FileName>iap_user.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\iap_user.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -728,6 +733,11 @@
               <FileName>app_clk_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_clk_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_storage_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_storage_test.c</FilePath>
             </File>
           </Files>
         </Group>

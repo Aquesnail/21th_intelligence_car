@@ -1,9 +1,11 @@
 #include "debug_arch.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 #include "event_groups.h" // 务必在 FreeRTOSConfig.h 中启用 Event Groups
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 
 #pragma warning disable = 188
@@ -36,6 +38,11 @@ typedef struct {
 static DebugObj_t debugTable[MAX_DEBUG_VARS];
 static uint8_t debugVarCount = 0;
 static uint8_t txPkt[TX_BUF_SIZE]; // 统一发送缓冲
+static char xdata print_buf[128];
+
+/*================== 互斥锁   ================= */
+
+SemaphoreHandle_t xLogMutex = NULL;
 
 // RTOS 句柄
 static EventGroupHandle_t xDebugEventGroup = NULL;
@@ -121,28 +128,51 @@ static void Debug_SendMetaPacket(uint8_t id) {
     memcpy(&buf[2], &debugTable[id].addr, 4); // C251 4字节指针拷贝
     memset(&buf[6], 0, 10);
     strncpy((char*)&buf[6], debugTable[id].name, 10);
-
-    Debug_TxCore(0xFE, 0xFF, buf, 16);
+    if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
+        Debug_TxCore(0xFE, 0xFF, buf, 16);
+        xSemaphoreGive(xLogMutex);
+    }
+    
 }
 
 // 发送变量值 (ID=0..N)
 static void Debug_SendValuePacket(uint8_t id) {
     uint8_t len = GetTypeSize(debugTable[id].type);
     if(len > 0) {
-        Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+        if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
+            Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+            xSemaphoreGive(xLogMutex);
+        }
+        
     }
 }
 static void Debug_SendHighFreqValuePacket(uint8_t id){
     uint8_t len = GetTypeSize(debugTable[id].type&DataType_Msk);
     if(len > 0) {
-        Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+        if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
+            Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+            xSemaphoreGive(xLogMutex);
+        }
+        
     }
 }
 // 发送日志 (ID=0xFF)
-void Debug_Log(char* str) {
-    uint8_t len = strlen(str);
-    if(len > 60) len = 60;
-    Debug_TxCore(0xFF, DBG_STRING, (uint8_t*)str, len);
+void Debug_Log(const char* fmt,...) {
+    va_list args;
+    if(xLogMutex != NULL){
+        if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(100)) == pdTRUE){
+            memset(print_buf,0x00,sizeof(print_buf));
+
+            va_start(args,fmt);
+            vsprintf(print_buf,fmt,args);
+            va_end(args);
+            Debug_TxCore(0xFF, DBG_STRING, (uint8_t*)print_buf, strlen(print_buf));
+
+            xSemaphoreGive(xLogMutex);
+        }
+        
+    }
+   
 }
 
 /* ================= 注册与接收逻辑 ================= */
@@ -167,7 +197,7 @@ static void Debug_ProcessIncoming(void) {
 		uint8_t id;
 		uint8_t vLen;
         volatile uint8_t *ptr;
-        char logbuf[32];
+        //char logbuf[32];
     // 1. 预读头部 [0x55] [CMD] [LEN]
     if(Debug_Arch_Read(rxBuf, 3) == 3) {
         if(rxBuf[0] != 0x55) return;
@@ -220,8 +250,8 @@ static void Debug_ProcessIncoming(void) {
                             if(vLen > 1) ptr[1] = rxBuf[6];
                             if(vLen > 2) ptr[2] = rxBuf[7];
                             if(vLen > 3) ptr[3] = rxBuf[8];
-                            sprintf(logbuf, "Wr Addr: %p", debugTable[id].addr); // %p 在 C251 会打印类型和偏移
-Debug_Log(logbuf);
+                            //sprintf(logbuf, "Wr Addr: %p", debugTable[id].addr); // %p 在 C251 会打印类型和偏移
+							Debug_Log("Wr Addr: %p", debugTable[id].addr);
                             taskEXIT_CRITICAL();
                         }
                     }
@@ -253,6 +283,14 @@ Debug_Log(logbuf);
         }
     }
 }
+
+/*================== 初始化 =================== */
+
+void Debug_Init(){
+    xLogMutex = xSemaphoreCreateMutex();
+   // UART5_Init();
+}
+
 
 /* ================= 任务主体 ================= */
 #define RECEIVE_FREQ 2
@@ -293,6 +331,7 @@ void vDebugTask(void *pvParameters) {
             }
             if(t%LOW_FREQ==0){
                // LowFreqTx=0;
+				//Debug_Log("log_test\r\n");
                 for(i = 0; i < debugVarCount; i++) {
                     if((debugTable[i].type&FreqType_Msk)==0){
                         Debug_SendValuePacket(i);

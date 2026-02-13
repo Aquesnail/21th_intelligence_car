@@ -84,6 +84,47 @@ uint8_t IAP_ReadByte(uint32_t dwAddress)
 
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_BEGIN>>
+void IAP_Write_16Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    for(i=0;i<16;i++){
+       pIapData[i]=dat[i];
+    }
+    IAP_TriggerProgram16Bytes();
+    IAP_Idle();  
+}
+void IAP_Read_16Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    IAP_TriggerRead16Bytes();
+    for(i=0;i<16;i++){
+        dat[i]=pIapData[i];
+    }
+    IAP_Idle();
+}
+void IAP_Read_4Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    IAP_TriggerRead4Bytes();
+    for(i=0;i<4;i++){
+        dat[i]=pIapData[i];
+    }
+    IAP_Idle();
+}
+void IAP_Read_2Bytes(uint32_t dwAddress,uint8_t far * dat){
+    uint8_t i;
+    uint8_t volatile far *pIapData = &IAP_XDATA0;
+    IAP_SetAddress(dwAddress);
+    IAP_TriggerRead4Bytes();
+    for(i=0;i<2;i++){
+        dat[i]=pIapData[i];
+    }
+    IAP_Idle();
+}
+
 // 在此添加用户函数实现代码  
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_END>>
 

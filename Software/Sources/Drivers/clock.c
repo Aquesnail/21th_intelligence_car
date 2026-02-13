@@ -72,9 +72,7 @@ void CLK_Init(void)
 
     CLK_SYSCLK_Divider(2);              //设置系统时钟分频系数
 
-    CLK_MCLKO_SwitchP54();              //设置主时钟输出端口: MCLKO (P5.4)
-    CLK_MCLKO_Divider(60);              //设置主时钟输出分频系数
-    CLK_MCLKO_SYSCLK();                 //选择系统时钟作为主时钟输出的时钟源
+    CLK_MCLKO_NONE();                   //关闭主时钟输出功能
 
     CLK_HSI2SCK_HPLL1D2();              //选择HPLL1的输出2分频时钟作为高速I2S时钟源
     CLK_HSIOCK_HPLL1D2();               //选择HPLL1的输出2分频时钟作为高速外设时钟源

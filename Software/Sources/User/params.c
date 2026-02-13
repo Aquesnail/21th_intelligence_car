@@ -3,7 +3,7 @@
 #include "task.h"
 #include "semphr.h"
 // 引用 iap.c 中的函数声明 (或者包含 iap.h)
-#include "iap.h"
+#include "iap_user.h"
 
 // 全局参数实例
 SystemParams_t g_params;

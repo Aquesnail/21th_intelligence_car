@@ -11,7 +11,7 @@
 
 
 //<<AICUBE_USER_DEFINE_BEGIN>>
-// 在此添加用户宏定义  
+#include "config.h"
 //<<AICUBE_USER_DEFINE_END>>
 
 
@@ -23,7 +23,10 @@ uint8_t IAP_ReadByte(uint32_t dwAddress);
 
 
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>
-// 在此添加用户外部函数和外部变量声明  
+void IAP_Write_16Bytes(uint32_t dwAddress,uint8_t far * dat);
+void IAP_Read_16Bytes(uint32_t dwAddress,uint8_t far * dat);
+void IAP_Read_2Bytes(uint32_t dwAddress,uint8_t far * dat);
+void IAP_Read_4Bytes(uint32_t dwAddress,uint8_t far * dat);
 //<<AICUBE_USER_EXTERNAL_DECLARE_END>>
 
 

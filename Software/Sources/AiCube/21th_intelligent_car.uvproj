@@ -340,11 +340,6 @@
 							<FilePath>.\Sources\clock.c</FilePath>
 						</File>
 						<File>
-							<FileName>lvr.c</FileName>
-							<FileType>1</FileType>
-							<FilePath>.\Sources\lvr.c</FilePath>
-						</File>
-						<File>
 							<FileName>iap.c</FileName>
 							<FileType>1</FileType>
 							<FilePath>.\Sources\iap.c</FilePath>
