@@ -11,21 +11,19 @@
 
 
 //<<AICUBE_USER_DEFINE_BEGIN>>
-// 在此添加用户宏定义  
+#include "config.h"
+#include "FreeRTOS.h"
+#include "task.h"
 //<<AICUBE_USER_DEFINE_END>>
 
-
-void SPI2_Init(void (*callback)(void));
+typedef void (*DMA_SPI2_Callback_t)(BaseType_t *pxHigherPriorityTaskWoken);
+void SPI2_Init(DMA_SPI2_Callback_t callback);
 uint8_t SPI2_ReadByte(void);
 void SPI2_WriteByte(uint8_t dat);
 
-extern uint8_t xdata pu8SPI2DMATxBuffer[16];
-extern uint8_t xdata pu8SPI2DMARxBuffer[16];
-
-
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>
 // 在此添加用户外部函数和外部变量声明  
-void SPI2_DMA_ReadBytes_IT(uint8_t *rx_buf, uint8_t len);
+void SPI2_DMA_ReadBytes_IT(uint8_t xdata*rx_buf, uint16_t len);
 //<<AICUBE_USER_EXTERNAL_DECLARE_END>>
 
 

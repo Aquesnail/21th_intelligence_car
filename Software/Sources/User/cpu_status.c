@@ -3,7 +3,9 @@
 #include "task.h"
 #include "debug_arch.h"
 #include "timer.h"
-/* 在你的 C 文件中实现这两个函数 */
+
+
+#pragma warning disable = 138
 
 volatile uint32_t ulHighFrequencyTimerTicks = 0;
 extern uint16_t g_u16OverflowCount ;
@@ -61,8 +63,8 @@ void vTaskMonitor(void *pvParameters)
     while (1)
     {
         // 每 3 秒打印一次
-        vTaskDelay(pdMS_TO_TICKS(3000));
-
+        vTaskDelay(pdMS_TO_TICKS(1500));
+				
         if (pcWriteBuffer != NULL)
         {
             // 获取统计信息
@@ -71,10 +73,29 @@ void vTaskMonitor(void *pvParameters)
 
             // 通过串口打印出来
             Debug_Log("\r\n================ CPU Usage ================\r\n");
+					vTaskDelay(pdMS_TO_TICKS(100));
             Debug_Log("Task          Abs Time          %% Time\r\n");
+					vTaskDelay(pdMS_TO_TICKS(100));
             Debug_Log("-------------------------------------------\r\n");
+					vTaskDelay(pdMS_TO_TICKS(100));
             Debug_LogLongString(pcWriteBuffer);
+					vTaskDelay(pdMS_TO_TICKS(100));
             Debug_Log("===========================================\r\n");
+					vTaskDelay(pdMS_TO_TICKS(100));
+						vTaskDelay(pdMS_TO_TICKS(1500));
+            vTaskList(pcWriteBuffer);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            Debug_Log("\r\n================ Task Status ===============\r\n");
+            /* 格式说明: 任务名 | 状态 | 优先级 | 栈剩余最小值(bytes) | 任务号 */
+					vTaskDelay(pdMS_TO_TICKS(100));
+            Debug_Log("Name          State  Prio  Stack(Min)  Num\r\n");
+						vTaskDelay(pdMS_TO_TICKS(100));
+            Debug_Log("-------------------------------------------\r\n");
+						vTaskDelay(pdMS_TO_TICKS(100));
+            Debug_LogLongString(pcWriteBuffer);
+						vTaskDelay(pdMS_TO_TICKS(100));
+            Debug_Log("===========================================\r\n");
+						vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
 }
@@ -83,9 +104,23 @@ void CPU_STATUS_TASK_Init(void){
     xTaskCreate(
         vTaskMonitor,
         "vTaskMonitor",
-        256,
+        2048+1024,
         NULL,
         tskIDLE_PRIORITY + 2,
         NULL
     );
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+    // 此时不要调用 Debug_Log (会死循环)，直接闪灯或断点 
+    while(1);
+}
+
+void vApplicationMallocFailedHook( void )
+{
+    // 如果进入这里，说明 Heap 彻底用光了
+    taskDISABLE_INTERRUPTS();
+    // 可以在这里点亮一个红灯，或者死循环
+    // P20 = 0; // 假设 P20 是 LED
+    for( ;; );
 }

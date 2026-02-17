@@ -24,7 +24,7 @@ extern uint8_t imu_ready;
 typedef uint8_t (*icm_write_reg_t)(uint8_t reg, uint8_t dat);
 typedef uint8_t (*icm_read_reg_t)(uint8_t reg, uint8_t xdata* dat, uint16_t len);
 typedef uint8_t (*icm_read_reg_byte_t)(uint8_t reg, uint8_t *dat);  // 新增
-typedef void    (*icm_delay_ms_t)(uint16_t ms);
+typedef void    (*icm_delay_ms_t)(uint32_t ms);
 
 /* 核心对象结构体 */
 typedef struct {
@@ -42,7 +42,7 @@ typedef struct {
 /* 初始化与配置 */
 uint8_t ICM42688_Init(ICM42688_t *dev);
 uint8_t ICM42688_ReadData(ICM42688_t *dev, float *acc, float *gyro, float *temp);
-uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer);
+uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t xdata*buffer);
 
 #endif
 

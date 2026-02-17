@@ -1,5 +1,5 @@
 #include "icm42688.h"
-
+#include "debug_arch.h"
 /* 辅助函数：切换 Bank */
 static uint8_t icm_set_bank(ICM42688_t *dev, uint8_t bank) {
     if (dev->current_bank == bank) return ICM_OK;
@@ -19,7 +19,7 @@ static uint8_t icm_write_reg(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t
 }
 
 /* 辅助函数：读特定 Bank 的寄存器 */
-static uint8_t icm_read_regs(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t *dat, uint16_t len) {
+static uint8_t icm_read_regs(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t xdata*dat, uint16_t len) {
     if (icm_set_bank(dev, bank) != ICM_OK) return ICM_ERROR;
    // if (len == 1 && dev->read_byte != NULL) {
    //     return dev->read_byte(reg, dat) == 0 ? ICM_OK : ICM_ERROR;
@@ -70,9 +70,9 @@ static uint8_t configure_aaf(ICM42688_t *dev, uint8_t is_accel, uint8_t delt, ui
     // 设置 Delt
     if (icm_write_reg(dev, bank, reg_base, delt << 1) != ICM_OK) return ICM_ERROR;
     // 设置 DeltSqr Low
-    if (icm_write_reg(dev, bank, reg_base + 1, deltsqr_low) != ICM_OK) return ICM_ERROR;
+    if (icm_write_reg(dev, bank,(uint8_t)(reg_base + 1), (uint8_t)(deltsqr_low&0xFF)) != ICM_OK) return ICM_ERROR;
     // 设置 DeltSqr High | Bitshift
-    if (icm_write_reg(dev, bank, reg_base + 2, (deltsqr_high | (bitshift << 4))) != ICM_OK) return ICM_ERROR;
+    if (icm_write_reg(dev, bank,(uint8_t)(reg_base + 2), (uint8_t)((deltsqr_high | (bitshift << 4))&0xFF)) != ICM_OK) return ICM_ERROR;
 
     return ICM_OK;
 }
@@ -101,9 +101,10 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     dev->delay(10); // 等待复位完成
 
     // 2. 检查 ID
-    if (icm_read_reg(dev, 0, ICM42688_WHO_AM_I, &chip_id, 1) != ICM_OK) return ICM_ERROR;
+    if (icm_read_reg(dev, 0, ICM42688_WHO_AM_I, &chip_id) != ICM_OK) return ICM_ERROR;
+    Debug_Log("WHO_I_AM %d \r\n",chip_id);
     if (chip_id != 0x47) return ICM_ERROR;
-
+    
     // 3. 配置 Power Management (先开启传感器，进入低噪声模式)
     // 注意：手册建议配置其他寄存器前先开启时钟，或者保持 IDLE
     // 这里按照你原来的逻辑，先配参数最后开，也可以，但需确保 CLK 正常
@@ -211,11 +212,12 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     dev->delay(50); // 等待传感器稳定
     return ICM_OK;
 }
-uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer){
+uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t xdata*buffer){
     uint16_t fifo_packets;
     if(icm_read_regs(dev,0,ICM42688_FIFO_COUNTH,(uint8_t*)(&fifo_packets),2) != ICM_OK) return ICM_ERROR;
     if(fifo_packets >= 2048 / 16) return 0;
     if(icm_read_regs(dev,0,ICM42688_FIFO_DATA,buffer,(dev->FIFO_THS)*16)) return ICM_ERROR; //这里我们是16字节数据包
+		return 0;
     
 }
 /* 读取传感器数据 (查询方式,16位分辨率) */

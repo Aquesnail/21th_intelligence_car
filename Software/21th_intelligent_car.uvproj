@@ -570,11 +570,6 @@
           <GroupName>FreeRTOS_Port</GroupName>
           <Files>
             <File>
-              <FileName>heap_1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\FreeRTOS\portable\MemMang\heap_1.c</FilePath>
-            </File>
-            <File>
               <FileName>portasm.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\FreeRTOS\portable\STC32G12K128\portasm.h</FilePath>
@@ -628,6 +623,11 @@
                   </C251>
                 </File251>
               </FileOption>
+            </File>
+            <File>
+              <FileName>heap_4.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
             </File>
           </Files>
         </Group>

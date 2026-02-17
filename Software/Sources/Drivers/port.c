@@ -182,7 +182,11 @@ void PORT6_Init(void)
     SetP6nDigitalInput(PIN_ALL);        //使能P6数字信号输入功能
 
     //<<AICUBE_USER_PORT6_INITIAL_BEGIN>>
-    // 在此添加用户初始化代码  
+    SetP6nFallingInt(PIN_1);            //设置P6.1为下降沿中断
+
+    EnableP6nInt(PIN_1);                //使能P6.1口中断
+
+    SetP6IntPriority(0);                //设置中断为最低优先级
     //<<AICUBE_USER_PORT6_INITIAL_END>>
 }
 

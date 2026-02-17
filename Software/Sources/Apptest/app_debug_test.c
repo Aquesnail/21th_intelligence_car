@@ -121,7 +121,7 @@ void vTestLoopTask(void *pvParameters) {
          //       (unsigned int)p[0], (unsigned int)p[1], (unsigned int)p[2]);
         //UART5_Write((uint8_t*)info, strlen(info));
     }
-    Debug_Log("System Booted. Ready for Text Test.");
+    Debug_Log("System Booted. Ready for Command.");
     for (;;) {
         // --- 模拟业务逻辑 ---
         
