@@ -25,7 +25,7 @@ void App_DebugTask_Init(void){
         while(1);
     }
       xTaskCreate(vTestLoopTask,          // 任务函数
-                "UartTest",             // 任务名称
+                "Debug_Test",             // 任务名称
                 DEBUG_TASK_STACK_SIZE,   // 堆栈大小
                 NULL,                   // 参数
                 DEBUG_TASK_PRIORITY,// 优先级

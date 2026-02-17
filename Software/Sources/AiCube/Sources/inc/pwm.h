@@ -11,6 +11,7 @@
 
 
 //<<AICUBE_USER_DEFINE_BEGIN>>
+#include "config.h"
 // 在此添加用户宏定义  
 //<<AICUBE_USER_DEFINE_END>>
 

@@ -210,7 +210,7 @@ void vTimer0ISR( void )
 
 /*Setup the systick timer to generate the tick interrupts at the required
 frequency. */
-static void prvPortSetupTimerInterrupt( void )
+static void prvPortSetupTimerInterrupt( void )   
 {
     /* Timer0 work at 1T mode. */
     AUXR |= 0x80;
@@ -231,6 +231,66 @@ static void prvPortSetupTimerInterrupt( void )
     ET0 = 1;
 }
 
+extern void DMA_SPI2_ISR_Handle(BaseType_t* xHigherPriorityTaskWOken);
+
+void DMA_SPI2_ISR(void)
+{
+//<<AICUBE_USER_SPI2_ISR_CODE2_BEGIN>>
+// 在此添加中断函数用户代码  
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    portNORMALIZE_INTERRUPT_STACK();
+    portSAVE_CONTEXT();
+    
+    DMA_SPI2_ISR_Handle(&xHigherPriorityTaskWoken);
+
+    if (xHigherPriorityTaskWoken != pdFALSE)
+    {
+        // 如果高优先级任务醒了，手动调用切换宏
+        // 这个宏会：保存 SP -> 调用 vTaskSwitchContext() -> 恢复新 SP
+        portEND_SWITCHING_ISR();
+    }
+    // 4. 【关键】恢复（新任务的）寄存器
+    portRESTORE_CONTEXT();
+    // 5. 【关键】欺骗硬件中断控制器，让它以为中断结束了（允许低优先级中断）
+    portRELEASE_INTERRUPT();
+    /*
+    8051/STC 的中断控制器会锁死低优先级中断，直到执行 RETI 指令。
+这个宏的作用是：在不真正跳回任务的情况下，执行一次 RETI。
+它把“下一行代码的地址”压入栈，然后执行 RETI。于是 CPU 以为中断结束了（硬件逻辑复位），但 PC 指针其实跳回到了下一行代码（软件逻辑继续）。
+这样做是为了让 portRETURN_TASK() 里的 ERET (Exception Return) 能够正常工作，或者允许在恢复上下文期间响应更高优先级的中断。
+    */
+    // 6. 【关键】使用 ERET 指令真正跳回任务
+    portRETURN_TASK();
+//<<AICUBE_USER_SPI2_ISR_CODE2_END>>
+}
+
+extern void IMU_INT_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
+
+void IMU_INT_ISR(void){
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    portNORMALIZE_INTERRUPT_STACK();
+    portSAVE_CONTEXT();
+
+    IMU_INT_ISR_Handle(&xHigherPriorityTaskWoken);
+
+    if (xHigherPriorityTaskWoken != pdFALSE)
+    {
+        portEND_SWITCHING_ISR();
+    }
+    portRESTORE_CONTEXT();
+    portRELEASE_INTERRUPT();
+
+    portRETURN_TASK();
+}
+
+__asm   { CSEG    AT   027BH       }
+#if ( configUSE_ROMHUGE == 0 )
+    __asm   { JMP     DMA_SPI2_ISR?_  }
+#else
+    __asm   { JMP     DMA_SPI2_ISR??  }
+#endif
 
     __asm   { CSEG    AT  0BH       }
 #if ( configUSE_ROMHUGE == 0 )
@@ -238,3 +298,11 @@ static void prvPortSetupTimerInterrupt( void )
 #else
     __asm   { JMP     vTimer0ISR??  }
 #endif
+
+    __asm   { CSEG    AT  015BH       }///
+#if ( configUSE_ROMHUGE == 0 )
+    __asm   { JMP     IMU_INT_ISR?_  }
+#else
+    __asm   { JMP     IMU_INT_ISR??  }
+#endif
+

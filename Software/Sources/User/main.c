@@ -5,6 +5,7 @@
 #include "port.h"
 #include "clock.h"
 #include "pwm.h"
+#include "timer.h"
 #include "iap_user.h"
 #include "ws2812.h"
 
@@ -37,6 +38,7 @@ void sys_init(void){
 	CLK_Init();    
 	PWMA_Init();
 	PWME_Init();
+	
 	IAP_Init();
 	WS2812_Init();
 }

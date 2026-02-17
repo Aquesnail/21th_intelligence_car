@@ -1154,7 +1154,7 @@
 		<TimerAction>2</TimerAction>
 		<TimerInterval>26</TimerInterval>
 		<TimerUnit>0</TimerUnit>
-		<TimerReload>104</TimerReload>
+		<TimerReload>260</TimerReload>
 		<ClockPrescale>0</ClockPrescale>
 		<UartBaudrate>9600</UartBaudrate>
 		<CLKOPort>-1</CLKOPort>
@@ -1173,7 +1173,7 @@
 		<TimerAction>0</TimerAction>
 		<TimerInterval>100</TimerInterval>
 		<TimerUnit>0</TimerUnit>
-		<TimerReload>1</TimerReload>
+		<TimerReload>1000</TimerReload>
 		<ClockPrescale>0</ClockPrescale>
 		<UartBaudrate>9600</UartBaudrate>
 		<CLKOPort>-1</CLKOPort>
@@ -1230,7 +1230,7 @@
 		<TimerAction>0</TimerAction>
 		<TimerInterval>100</TimerInterval>
 		<TimerUnit>0</TimerUnit>
-		<TimerReload>1</TimerReload>
+		<TimerReload>1000</TimerReload>
 		<ClockPrescale>0</ClockPrescale>
 		<UartBaudrate>9600</UartBaudrate>
 		<CLKOPort>-1</CLKOPort>
@@ -1249,7 +1249,7 @@
 		<TimerAction>0</TimerAction>
 		<TimerInterval>100</TimerInterval>
 		<TimerUnit>0</TimerUnit>
-		<TimerReload>1</TimerReload>
+		<TimerReload>1000</TimerReload>
 		<ClockPrescale>0</ClockPrescale>
 		<UartBaudrate>9600</UartBaudrate>
 		<CLKOPort>-1</CLKOPort>
@@ -1314,7 +1314,7 @@
 		<IntPriority>0</IntPriority>
 	</TIMER10>
 	<TIMER11>
-		<PeriEnable>0</PeriEnable>
+		<PeriEnable>1</PeriEnable>
 		<EnableCLKO>0</EnableCLKO>
 		<EnableGATE>0</EnableGATE>
 		<BaudrateX2>0</BaudrateX2>
@@ -1322,14 +1322,14 @@
 		<Clock12T>0</Clock12T>
 		<TimerCT>0</TimerCT>
 		<TimerMode>0</TimerMode>
-		<TimerAction>0</TimerAction>
-		<TimerInterval>100</TimerInterval>
+		<TimerAction>1</TimerAction>
+		<TimerInterval>655360</TimerInterval>
 		<TimerUnit>0</TimerUnit>
-		<TimerReload>1</TimerReload>
-		<ClockPrescale>0</ClockPrescale>
+		<TimerReload>65536</TimerReload>
+		<ClockPrescale>99</ClockPrescale>
 		<UartBaudrate>9600</UartBaudrate>
 		<CLKOPort>-1</CLKOPort>
-		<EnableInt>0</EnableInt>
+		<EnableInt>1</EnableInt>
 		<IntPriority>0</IntPriority>
 	</TIMER11>
 	<TIMER17>
@@ -1344,7 +1344,7 @@
 		<TimerAction>0</TimerAction>
 		<TimerInterval>100</TimerInterval>
 		<TimerUnit>0</TimerUnit>
-		<TimerReload>1</TimerReload>
+		<TimerReload>1000</TimerReload>
 		<ClockPrescale>0</ClockPrescale>
 		<UartBaudrate>9600</UartBaudrate>
 		<CLKOPort>-1</CLKOPort>
@@ -1363,7 +1363,7 @@
 		<TimerAction>0</TimerAction>
 		<TimerInterval>100</TimerInterval>
 		<TimerUnit>0</TimerUnit>
-		<TimerReload>1</TimerReload>
+		<TimerReload>1000</TimerReload>
 		<ClockPrescale>0</ClockPrescale>
 		<UartBaudrate>9600</UartBaudrate>
 		<CLKOPort>-1</CLKOPort>
@@ -1520,7 +1520,7 @@
 		<ModbusCRC16>0</ModbusCRC16>
 		<BaudGenerator>0</BaudGenerator>
 		<UartBit>0</UartBit>
-		<UartBaudrate>115200</UartBaudrate>
+		<UartBaudrate>9600</UartBaudrate>
 		<AutoParity>0</AutoParity>
 		<UartPort>0</UartPort>
 		<TMOInterval>10</TMOInterval>
@@ -1902,17 +1902,17 @@
 		<P2PDestination>0</P2PDestination>
 	</SPI1>
 	<SPI2>
-		<PeriEnable>0</PeriEnable>
+		<PeriEnable>1</PeriEnable>
 		<EnableHSSPI>0</EnableHSSPI>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
 		<EnableInt>0</EnableInt>
-		<SPIPort>-1</SPIPort>
+		<SPIPort>3</SPIPort>
 		<SPISwap>0</SPISwap>
 		<SPIMode>0</SPIMode>
 		<BitOrder>0</BitOrder>
 		<SPIClockMode>0</SPIClockMode>
-		<SPIClockDivider>1</SPIClockDivider>
+		<SPIClockDivider>3</SPIClockDivider>
 		<HSSPIClockDivider>2</HSSPIClockDivider>
 		<HSSPISSSetupTiming>3</HSSPISSSetupTiming>
 		<HSSPISSHoldTiming>3</HSSPISSHoldTiming>
@@ -1920,8 +1920,8 @@
 		<TMOInterval>10</TMOInterval>
 		<TMOUnit>0</TMOUnit>
 		<IntPriority>0</IntPriority>
-		<EnableDMA>0</EnableDMA>
-		<EnableDMAInt>0</EnableDMAInt>
+		<EnableDMA>1</EnableDMA>
+		<EnableDMAInt>1</EnableDMAInt>
 		<EnableDMAAutoSS>0</EnableDMAAutoSS>
 		<DMAAmount>16</DMAAmount>
 		<DMAInterval>0</DMAInterval>
@@ -3530,6 +3530,10 @@
 		<PinCount>256</PinCount>
 		<Pin01Map>2</Pin01Map>
 		<Pin02Map>16</Pin02Map>
+		<Pin09Map>2</Pin09Map>
+		<Pin10Map>2</Pin10Map>
+		<Pin11Map>1</Pin11Map>
+		<Pin12Map>1</Pin12Map>
 		<Pin17Map>255</Pin17Map>
 		<Pin23Map>4</Pin23Map>
 		<Pin24Map>4</Pin24Map>

@@ -315,15 +315,7 @@ StorageErr_t Storage_Mark_Data(void far* addr){
     }
     return NOT_REGISTERED;
 }
-static void _memcpy(void far* s1,void far* s2,uint16_t len){
-    uint16_t i;
-    uint8_t far* a;
-    uint8_t far* b;
-    a=s1,b=s2;
-    for(i=0;i<len;i++){
-        *(a+i) = *(b+i);
-    }
-}
+
 void Storage_Save_Data(){
     uint16_t i;
     uint16_t curr_index;

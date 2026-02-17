@@ -38,7 +38,7 @@ typedef struct {
 static DebugObj_t debugTable[MAX_DEBUG_VARS];
 static uint8_t debugVarCount = 0;
 static uint8_t txPkt[TX_BUF_SIZE]; // 统一发送缓冲
-static char xdata print_buf[128];
+static char xdata print_buf[512];
 
 /*================== 互斥锁   ================= */
 
@@ -105,6 +105,10 @@ static void Debug_TxCore(uint8_t id, uint8_t type, uint8_t *payload, uint8_t len
         memcpy(&txPkt[4], payload, len);
     }
 
+    if(len > (TX_BUF_SIZE - 6)){
+        len = TX_BUF_SIZE - 6;
+    }
+		
     // 3. 计算 CRC (范围: ID ~ Payload结束)
     crc = Debug_Arch_CRC16(&txPkt[1], pktLen - 1);
 
@@ -173,6 +177,31 @@ void Debug_Log(const char* fmt,...) {
         
     }
    
+}
+// 辅助函数：分片发送长字符串
+// buffer: 待发送的长字符串（例如 CPU 统计信息）
+void Debug_LogLongString(char *buffer) {
+    char *pStart = buffer;
+    char *pNext;
+    
+    while (*pStart != '\0') {
+        // 寻找下一行
+        pNext = strchr(pStart, '\n');
+        
+        if (pNext != NULL) {
+            *pNext = '\0'; // 临时截断
+            Debug_Log("%s\n", pStart); // 发送一行
+            *pNext = '\n'; // 恢复
+            pStart = pNext + 1; // 移动指针
+        } else {
+            Debug_Log("%s", pStart); // 发送最后一行
+            break;
+        }
+        
+        // 关键：给 DMA 和 RTOS 一点喘息时间
+        // 如果不加延时，连续的 Debug_Log 可能会填满串口 RingBuffer 导致丢包
+        vTaskDelay(pdMS_TO_TICKS(10)); 
+    }
 }
 
 /* ================= 注册与接收逻辑 ================= */

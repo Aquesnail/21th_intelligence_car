@@ -15,7 +15,7 @@ void app_clk_test(void)
         
         // 2. 发送
         WS2812_Show();
-        
+       
         // 3. 移动位置
         pos++;
         if(pos >= WS2812_LED_NUM) pos = 0;

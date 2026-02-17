@@ -3630,7 +3630,7 @@
 ////////////////////////
 
 #define T4T3M_T3R_MSK                   BIT3
-#define TIMER3_Run()                    SET_REG_BIT(T4T3M, T4T3M_T3R_MSK)
+#define zRun()                    SET_REG_BIT(T4T3M, T4T3M_T3R_MSK)
 #define TIMER3_Stop()                   CLR_REG_BIT(T4T3M, T4T3M_T3R_MSK)
 
 #define TIMER3_SetReload16(n)           (T3H = HIBYTE(n), T3L = LOBYTE(n))

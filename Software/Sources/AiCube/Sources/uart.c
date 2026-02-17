@@ -36,7 +36,7 @@ void UART5_Init(void)
 #ifdef BAUDRATE
 #undef BAUDRATE
 #endif
-#define BAUDRATE                (115200)
+#define BAUDRATE                (9600)
 #define T2_RELOAD               (65536 - (SYSCLK / BAUDRATE + 2) / 4)
 
     UART5_SwitchP0405();                //设置串口数据端口: RxD5 (P0.4), TxD5 (P0.5)

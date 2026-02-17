@@ -123,9 +123,9 @@
 #define configUSE_APPLICATION_TASK_TAG          0
 #define configUSE_COUNTING_SEMAPHORES           0                       //为1时使用计数信号量
 
-#define configGENERATE_RUN_TIME_STATS	        0                       //为1时启用运行时间统计功能
-#define configUSE_TRACE_FACILITY				0                       //为1启用可视化跟踪调试
-#define configUSE_STATS_FORMATTING_FUNCTIONS	0                       //与宏configUSE_TRACE_FACILITY同时为1时会编译下面3个函数
+#define configGENERATE_RUN_TIME_STATS	        1                       //为1时启用运行时间统计功能
+#define configUSE_TRACE_FACILITY				1                       //为1启用可视化跟踪调试
+#define configUSE_STATS_FORMATTING_FUNCTIONS	1                       //与宏configUSE_TRACE_FACILITY同时为1时会编译下面3个函数
                                                                         //prvWriteNameToBuffer(),vTaskList(),
                                                                         //vTaskGetRunTimeStats()
 /* Co-routine definitions. */
@@ -146,6 +146,10 @@ to exclude the API function. */
 #define INCLUDE_eTaskGetState                   0
 #define INCLUDE_xTimerPendFunctionCall          0
 
+extern void ConfigureTimeForRunTimeStats(void);
+extern uint32_t GetRunTimeCounterValue(void);
 
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()  ConfigureTimeForRunTimeStats()
+#define portGET_RUN_TIME_COUNTER_VALUE()          GetRunTimeCounterValue()
 
 #endif /* FREERTOS_CONFIG_H */

@@ -17,5 +17,6 @@
 void vDebugTask(void *pvParameters);
 void Debug_Register(char* name, uint8_t type, void* addr);
 void Debug_Log(const char* fmt,...);
+void Debug_LogLongString(char *buffer);
 void Debug_Init(void);
 #endif
