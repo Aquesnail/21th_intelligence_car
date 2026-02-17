@@ -104,7 +104,7 @@ void CPU_STATUS_TASK_Init(void){
     xTaskCreate(
         vTaskMonitor,
         "vTaskMonitor",
-        2048+1024,
+        512,
         NULL,
         tskIDLE_PRIORITY + 2,
         NULL
