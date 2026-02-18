@@ -50,7 +50,7 @@ uint8_t xdata pu8SPI2DMARxBuffer[16];   //SPI2 DMA接收缓冲区数组
 ////////////////////////////////////////
 void SPI2_Init(DMA_SPI2_Callback_t callback)
 {
-    SPI2_SwitchP8n();                   //选择SPI数据口: SS(P8.0), MOSI(P8.1), MISO(P8.2), SCLK(P8.3)
+    SPI2_SwitchPBn();                   //选择SPI数据口: SS(P8.0), MOSI(P8.1), MISO(P8.2), SCLK(P8.3)
 
     SPI2_MasterMode();                  //设置SPI2为主机模式
     SPI2_IgnoreSS();                    //忽略SS脚
@@ -109,6 +109,13 @@ uint8_t SPI2_ReadByte(void)
     return SPI2_ReadData();
 }
 
+uint8_t SPI2_WriteReadByte(uint8_t dat)
+{
+    SPI2_SendData(dat);                //触发主机读取数据（主机发送时钟信号）
+    while (!SPI2_CheckFlag());          //等待读取完成
+    SPI2_ClearFlag();                   //清除中断标志
+    return SPI2_ReadData();
+}
 
 ////////////////////////////////////////
 // SPI2 DMA中断服务程序

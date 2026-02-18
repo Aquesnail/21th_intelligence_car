@@ -124,9 +124,11 @@ void PORT3_Init(void)
 void PORT4_Init(void)
 {
     SetP4nInitLevelHigh(PIN_ALL);       //设置P4初始化电平
-    SetP4nQuasiMode(PIN_ALL);           //设置P4为无弱上拉准双向口模式
+    SetP4nQuasiMode(PIN_7 | PIN_6 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //设置P4.7,P4.6,P4.4,P4.3,P4.2,P4.1,P4.0为无弱上拉准双向口模式
+    SetP4nPushPullMode(PIN_5);          //设置P4.5为推挽输出模式
 
-    DisableP4nPullUp(PIN_ALL);          //关闭P4内部上拉电阻
+    EnableP4nPullUp(PIN_5);             //使能P4.5内部上拉电阻
+    DisableP4nPullUp(PIN_7 | PIN_6 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //关闭P4.7,P4.6,P4.4,P4.3,P4.2,P4.1,P4.0内部上拉电阻
     DisableP4nPullDown(PIN_ALL);        //关闭P4内部下拉电阻
     DisableP4nSchmitt(PIN_ALL);         //使能P4施密特触发
     SetP4nSlewRateNormal(PIN_ALL);      //设置P4一般翻转速度
@@ -222,11 +224,15 @@ void PORT8_Init(void)
     SetP8nInitLevelHigh(PIN_ALL);       //设置P8初始化电平
     SetP8nQuasiMode(PIN_ALL);           //设置P8为无弱上拉准双向口模式
 
-    DisableP8nPullUp(PIN_ALL);          //关闭P8内部上拉电阻
-    DisableP8nPullDown(PIN_ALL);        //关闭P8内部下拉电阻
+    EnableP8nPullUp(PIN_3 | PIN_1);     //使能P8.3,P8.1内部上拉电阻
+    DisableP8nPullUp(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_2 | PIN_0); //关闭P8.7,P8.6,P8.5,P8.4,P8.2,P8.0内部上拉电阻
+    EnableP8nPullDown(PIN_2);           //使能P8.2内部下拉电阻
+    DisableP8nPullDown(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_3 | PIN_1 | PIN_0); //关闭P8.7,P8.6,P8.5,P8.4,P8.3,P8.1,P8.0内部下拉电阻
     DisableP8nSchmitt(PIN_ALL);         //使能P8施密特触发
-    SetP8nSlewRateNormal(PIN_ALL);      //设置P8一般翻转速度
-    SetP8nDrivingNormal(PIN_ALL);       //设置P8一般驱动能力
+    SetP8nSlewRateNormal(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_2); //设置P8.7,P8.6,P8.5,P8.4,P8.2一般翻转速度
+    SetP8nSlewRateFast(PIN_3 | PIN_1 | PIN_0); //设置P8.3,P8.1,P8.0快速翻转速度
+    SetP8nDrivingNormal(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_2 | PIN_0); //设置P8.7,P8.6,P8.5,P8.4,P8.2,P8.0一般驱动能力
+    SetP8nDrivingStrong(PIN_3 | PIN_1); //设置P8.3,P8.1增强驱动能力
     SetP8nDigitalInput(PIN_ALL);        //使能P8数字信号输入功能
 
     //<<AICUBE_USER_PORT8_INITIAL_BEGIN>>
@@ -287,12 +293,15 @@ void PORTA_Init(void)
 void PORTB_Init(void)
 {
     SetPBnInitLevelHigh(PIN_ALL);       //设置PB初始化电平
-    SetPBnQuasiMode(PIN_ALL);           //设置PB为无弱上拉准双向口模式
+    SetPBnQuasiMode(PIN_7 | PIN_6 | PIN_5 | PIN_3 | PIN_1 | PIN_0); //设置PB.7,PB.6,PB.5,PB.3,PB.1,PB.0为无弱上拉准双向口模式
+    SetPBnPushPullMode(PIN_4 | PIN_2);  //设置PB.4,PB.2为推挽输出模式
 
-    DisablePBnPullUp(PIN_ALL);          //关闭PB内部上拉电阻
+    EnablePBnPullUp(PIN_3);             //使能PB.3内部上拉电阻
+    DisablePBnPullUp(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_2 | PIN_1 | PIN_0); //关闭PB.7,PB.6,PB.5,PB.4,PB.2,PB.1,PB.0内部上拉电阻
     DisablePBnPullDown(PIN_ALL);        //关闭PB内部下拉电阻
     DisablePBnSchmitt(PIN_ALL);         //使能PB施密特触发
-    SetPBnSlewRateNormal(PIN_ALL);      //设置PB一般翻转速度
+    SetPBnSlewRateNormal(PIN_7 | PIN_6 | PIN_5 | PIN_3 | PIN_1 | PIN_0); //设置PB.7,PB.6,PB.5,PB.3,PB.1,PB.0一般翻转速度
+    SetPBnSlewRateFast(PIN_4 | PIN_2);  //设置PB.4,PB.2快速翻转速度
     SetPBnDrivingNormal(PIN_ALL);       //设置PB一般驱动能力
     SetPBnDigitalInput(PIN_ALL);        //使能PB数字信号输入功能
 

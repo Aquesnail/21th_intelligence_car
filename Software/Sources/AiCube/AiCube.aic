@@ -410,8 +410,8 @@
 		<PortIE_4>0</PortIE_4>
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
-		<PortMD_5>0</PortMD_5>
-		<PortPU_5>0</PortPU_5>
+		<PortMD_5>1</PortMD_5>
+		<PortPU_5>1</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
 		<PortSR_5>1</PortSR_5>
@@ -700,25 +700,25 @@
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
-		<PortSR_0>1</PortSR_0>
+		<PortSR_0>0</PortSR_0>
 		<PortDR_0>1</PortDR_0>
 		<PortAD_0>1</PortAD_0>
 		<PortIE_0>0</PortIE_0>
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
-		<PortPU_1>0</PortPU_1>
+		<PortPU_1>1</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
-		<PortSR_1>1</PortSR_1>
-		<PortDR_1>1</PortDR_1>
+		<PortSR_1>0</PortSR_1>
+		<PortDR_1>0</PortDR_1>
 		<PortAD_1>1</PortAD_1>
 		<PortIE_1>0</PortIE_1>
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
 		<PortPU_2>0</PortPU_2>
-		<PortPD_2>0</PortPD_2>
+		<PortPD_2>1</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
 		<PortSR_2>1</PortSR_2>
 		<PortDR_2>1</PortDR_2>
@@ -727,11 +727,11 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
-		<PortPU_3>0</PortPU_3>
+		<PortPU_3>1</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
-		<PortSR_3>1</PortSR_3>
-		<PortDR_3>1</PortDR_3>
+		<PortSR_3>0</PortSR_3>
+		<PortDR_3>0</PortDR_3>
 		<PortAD_3>1</PortAD_3>
 		<PortIE_3>0</PortIE_3>
 		<PortWK_3>0</PortWK_3>
@@ -968,18 +968,18 @@
 		<PortIE_1>0</PortIE_1>
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
-		<PortMD_2>0</PortMD_2>
+		<PortMD_2>1</PortMD_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
-		<PortSR_2>1</PortSR_2>
+		<PortSR_2>0</PortSR_2>
 		<PortDR_2>1</PortDR_2>
 		<PortAD_2>1</PortAD_2>
 		<PortIE_2>0</PortIE_2>
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
-		<PortPU_3>0</PortPU_3>
+		<PortPU_3>1</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
 		<PortSR_3>1</PortSR_3>
@@ -988,11 +988,11 @@
 		<PortIE_3>0</PortIE_3>
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
-		<PortMD_4>0</PortMD_4>
+		<PortMD_4>1</PortMD_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
-		<PortSR_4>1</PortSR_4>
+		<PortSR_4>0</PortSR_4>
 		<PortDR_4>1</PortDR_4>
 		<PortAD_4>1</PortAD_4>
 		<PortIE_4>0</PortIE_4>
@@ -1063,7 +1063,7 @@
 		<HSIOClockSource>0</HSIOClockSource>
 		<HSI2SClockSource>0</HSI2SClockSource>
 		<HSSPI1Divider>1</HSSPI1Divider>
-		<HSSPI2Divider>1</HSSPI2Divider>
+		<HSSPI2Divider>30</HSSPI2Divider>
 		<HSSPI3Divider>1</HSSPI3Divider>
 		<HSI2S1Divider>1</HSI2S1Divider>
 		<HSI2S2Divider>1</HSI2S2Divider>
@@ -1907,7 +1907,7 @@
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
 		<EnableInt>0</EnableInt>
-		<SPIPort>3</SPIPort>
+		<SPIPort>2</SPIPort>
 		<SPISwap>0</SPISwap>
 		<SPIMode>0</SPIMode>
 		<BitOrder>0</BitOrder>
@@ -3530,10 +3530,6 @@
 		<PinCount>256</PinCount>
 		<Pin01Map>2</Pin01Map>
 		<Pin02Map>16</Pin02Map>
-		<Pin09Map>2</Pin09Map>
-		<Pin10Map>2</Pin10Map>
-		<Pin11Map>1</Pin11Map>
-		<Pin12Map>1</Pin12Map>
 		<Pin17Map>255</Pin17Map>
 		<Pin23Map>4</Pin23Map>
 		<Pin24Map>4</Pin24Map>
@@ -3550,6 +3546,10 @@
 		<Pin44Map>255</Pin44Map>
 		<Pin67Map>255</Pin67Map>
 		<Pin73Map>8</Pin73Map>
+		<Pin85Map>8</Pin85Map>
+		<Pin86Map>4</Pin86Map>
+		<Pin87Map>4</Pin87Map>
+		<Pin88Map>4</Pin88Map>
 		<Pin92Map>255</Pin92Map>
 		<Pin99Map>16</Pin99Map>
 		<Pin100Map>2</Pin100Map>

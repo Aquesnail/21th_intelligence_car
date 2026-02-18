@@ -113,6 +113,8 @@ void CPU_STATUS_TASK_Init(void){
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     // 此时不要调用 Debug_Log (会死循环)，直接闪灯或断点 
+		(void)pcTaskName;
+		(void) xTask;
     while(1);
 }
 

@@ -22,6 +22,7 @@ void app_init(void){
 		App_DebugTask_Init();
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
+    IMU_Init();
     //Storage_Test_Init();
     vTaskStartScheduler();
 

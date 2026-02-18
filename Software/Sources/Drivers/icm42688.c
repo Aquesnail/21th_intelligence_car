@@ -19,11 +19,12 @@ static uint8_t icm_write_reg(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t
 }
 
 /* 辅助函数：读特定 Bank 的寄存器 */
-static uint8_t icm_read_regs(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t xdata*dat, uint16_t len) {
+static uint8_t icm_read_regs(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t *dat, uint16_t len) {
     if (icm_set_bank(dev, bank) != ICM_OK) return ICM_ERROR;
    // if (len == 1 && dev->read_byte != NULL) {
    //     return dev->read_byte(reg, dat) == 0 ? ICM_OK : ICM_ERROR;
    // } else {
+    reg|=0x80;
         return dev->read(reg, dat, len) == 0 ? ICM_OK : ICM_ERROR;
    // }
 }
@@ -31,6 +32,7 @@ static uint8_t icm_read_regs(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t
 static uint8_t icm_read_reg(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t *dat) {
     if (icm_set_bank(dev, bank) != ICM_OK) return ICM_ERROR;
    // if (len == 1 && dev->read_byte != NULL) {
+   reg|=0x80;
     return dev->read_byte(reg, dat) == 0 ? ICM_OK : ICM_ERROR;
    // } else {
    //     return dev->read(reg, dat, len) == 0 ? ICM_OK : ICM_ERROR;
@@ -212,7 +214,7 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     dev->delay(50); // 等待传感器稳定
     return ICM_OK;
 }
-uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t xdata*buffer){
+uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer){
     uint16_t fifo_packets;
     if(icm_read_regs(dev,0,ICM42688_FIFO_COUNTH,(uint8_t*)(&fifo_packets),2) != ICM_OK) return ICM_ERROR;
     if(fifo_packets >= 2048 / 16) return 0;

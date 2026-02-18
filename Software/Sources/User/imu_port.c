@@ -10,6 +10,7 @@
 #include "portasm.h"
 
 #pragma warning disable = 138
+#pragma warning disable = 151
 
 static ICM42688_t icm42688_Init_Structure;
 static SemaphoreHandle_t xDmaSemaphore;
@@ -19,7 +20,7 @@ static IMU_Filter_t IMU_Filter_Data;
 
 extern SemaphoreHandle_t xDebugReadySingal;
 void IMU_Structure_Init(void);
-uint8_t IMU_Read_Bytes_DMA_IT(uint8_t reg,uint8_t xdata* dat,uint16_t len){ //这里只能传入Xdata域内的数组，不要传输错了
+uint8_t IMU_Read_Bytes_DMA_IT(uint8_t reg,uint8_t* dat,uint16_t len){ //这里只能传入Xdata域内的数组，不要传输错了
     
     ICM42688_CS_RESET();
     SPI2_WriteByte(reg | 0x80);
@@ -36,10 +37,10 @@ uint8_t IMU_Read_Bytes_DMA_IT(uint8_t reg,uint8_t xdata* dat,uint16_t len){ //�
 }
 uint8_t IMU_Read_Byte(uint8_t reg,uint8_t *dat){
     ICM42688_CS_RESET();
-
-    SPI2_WriteByte(reg|0x80);
-    *dat = SPI2_ReadByte();
-
+    taskENTER_CRITICAL();
+    SPI2_WriteReadByte(reg|0x80);
+    *dat = SPI2_WriteReadByte(0xFF);
+    taskEXIT_CRITICAL();
     ICM42688_CS_SET();
     return 0;
 }

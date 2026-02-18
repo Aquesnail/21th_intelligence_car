@@ -20,7 +20,7 @@ typedef void (*DMA_SPI2_Callback_t)(BaseType_t *pxHigherPriorityTaskWoken);
 void SPI2_Init(DMA_SPI2_Callback_t callback);
 uint8_t SPI2_ReadByte(void);
 void SPI2_WriteByte(uint8_t dat);
-
+uint8_t SPI2_WriteReadByte(uint8_t dat);
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>
 // 在此添加用户外部函数和外部变量声明  
 void SPI2_DMA_ReadBytes_IT(uint8_t xdata*rx_buf, uint16_t len);
