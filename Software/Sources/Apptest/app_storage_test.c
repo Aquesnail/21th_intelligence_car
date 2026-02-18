@@ -9,6 +9,8 @@
 #define STORAGE_TEST_TASK_PRIORITY      (tskIDLE_PRIORITY + 2)
 #define STORAGE_TEST_TASK_STACK_SIZE    256
 
+#pragma warning disable = 138
+
 // ==========================================
 // 测试变量 (必须是全局或静态，不能在栈上)
 // ==========================================

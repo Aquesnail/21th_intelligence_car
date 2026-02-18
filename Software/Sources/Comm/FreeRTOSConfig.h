@@ -102,11 +102,11 @@
 #define configDEFAULT_PRIORITIES                (tskIDLE_PRIORITY + 1)  //任务默认优先级
 #define configMINIMAL_STACK_SIZE                ((unsigned short)256)   //空闲任务使用的堆栈大小
 #define configDEFAULT_STACK_SIZE                ((unsigned short)128)   //任务默认堆栈大小
-#define configMAX_TASK_NAME_LEN                 (8)                     //任务名字字符串长度
+#define configMAX_TASK_NAME_LEN                 (16)                     //任务名字字符串长度
 #define configUSE_IDLE_HOOK						0                       //1使用空闲钩子,0不使用 /*void vApplicationIdleHook( void );*/
 #define configUSE_TICK_HOOK						0                       //1使用时间片钩子,0不使用 /*void vApplicationTickHook( void );*/
 #define configSUPPORT_DYNAMIC_ALLOCATION        1                       //支持动态内存申请
-#define configTOTAL_HEAP_SIZE					((size_t)(4*1024))     // 系统所有总的堆大小
+#define configTOTAL_HEAP_SIZE					((size_t)(12*1024))     // 系统所有总的堆大小
 
 #define configUSE_16_BIT_TICKS                  0                       //系统节拍计数器变量数据类型，
                                                                         //1表示为16位无符号整形，0表示为32位无符号整形
@@ -115,11 +115,11 @@
 #define configUSE_MUTEXES                       1                       //为1时使用互斥信号量
 #define configQUEUE_REGISTRY_SIZE               0                       //不为0时表示启用队列记录，具体的值是可以
                                                                         //记录的队列和信号量最大数目。
-#define configCHECK_FOR_STACK_OVERFLOW          0                       //大于0时启用堆栈溢出检测功能，如果使用此功能
+#define configCHECK_FOR_STACK_OVERFLOW          2                       //大于0时启用堆栈溢出检测功能，如果使用此功能
                                                                         //用户必须提供一个栈溢出钩子函数，如果使用的话
                                                                         //此值可以为1或者2，因为有两种栈溢出检测方法。
 #define configUSE_RECURSIVE_MUTEXES             0                       //为1时使用递归互斥信号量
-#define configUSE_MALLOC_FAILED_HOOK            0                       //1使用内存申请失败钩子函数
+#define configUSE_MALLOC_FAILED_HOOK            1                       //1使用内存申请失败钩子函数
 #define configUSE_APPLICATION_TASK_TAG          0
 #define configUSE_COUNTING_SEMAPHORES           0                       //为1时使用计数信号量
 

@@ -33,7 +33,7 @@ uint8_t xdata pu8SPI2DMARxBuffer[16];   //SPI2 DMA接收缓冲区数组
 ////////////////////////////////////////
 void SPI2_Init(void)
 {
-    SPI2_SwitchP8n();                   //选择SPI数据口: SS(P8.0), MOSI(P8.1), MISO(P8.2), SCLK(P8.3)
+    SPI2_SwitchPBn();                   //选择SPI数据口: SS(PB.1), MOSI(PB.2), MISO(PB.3), SCLK(PB.4)
 
     SPI2_MasterMode();                  //设置SPI2为主机模式
     SPI2_IgnoreSS();                    //忽略SS脚

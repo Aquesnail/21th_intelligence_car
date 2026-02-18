@@ -11,8 +11,8 @@
 
 //#define ICM;
 extern uint8_t imu_ready;
-#define ICM42688_CS_SET() SetP8nInitLevelHigh(PIN_0)
-#define ICM42688_CS_RESET() SetP8nInitLevelLow(PIN_0)
+#define ICM42688_CS_SET() P45 = 1
+#define ICM42688_CS_RESET() P45 = 0
 
 #define ICM42688_SPI_TIMEOUt 1000
 /* 错误码定义 */
@@ -22,9 +22,9 @@ extern uint8_t imu_ready;
 
 /* 函数指针类型定义 */
 typedef uint8_t (*icm_write_reg_t)(uint8_t reg, uint8_t dat);
-typedef uint8_t (*icm_read_reg_t)(uint8_t reg, uint8_t xdata* dat, uint16_t len);
+typedef uint8_t (*icm_read_reg_t)(uint8_t reg, uint8_t * dat, uint16_t len);
 typedef uint8_t (*icm_read_reg_byte_t)(uint8_t reg, uint8_t *dat);  // 新增
-typedef void    (*icm_delay_ms_t)(uint16_t ms);
+typedef void    (*icm_delay_ms_t)(uint32_t ms);
 
 /* 核心对象结构体 */
 typedef struct {

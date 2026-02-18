@@ -9,7 +9,7 @@
 ////////////////////////////////////////
 //<<AICUBE_USER_HEADER_REMARK_END>>
 
-
+#include "spi2_user.h"
 #include "config.h"
 
 
@@ -19,6 +19,7 @@
 #include "semphr.h"
 #include "portasm.h"
 #include "string.h"
+
 //<<AICUBE_USER_INCLUDE_END>>
 
 
@@ -33,8 +34,8 @@ static uint8_t *spi2_rx_buffer;         // 用户接收缓冲区指针
 static uint8_t spi2_transfer_len;        // 传输长度
 static volatile uint8_t spi2_dma_busy;   // 非阻塞传输忙标志
 
-typedef void (*DMA_SPI2_Callback_t)(BaseType_t *pxHigherPriorityTaskWoken);
-static DMA_SPI2_Callback_t spi2_dma_callback = NULL;
+
+static DMA_SPI2_Callback_t spi2_dma_callback = (void *)NULL;
 
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
@@ -47,9 +48,9 @@ uint8_t xdata pu8SPI2DMARxBuffer[16];   //SPI2 DMA接收缓冲区数组
 // 入口参数: 无
 // 函数返回: 无
 ////////////////////////////////////////
-void SPI2_Init(DMA_SPI2_Callback_t* callback)
+void SPI2_Init(DMA_SPI2_Callback_t callback)
 {
-    SPI2_SwitchP8n();                   //选择SPI数据口: SS(P8.0), MOSI(P8.1), MISO(P8.2), SCLK(P8.3)
+    SPI2_SwitchPBn();                   //选择SPI数据口: SS(P8.0), MOSI(P8.1), MISO(P8.2), SCLK(P8.3)
 
     SPI2_MasterMode();                  //设置SPI2为主机模式
     SPI2_IgnoreSS();                    //忽略SS脚
@@ -108,6 +109,13 @@ uint8_t SPI2_ReadByte(void)
     return SPI2_ReadData();
 }
 
+uint8_t SPI2_WriteReadByte(uint8_t dat)
+{
+    SPI2_SendData(dat);                //触发主机读取数据（主机发送时钟信号）
+    while (!SPI2_CheckFlag());          //等待读取完成
+    SPI2_ClearFlag();                   //清除中断标志
+    return SPI2_ReadData();
+}
 
 ////////////////////////////////////////
 // SPI2 DMA中断服务程序
@@ -143,14 +151,10 @@ void DMA_SPI2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
  * @note     函数立即返回，传输完成后自动调用回调函数（在中断中执行）。
  *           传输期间请勿再次调用本函数，可通过spi2_dma_busy标志判断是否忙。
  ******************************************************************************/
-void SPI2_DMA_ReadBytes_IT(uint8_t *rx_buf, uint8_t len)
+void SPI2_DMA_ReadBytes_IT(uint8_t xdata*rx_buf, uint16_t len)
 {
-    uint8_t i;
-
     // 参数检查
-    if (len == 0 || len > 16) {
-        return;
-    }
+
     
     // 等待之前的非阻塞传输完成（简单轮询，也可改为返回错误）
     while (spi2_dma_busy);

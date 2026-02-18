@@ -13,8 +13,8 @@
 
 /* ================= 配置与定义 ================= */
 #define MAX_DEBUG_VARS  16
-#define TX_BUF_SIZE     80  // 统一发送缓冲区
-#define RX_BUF_SIZE     64  // 接收缓冲区
+#define TX_BUF_SIZE     128  // 统一发送缓冲区
+#define RX_BUF_SIZE     128  // 接收缓冲区
 
 // 协议常量
 #define CMD_HANDSHAKE   0x00
@@ -37,12 +37,16 @@ typedef struct {
 /* ================= 静态变量 ================= */
 static DebugObj_t debugTable[MAX_DEBUG_VARS];
 static uint8_t debugVarCount = 0;
-static uint8_t txPkt[TX_BUF_SIZE]; // 统一发送缓冲
+static uint8_t xdata txPkt[TX_BUF_SIZE]; // 统一发送缓冲
 static char xdata print_buf[512];
 
 /*================== 互斥锁   ================= */
 
 SemaphoreHandle_t xLogMutex = NULL;
+
+/*================== 信号量 =====================*/
+
+SemaphoreHandle_t xDebugReadySingal = NULL;
 
 // RTOS 句柄
 static EventGroupHandle_t xDebugEventGroup = NULL;
@@ -173,7 +177,9 @@ void Debug_Log(const char* fmt,...) {
             Debug_TxCore(0xFF, DBG_STRING, (uint8_t*)print_buf, strlen(print_buf));
 
             xSemaphoreGive(xLogMutex);
-        }
+        }else{
+					while(1);
+				}
         
     }
    
@@ -218,8 +224,9 @@ void Debug_Register(char* name, uint8_t type, void* addr) {
 }
 
 // [核心精简] 统一接收处理
+static uint8_t xdata rxBuf[RX_BUF_SIZE];
 static void Debug_ProcessIncoming(void) {
-    uint8_t rxBuf[RX_BUF_SIZE];
+    
     uint16_t crc_calc, crc_recv;
     uint8_t cmd, len;
 		uint8_t i;
@@ -280,7 +287,7 @@ static void Debug_ProcessIncoming(void) {
                             if(vLen > 2) ptr[2] = rxBuf[7];
                             if(vLen > 3) ptr[3] = rxBuf[8];
                             //sprintf(logbuf, "Wr Addr: %p", debugTable[id].addr); // %p 在 C251 会打印类型和偏移
-							Debug_Log("Wr Addr: %p", debugTable[id].addr);
+						//	Debug_Log("Wr Addr: %p", debugTable[id].addr);
                             taskEXIT_CRITICAL();
                         }
                     }
@@ -317,6 +324,7 @@ static void Debug_ProcessIncoming(void) {
 
 void Debug_Init(){
     xLogMutex = xSemaphoreCreateMutex();
+    xDebugReadySingal = xSemaphoreCreateBinary();
    // UART5_Init();
 }
 
@@ -340,7 +348,7 @@ void vDebugTask(void *pvParameters) {
     // 初始化时间戳
     //xLastWakeTime = xTaskGetTickCount();
     //xLastWakeTimeHighFreq = xTaskGetTickCount();
-
+    xSemaphoreGive(xDebugReadySingal);
     for(;;) {
         vTaskDelay(pdMS_TO_TICKS(10));
         t++;
