@@ -120,6 +120,7 @@ void vIMUProcessTask(void *pvParameters){
         if(xSemaphoreTake(xFIFOIntSemaphore,pdMS_TO_TICKS(100)) == pdTRUE){
             ICM42688_ReadFIFO(&icm42688_Init_Structure,FIFO_Buffer);
             P41=0;
+            ptr = FIFO_Buffer;
             for(i=0;i<icm42688_Init_Structure.FIFO_THS;i++){
                 raw_acc_x = (int16_t)((ptr[1] << 8) | ptr[2]);
                 raw_acc_y = (int16_t)((ptr[3] << 8) | ptr[4]);

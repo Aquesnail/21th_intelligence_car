@@ -414,8 +414,8 @@
 		<PortPU_5>1</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
-		<PortSR_5>1</PortSR_5>
-		<PortDR_5>1</PortDR_5>
+		<PortSR_5>0</PortSR_5>
+		<PortDR_5>0</PortDR_5>
 		<PortAD_5>1</PortAD_5>
 		<PortIE_5>0</PortIE_5>
 		<PortWK_5>0</PortWK_5>
@@ -1912,7 +1912,7 @@
 		<SPIMode>0</SPIMode>
 		<BitOrder>0</BitOrder>
 		<SPIClockMode>0</SPIClockMode>
-		<SPIClockDivider>3</SPIClockDivider>
+		<SPIClockDivider>2</SPIClockDivider>
 		<HSSPIClockDivider>2</HSSPIClockDivider>
 		<HSSPISSSetupTiming>3</HSSPISSSetupTiming>
 		<HSSPISSHoldTiming>3</HSSPISSHoldTiming>

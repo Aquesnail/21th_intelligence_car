@@ -136,19 +136,19 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     update_sensitivity(dev, accel_cfg, gyro_cfg);
 
     // 5. 配置 FIFO
-    ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG, FIFO_MODE_STREAM_TO_FIFO);
+    
+    ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG, FIFO_MODE_BYPASS);
     if (ret != ICM_OK) return ret;
-
     fifo_cfg1 = FIFO_GYRO_EN_ENABLE 
               | FIFO_ACCEL_EN_ENABLE
               | FIFO_TEMP_EN_ENABLE  
-              | FIFO_WM_GT_TH_DISABLE
+              | FIFO_WM_GT_TH_ENABLE
               | FIFO_HIRES_EN_DISABLE 
-              | FIFO_TMST_FSYNC_EN_ENABLE
-              | FIFO_RESUME_PARTIAL_RD_DISABLE;
+              | FIFO_TMST_FSYNC_EN_DISABLE
+              | FIFO_RESUME_PARTIAL_RD_ENABLE;
     ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG1, fifo_cfg1);
     if (ret != ICM_OK) return ret;
-
+   
     ret = icm_write_reg(dev, 0, ICM42688_TMST_CONFIG,
                         TMST_EN_ENABLE | 
                         TMST_RES_1US |
@@ -164,7 +164,7 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     if (ret != ICM_OK) return ret;
 
     // 6. 接口配置
-    intf_cfg0 = FIFO_COUNT_BIG_ENDIAN | SENSOR_DATA_BIG_ENDIAN | FIFO_COUNT_IN_RECORDS;
+    intf_cfg0 = FIFO_COUNT_BIG_ENDIAN | SENSOR_DATA_BIG_ENDIAN | FIFO_COUNT_IN_RECORDS | 0x03;
     ret = icm_write_reg(dev, 0, ICM42688_INTF_CONFIG0, intf_cfg0);
     if (ret != ICM_OK) return ret;
 
@@ -209,6 +209,8 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     ret = icm_write_reg(dev, 2, ICM42688_ACCEL_CONFIG_STATIC2, reg_val);
     if (ret != ICM_OK) return ret;
 
+     ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG, FIFO_MODE_STREAM_TO_FIFO);
+    if (ret != ICM_OK) return ret;
     // 10. 开启电源管理
     pwr_mgmt = PWR_MGMT0_TEMP_ENABLED | PWR_MGMT0_GYRO_LN | PWR_MGMT0_ACCEL_LN;
     ret = icm_write_reg(dev, 0, ICM42688_PWR_MGMT0, pwr_mgmt);
@@ -217,17 +219,39 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     dev->delay(50);
     return ICM_OK;
 }
-uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer){
-    uint16_t fifo_packets;
-    if(icm_read_regs(dev,0,ICM42688_FIFO_COUNTH,(uint8_t*)(&fifo_packets),2) != ICM_OK) return ICM_ERROR;
-    if(fifo_packets >= 128){
-        dev->write(ICM42688_REG_BANK_SEL,0x00);
-        dev->write(ICM42688_SIGNAL_PATH_RESET,FIFO_FLUSH_ENABLE);
-        return fifo_packets;
+//uint8_t count_buf[2]; 
+uint16_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer) {
+    uint16_t fifo_packets = 0;
+    uint8_t count_buf[2];
+
+    // 1. 读取当前 FIFO 中的有效数据包数量 (因为你在 INTF_CONFIG0 中设置了 FIFO_COUNT_IN_RECORDS)
+    // 连续读 COUNTH 和 COUNTL
+    dev->write(ICM42688_REG_BANK_SEL,0);
+    dev->read_byte(ICM42688_FIFO_COUNTH,&count_buf[0]);
+    dev->read_byte(ICM42688_FIFO_COUNTL,&count_buf[1]);
+
+    // 注意：文件1配置了 FIFO_COUNT_BIG_ENDIAN，所以 count_buf[0] 是高字节
+    fifo_packets = (count_buf[0] << 8) | count_buf[1];
+
+    // 如果 FIFO 空了，直接退出
+    if (fifo_packets == 0) return 0;
+
+    // 2. 防溢出保护 (ICM-42688 FIFO 最大 2048 字节，即 128 包)
+    if (fifo_packets >= 128) {
+        // FIFO 溢出，必须清空，否则后续数据全乱
+        dev->write(ICM42688_REG_BANK_SEL, 0x00);
+        dev->write(ICM42688_SIGNAL_PATH_RESET, 0x02); // 写入 FIFO_FLUSH_ENABLE
+        return 0; 
     }
-    if(icm_read_regs(dev,0,ICM42688_FIFO_DATA,buffer,(dev->FIFO_THS)*16)) return ICM_ERROR; //这里我们是16字节数据包
-		return 0;
     
+    // 3. 连续突发读取全部有效数据
+    // 只要 CS 没拉高，传进去长度 fifo_packets * 16，底层就会一次性把数据全部读完
+    if (icm_read_regs(dev, 0, ICM42688_FIFO_DATA, buffer, fifo_packets * 16) != ICM_OK) {
+        return 0; 
+    }
+    
+    // 成功，返回本次实际读取的包数，方便上层进行 for 循环解析
+    return fifo_packets;
 }
 /* 读取传感器数据 (查询方式,16位分辨率) */
 uint8_t xdata raw_data[14];

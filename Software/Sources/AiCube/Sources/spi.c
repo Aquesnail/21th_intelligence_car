@@ -39,7 +39,7 @@ void SPI2_Init(void)
     SPI2_IgnoreSS();                    //忽略SS脚
     SPI2_DataMSB();                     //设置SPI2数据顺序为MSB (高位在前)
     SPI2_SetMode0();                    //设置SPI2工作模式0 (CPOL=0, CPHA=0)
-    SPI2_SetClockDivider16();           //设置SPI2时钟分频
+    SPI2_SetClockDivider8();            //设置SPI2时钟分频
 
     HSSPI2_Disable();                   //关闭SPI2高速模式
 

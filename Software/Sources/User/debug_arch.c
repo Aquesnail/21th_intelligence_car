@@ -228,7 +228,8 @@ static uint8_t xdata rxBuf[RX_BUF_SIZE];
 static void Debug_ProcessIncoming(void) {
     
     uint16_t crc_calc, crc_recv;
-    uint8_t cmd, len;
+    uint8_t cmd;
+		uint16_t len;
 		uint8_t i;
 		uint8_t id;
 		uint8_t vLen;

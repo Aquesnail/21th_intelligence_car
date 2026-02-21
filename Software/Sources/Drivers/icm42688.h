@@ -42,7 +42,7 @@ typedef struct {
 /* 初始化与配置 */
 uint8_t ICM42688_Init(ICM42688_t *dev);
 uint8_t ICM42688_ReadData(ICM42688_t *dev, float *acc, float *gyro, float *temp);
-uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer);
+uint16_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer);
 
 #endif
 

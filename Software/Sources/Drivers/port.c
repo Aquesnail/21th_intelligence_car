@@ -131,8 +131,10 @@ void PORT4_Init(void)
     DisableP4nPullUp(PIN_7 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //关闭P4.7,P4.4,P4.3,P4.2,P4.1,P4.0内部上拉电阻
     DisableP4nPullDown(PIN_ALL);        //关闭P4内部下拉电阻
     DisableP4nSchmitt(PIN_ALL);         //使能P4施密特触发
-    SetP4nSlewRateNormal(PIN_ALL);      //设置P4一般翻转速度
-    SetP4nDrivingNormal(PIN_ALL);       //设置P4一般驱动能力
+    SetP4nSlewRateNormal(PIN_7 | PIN_6 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //设置P4.7,P4.6,P4.4,P4.3,P4.2,P4.1,P4.0一般翻转速度
+    SetP4nSlewRateFast(PIN_5);          //设置P4.5快速翻转速度
+    SetP4nDrivingNormal(PIN_7 | PIN_6 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //设置P4.7,P4.6,P4.4,P4.3,P4.2,P4.1,P4.0一般驱动能力
+    SetP4nDrivingStrong(PIN_5);         //设置P4.5增强驱动能力
     SetP4nDigitalInput(PIN_ALL);        //使能P4数字信号输入功能
 
     //<<AICUBE_USER_PORT4_INITIAL_BEGIN>>
