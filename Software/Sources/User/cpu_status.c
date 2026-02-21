@@ -3,6 +3,7 @@
 #include "task.h"
 #include "debug_arch.h"
 #include "timer.h"
+#include "dma_uart.h"
 
 
 #pragma warning disable = 138
@@ -110,12 +111,14 @@ void CPU_STATUS_TASK_Init(void){
         NULL
     );
 }
-
+char *taskname;
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     // 此时不要调用 Debug_Log (会死循环)，直接闪灯或断点 
-		(void)pcTaskName;
+		taskname = pcTaskName;
 		(void) xTask;
-    while(1);
+    while(1){
+      UART5_Write(pcTaskName,strlen(pcTaskName));
+    };
 }
 
 void vApplicationMallocFailedHook( void )

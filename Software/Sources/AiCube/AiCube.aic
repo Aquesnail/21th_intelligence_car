@@ -370,7 +370,7 @@
 		<PortIE_0>0</PortIE_0>
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
-		<PortMD_1>0</PortMD_1>
+		<PortMD_1>1</PortMD_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -421,7 +421,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
-		<PortPU_6>0</PortPU_6>
+		<PortPU_6>1</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
 		<PortSR_6>1</PortSR_6>
@@ -539,7 +539,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
-		<PortPU_1>0</PortPU_1>
+		<PortPU_1>1</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
 		<PortSR_1>1</PortSR_1>
@@ -1063,7 +1063,7 @@
 		<HSIOClockSource>0</HSIOClockSource>
 		<HSI2SClockSource>0</HSI2SClockSource>
 		<HSSPI1Divider>1</HSSPI1Divider>
-		<HSSPI2Divider>30</HSSPI2Divider>
+		<HSSPI2Divider>1</HSSPI2Divider>
 		<HSSPI3Divider>1</HSSPI3Divider>
 		<HSI2S1Divider>1</HSI2S1Divider>
 		<HSI2S2Divider>1</HSI2S2Divider>

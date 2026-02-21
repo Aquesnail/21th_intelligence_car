@@ -8,6 +8,7 @@
 #include "timer.h"
 #include "iap_user.h"
 #include "ws2812.h"
+#include "mathlib.h"
 
 void sys_init(void);
 void main(){
@@ -27,7 +28,7 @@ void sys_init(void){
 	PORT1_Init();
 	PORT2_Init();
 	PORT3_Init();
-	PORT4_Init();
+	//PORT4_Init();
 	PORT5_Init();
 	PORT6_Init();
 	PORT7_Init();
@@ -38,6 +39,8 @@ void sys_init(void){
 	CLK_Init();    
 	PWMA_Init();
 	PWME_Init();
+
+	MATHLIB_Init();
 	
 	IAP_Init();
 	WS2812_Init();

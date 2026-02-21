@@ -124,11 +124,11 @@ void PORT3_Init(void)
 void PORT4_Init(void)
 {
     SetP4nInitLevelHigh(PIN_ALL);       //设置P4初始化电平
-    SetP4nQuasiMode(PIN_7 | PIN_6 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //设置P4.7,P4.6,P4.4,P4.3,P4.2,P4.1,P4.0为无弱上拉准双向口模式
-    SetP4nPushPullMode(PIN_5);          //设置P4.5为推挽输出模式
+    SetP4nQuasiMode(PIN_7 | PIN_6 | PIN_4 | PIN_3 | PIN_2 | PIN_0); //设置P4.7,P4.6,P4.4,P4.3,P4.2,P4.0为无弱上拉准双向口模式
+    SetP4nPushPullMode(PIN_5 | PIN_1);  //设置P4.5,P4.1为推挽输出模式
 
-    EnableP4nPullUp(PIN_5);             //使能P4.5内部上拉电阻
-    DisableP4nPullUp(PIN_7 | PIN_6 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //关闭P4.7,P4.6,P4.4,P4.3,P4.2,P4.1,P4.0内部上拉电阻
+    EnableP4nPullUp(PIN_6 | PIN_5);     //使能P4.6,P4.5内部上拉电阻
+    DisableP4nPullUp(PIN_7 | PIN_4 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //关闭P4.7,P4.4,P4.3,P4.2,P4.1,P4.0内部上拉电阻
     DisableP4nPullDown(PIN_ALL);        //关闭P4内部下拉电阻
     DisableP4nSchmitt(PIN_ALL);         //使能P4施密特触发
     SetP4nSlewRateNormal(PIN_ALL);      //设置P4一般翻转速度
@@ -136,7 +136,11 @@ void PORT4_Init(void)
     SetP4nDigitalInput(PIN_ALL);        //使能P4数字信号输入功能
 
     //<<AICUBE_USER_PORT4_INITIAL_BEGIN>>
-    // 在此添加用户初始化代码  
+    SetP4nFallingInt(PIN_6);            //设置P4.6为下降沿中断
+
+    EnableP4nInt(PIN_6);                //使能P4.6口中断
+
+    SetP4IntPriority(0);                //设置中断为最低优先级  
     //<<AICUBE_USER_PORT4_INITIAL_END>>
 }
 
@@ -175,7 +179,8 @@ void PORT6_Init(void)
     SetP6nQuasiMode(PIN_7 | PIN_5 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //设置P6.7,P6.5,P6.3,P6.2,P6.1,P6.0为无弱上拉准双向口模式
     SetP6nPushPullMode(PIN_6 | PIN_4);  //设置P6.6,P6.4为推挽输出模式
 
-    DisableP6nPullUp(PIN_ALL);          //关闭P6内部上拉电阻
+    EnableP6nPullUp(PIN_1);             //使能P6.1内部上拉电阻
+    DisableP6nPullUp(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_3 | PIN_2 | PIN_0); //关闭P6.7,P6.6,P6.5,P6.4,P6.3,P6.2,P6.0内部上拉电阻
     DisableP6nPullDown(PIN_ALL);        //关闭P6内部下拉电阻
     DisableP6nSchmitt(PIN_ALL);         //使能P6施密特触发
     SetP6nSlewRateNormal(PIN_7 | PIN_5 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //设置P6.7,P6.5,P6.3,P6.2,P6.1,P6.0一般翻转速度

@@ -7,13 +7,14 @@
 #include "task.h"
 #include "semphr.h"
 #include "imu_filter.h"
-#include "portasm.h"
+#include "debug_arch.h"
+#include "port.h"
 
 #pragma warning disable = 138
 #pragma warning disable = 151
 
 static ICM42688_t icm42688_Init_Structure;
-static SemaphoreHandle_t xDmaSemaphore;
+SemaphoreHandle_t xDmaSemaphore;
 static SemaphoreHandle_t xFIFOIntSemaphore;
 static uint8_t xdata FIFO_Buffer[2048];
 static IMU_Filter_t IMU_Filter_Data;
@@ -52,15 +53,17 @@ uint8_t IMU_Write_Byte(uint8_t reg,uint8_t dat){
     ICM42688_CS_SET();
     return 0;
 }
+ uint8_t intf;
 
 void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
     uint8_t intf;
 
-    intf = CheckP6nFlag(PIN_ALL);       //读取中断请求标志
-    if(intf & PIN_1){
+    intf = CheckP4nFlag(PIN_ALL);       //读取中断请求标志
+    if(intf & PIN_6){
         xSemaphoreGiveFromISR(xFIFOIntSemaphore,xHigherPriorityTaskWoken);
+        P41 = ~(P41);
     }
-    ClearP6nFlag(PIN_ALL);              //清除中断请求标志
+    ClearP4nFlag(PIN_ALL);              //清除中断请求标志
 }
 
 void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore){
@@ -80,9 +83,9 @@ void vIMUProcessTask(void *pvParameters){
     uint8_t raw_temp;
     uint16_t raw_timestamp;
     uint8_t xdata* ptr;
-		uint16_t i;
+		uint16_t i,j;
     ptr=FIFO_Buffer;
-		
+		j=0;
 	(void)pvParameters;
     xDmaSemaphore = xSemaphoreCreateBinary();
     xFIFOIntSemaphore = xSemaphoreCreateBinary();
@@ -90,13 +93,21 @@ void vIMUProcessTask(void *pvParameters){
         xSemaphoreTake(xDebugReadySingal,portMAX_DELAY);
         xSemaphoreGive(xDebugReadySingal);
     }
+    PORT4_Init();
     vTaskDelay(pdMS_TO_TICKS(2));
     IMU_Structure_Init();
-    
-   
+    i = ICM42688_Init(&icm42688_Init_Structure);
+    if(i!=ICM_OK){
+        Debug_Log("reg %d \r\n",i);
+    }
+    IMU_Filter_Data.sample_time = 1/500.0f;
     for(;;){
+        // vTaskDelay(pdMS_TO_TICKS(1000));
+        // ICM42688_ReadData(&icm42688_Init_Structure,acc_t,gyro_t,&temp_t);
+        // Debug_Log("%.2f %.2f %.2f ", acc_t[0],acc_t[1],acc_t[2]);
         if(xSemaphoreTake(xFIFOIntSemaphore,pdMS_TO_TICKS(100)) == pdTRUE){
             ICM42688_ReadFIFO(&icm42688_Init_Structure,FIFO_Buffer);
+            
             for(i=0;i<icm42688_Init_Structure.FIFO_THS;i++){
                 raw_acc_x = (int16_t)((ptr[1] << 8) | ptr[2]);
                 raw_acc_y = (int16_t)((ptr[3] << 8) | ptr[4]);
@@ -121,6 +132,7 @@ void vIMUProcessTask(void *pvParameters){
 
                 ptr+=16;
             }
+            
         }else{
             continue;
         }
@@ -132,7 +144,7 @@ static void task_delay_ms(uint32_t t){
     return;
 }
 void IMU_Init(){
-    xTaskCreate(vIMUProcessTask,"IMU",512+256,NULL,tskIDLE_PRIORITY+4,NULL);
+    xTaskCreate(vIMUProcessTask,"IMU",1024,NULL,tskIDLE_PRIORITY+4,NULL);
 }
 void IMU_Structure_Init(){
     SPI2_Init(IMU_DMA_Read_CallBack);
@@ -142,7 +154,7 @@ void IMU_Structure_Init(){
     icm42688_Init_Structure.delay = task_delay_ms;
     icm42688_Init_Structure.FIFO_THS = 32;
     icm42688_Init_Structure.delay(2);
-    ICM42688_Init(&icm42688_Init_Structure);
+   
     
 }
 

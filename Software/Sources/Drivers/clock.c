@@ -34,7 +34,7 @@ void CLK_Init(void)
     CLK_I2S1CLK_Divider(1);             //设置I2S1时钟预分频系数
     CLK_I2S2CLK_Divider(1);             //设置I2S2时钟预分频系数
     CLK_SPI1CLK_Divider(1);             //设置SPI1时钟预分频系数
-    CLK_SPI2CLK_Divider(30);            //设置SPI2时钟预分频系数
+    CLK_SPI2CLK_Divider(1);             //设置SPI2时钟预分频系数
     CLK_SPI3CLK_Divider(1);             //设置SPI3时钟预分频系数
     CLK_PWMACLK_Divider(7);             //设置PWMA时钟预分频系数
     CLK_PWMBCLK_Divider(1);             //设置PWMB时钟预分频系数

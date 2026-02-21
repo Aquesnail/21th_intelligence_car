@@ -33,6 +33,7 @@
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 #include "portasm.h"
 
 /* Constants required to setup the tick ISR. */
@@ -222,7 +223,7 @@ static void prvPortSetupTimerInterrupt( void )
     /* Initial timer0 reload value (1ms per cycle). */
     TL0 = ( uint8_t )( portRELOAD_VALUE );
     TH0 = ( uint8_t )( portRELOAD_VALUE >> 8 );
-
+    TIMER0_SetIntPriority(0);
     /* Interrupts are disabled when this is called so
     the timer can be started here. */
     TR0 = 1;
@@ -230,26 +231,27 @@ static void prvPortSetupTimerInterrupt( void )
     /* Enable timer0 interrupts. */
     ET0 = 1;
 }
+//extern SemaphoreHandle_t xDmaSemaphore;
 
 extern void DMA_SPI2_ISR_Handle(BaseType_t* xHigherPriorityTaskWOken);
-
+extern uint8_t spi2_dma_busy; 
 void DMA_SPI2_ISR(void)
-{
+{ 
 //<<AICUBE_USER_SPI2_ISR_CODE2_BEGIN>>
 // 在此添加中断函数用户代码  
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
+  //  BaseType_t xHigherPriorityTaskWoken;
+    static BaseType_t xHigherPriorityTaskWoken;
     portNORMALIZE_INTERRUPT_STACK();
     portSAVE_CONTEXT();
-    
+    xHigherPriorityTaskWoken = pdFALSE;
     DMA_SPI2_ISR_Handle(&xHigherPriorityTaskWoken);
-
-    if (xHigherPriorityTaskWoken != pdFALSE)
-    {
-        // 如果高优先级任务醒了，手动调用切换宏
-        // 这个宏会：保存 SP -> 调用 vTaskSwitchContext() -> 恢复新 SP
-        portEND_SWITCHING_ISR();
-    }
+   if (xHigherPriorityTaskWoken != pdFALSE)
+   {
+     portEND_SWITCHING_ISR();
+//         // 如果高优先级任务醒了，手动调用切换宏
+//         // 这个宏会：保存 SP -> 调用 vTaskSwitchContext() -> 恢复新 SP     
+     }
+    
     // 4. 【关键】恢复（新任务的）寄存器
     portRESTORE_CONTEXT();
     // 5. 【关键】欺骗硬件中断控制器，让它以为中断结束了（允许低优先级中断）
@@ -265,14 +267,13 @@ void DMA_SPI2_ISR(void)
 //<<AICUBE_USER_SPI2_ISR_CODE2_END>>
 }
 
-extern void IMU_INT_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
-
+extern void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken);
 void IMU_INT_ISR(void){
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    static BaseType_t xHigherPriorityTaskWoken;
 
     portNORMALIZE_INTERRUPT_STACK();
     portSAVE_CONTEXT();
-
+    xHigherPriorityTaskWoken = pdFALSE;
     IMU_INT_ISR_Handle(&xHigherPriorityTaskWoken);
 
     if (xHigherPriorityTaskWoken != pdFALSE)
@@ -299,7 +300,7 @@ __asm   { CSEG    AT   027BH       }
     __asm   { JMP     vTimer0ISR??  }
 #endif
 
-    __asm   { CSEG    AT  015BH       }///
+    __asm   { CSEG    AT  014BH       }///
 #if ( configUSE_ROMHUGE == 0 )
     __asm   { JMP     IMU_INT_ISR?_  }
 #else

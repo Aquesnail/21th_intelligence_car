@@ -264,7 +264,7 @@
             <uUch>0</uUch>
             <uFlt64>0</uFlt64>
             <Fuzzy>3</Fuzzy>
-            <Optim>0</Optim>
+            <Optim>2</Optim>
             <wLevel>2</wLevel>
             <SizSpd>1</SizSpd>
             <AcaOpt>0</AcaOpt>
@@ -392,8 +392,8 @@
                   <ModuleSelection>0</ModuleSelection>
                   <IncludeInBuild>2</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>1</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>1</AssembleAssemblyFile>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
                   <PublicsOnly>2</PublicsOnly>
                   <StopOnExitCode>11</StopOnExitCode>
                   <CustomArgument></CustomArgument>
@@ -675,26 +675,6 @@
           <GroupName>Drivers</GroupName>
           <Files>
             <File>
-              <FileName>stc_usb_cdc_32.LIB</FileName>
-              <FileType>4</FileType>
-              <FilePath>.\Sources\Drivers\stc_usb_cdc_32.LIB</FilePath>
-            </File>
-            <File>
-              <FileName>stc_usb_hid_32.LIB</FileName>
-              <FileType>4</FileType>
-              <FilePath>.\Sources\Drivers\stc_usb_hid_32.LIB</FilePath>
-            </File>
-            <File>
-              <FileName>STC32_DSP32_LARGE.LIB</FileName>
-              <FileType>4</FileType>
-              <FilePath>.\Sources\Drivers\STC32_DSP32_LARGE.LIB</FilePath>
-            </File>
-            <File>
-              <FileName>stc32_fpmu_large.lib</FileName>
-              <FileType>4</FileType>
-              <FilePath>.\Sources\Drivers\stc32_fpmu_large.lib</FilePath>
-            </File>
-            <File>
               <FileName>port.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Drivers\port.c</FilePath>
@@ -812,8 +792,8 @@
                   <ModuleSelection>0</ModuleSelection>
                   <IncludeInBuild>2</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>1</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>1</AssembleAssemblyFile>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
                   <PublicsOnly>2</PublicsOnly>
                   <StopOnExitCode>11</StopOnExitCode>
                   <CustomArgument></CustomArgument>
@@ -848,6 +828,21 @@
               <FileName>spi2_user.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\spi2_user.h</FilePath>
+            </File>
+            <File>
+              <FileName>mathlib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\mathlib.c</FilePath>
+            </File>
+            <File>
+              <FileName>mathlib.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\mathlib.h</FilePath>
+            </File>
+            <File>
+              <FileName>AI8051U_32_TFPU.LIB</FileName>
+              <FileType>4</FileType>
+              <FilePath>.\Sources\Drivers\AI8051U_32_TFPU.LIB</FilePath>
             </File>
           </Files>
         </Group>

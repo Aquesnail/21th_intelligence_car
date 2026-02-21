@@ -17,7 +17,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
-#include "portasm.h"
 #include "string.h"
 
 //<<AICUBE_USER_INCLUDE_END>>
@@ -32,7 +31,7 @@ volatile uint8_t dma_spi2_done;
 // 以下变量用于非阻塞DMA传输
 static uint8_t *spi2_rx_buffer;         // 用户接收缓冲区指针
 static uint8_t spi2_transfer_len;        // 传输长度
-static volatile uint8_t spi2_dma_busy;   // 非阻塞传输忙标志
+uint8_t spi2_dma_busy;   // 非阻塞传输忙标志
 
 
 static DMA_SPI2_Callback_t spi2_dma_callback = (void *)NULL;
@@ -72,7 +71,7 @@ void SPI2_Init(DMA_SPI2_Callback_t callback)
     DMA_SPI2_EnableTx();                //使能发送数据
     DMA_SPI2_EnableRx();                //使能接收数据
     DMA_SPI2_SetBusPriority(0);         //设置总线访问为最低优先级
-    DMA_SPI2_SetIntPriority(1);         //设置中断为较低优先级
+    DMA_SPI2_SetIntPriority(0);         //设置中断为较低优先级
     DMA_SPI2_EnableInt();               //使能SPI2 DMA中断
     DMA_SPI2_Enable();                  //使能SPI2 DMA功能
 //  DMA_SPI2_MasterTrigger();           //触发SPI2主机DMA
@@ -81,6 +80,7 @@ void SPI2_Init(DMA_SPI2_Callback_t callback)
      // 填充发送缓冲区为0xFF，用于产生时钟
     memset(pu8SPI2DMATxBuffer,0xFF,sizeof(pu8SPI2DMATxBuffer));
     spi2_dma_callback = callback;
+		spi2_dma_busy = 0;
     //<<AICUBE_USER_SPI2_INITIAL_END>>
 }
 
@@ -131,6 +131,9 @@ void DMA_SPI2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
             // 将DMA接收缓冲区的数据拷贝到用户缓冲区
             spi2_dma_callback(xHigherPriorityTaskWoken);          // 调用用户回调
         }
+        // if (xDmaSemaphore != NULL) {
+        //     xSemaphoreGiveFromISR(xDmaSemaphore, xHigherPriorityTaskWoken);
+        // }
         // 设置完成标志（用于阻塞函数）
         dma_spi2_done = 1;
         spi2_dma_busy = 0;              
