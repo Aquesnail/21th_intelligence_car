@@ -100,14 +100,14 @@ void vTestLoopTask(void *pvParameters) {
     (void)pvParameters;
 
     // 1. [启动注册] 注册部分变量，故意漏掉 hidden_secret
-    Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
-    Debug_Register("SineWave", DBG_FLOAT|HIGH_FREQ_TYPE, &test_sine);
-		Debug_Register("SineWave2", DBG_FLOAT|HIGH_FREQ_TYPE, &test_sine2);
-    Debug_Register("Control", DBG_UINT8|LOW_FREQ_TYPE, &target_val);
-		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
-		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
-		Debug_Register("Counter", DBG_UINT16|HIGH_FREQ_TYPE, &test_counter);
-		Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
+    // Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
+    // Debug_Register("SineWave", DBG_FLOAT|HIGH_FREQ_TYPE, &test_sine);
+	// 	Debug_Register("SineWave2", DBG_FLOAT|HIGH_FREQ_TYPE, &test_sine2);
+    // Debug_Register("Control", DBG_UINT8|LOW_FREQ_TYPE, &target_val);
+	// 	Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
+	// 	Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
+	// 	Debug_Register("Counter", DBG_UINT16|HIGH_FREQ_TYPE, &test_counter);
+	// 	Debug_Register("Counter", DBG_UINT16|LOW_FREQ_TYPE, &test_counter);
 
     xSemaphoreGive(xRegistrationSemaphore);
     // 2. [重要] 打印隐藏变量的物理地址

@@ -142,7 +142,7 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     fifo_cfg1 = FIFO_GYRO_EN_ENABLE 
               | FIFO_ACCEL_EN_ENABLE
               | FIFO_TEMP_EN_ENABLE  
-              | FIFO_WM_GT_TH_ENABLE 
+              | FIFO_WM_GT_TH_DISABLE
               | FIFO_HIRES_EN_DISABLE 
               | FIFO_TMST_FSYNC_EN_ENABLE
               | FIFO_RESUME_PARTIAL_RD_DISABLE;
@@ -220,7 +220,11 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
 uint8_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer){
     uint16_t fifo_packets;
     if(icm_read_regs(dev,0,ICM42688_FIFO_COUNTH,(uint8_t*)(&fifo_packets),2) != ICM_OK) return ICM_ERROR;
-    if(fifo_packets >= 2048 / 16) return 0;
+    if(fifo_packets >= 128){
+        dev->write(ICM42688_REG_BANK_SEL,0x00);
+        dev->write(ICM42688_SIGNAL_PATH_RESET,FIFO_FLUSH_ENABLE);
+        return fifo_packets;
+    }
     if(icm_read_regs(dev,0,ICM42688_FIFO_DATA,buffer,(dev->FIFO_THS)*16)) return ICM_ERROR; //这里我们是16字节数据包
 		return 0;
     

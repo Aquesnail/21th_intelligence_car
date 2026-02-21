@@ -14,6 +14,7 @@ typedef struct{
     uint16_t time_stamp;
     float temp;
     float sample_time;
+    float Kp,Ki;
 }IMU_Filter_t;
 
 void IMU_Filter_Update(IMU_Filter_t* dat);

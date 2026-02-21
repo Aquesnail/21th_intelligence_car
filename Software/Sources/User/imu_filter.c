@@ -2,8 +2,6 @@
 #include <math.h>
 
 /* Mahony 滤波器的 PI 控制参数，可根据实际表现进行微调 */
-#define Kp 1.0f   /* 比例增益，控制加速度计对陀螺仪数据的修正速度 */
-#define Ki 0.005f /* 积分增益，用于计算陀螺仪零偏偏差，实现自校准 */
 
 void IMU_Filter_Update(IMU_Filter_t* dat){
     /* C89标准要求：局部变量必须全部在函数/代码块开头声明 */
@@ -51,7 +49,7 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
 
     /* 5. 误差积分计算 —— 这是自校准功能的核心 */
     /* 积分项 eInt 将不断累积误差，相当于估算并抵消陀螺仪的稳态零偏（Drift） */
-    if(Ki > 0.0f) {
+    if(dat->Ki > 0.0f) {
         eIntX += ex * dt;
         eIntY += ey * dt;
         eIntZ += ez * dt;
@@ -62,9 +60,9 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     }
 
     /* 6. PI 控制器：用比例项和积分项共同修正陀螺仪数据 */
-    gx = gx + Kp * ex + Ki * eIntX;
-    gy = gy + Kp * ey + Ki * eIntY;
-    gz = gz + Kp * ez + Ki * eIntZ;
+    gx = gx + dat->Kp * ex + dat->Ki * eIntX;
+    gy = gy + dat->Kp * ey + dat->Ki * eIntY;
+    gz = gz + dat->Kp * ez + dat->Ki * eIntZ;
 
     /* 7. 使用修正后的陀螺仪数据更新四元数 (一阶龙格-库塔法) */
     gx *= (0.5f * dt);

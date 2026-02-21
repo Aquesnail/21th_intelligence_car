@@ -61,7 +61,7 @@ void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
     intf = CheckP4nFlag(PIN_ALL);       //读取中断请求标志
     if(intf & PIN_6){
         xSemaphoreGiveFromISR(xFIFOIntSemaphore,xHigherPriorityTaskWoken);
-        P41 = ~(P41);
+       
     }
     ClearP4nFlag(PIN_ALL);              //清除中断请求标志
 }
@@ -72,7 +72,9 @@ void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore){
     //这里会释放信号量
     return;
 }
-
+float acc_t[3];
+float gyro_t[3];
+float temp_t;
 void vIMUProcessTask(void *pvParameters){
     int16_t raw_acc_x;
     int16_t raw_acc_y ;
@@ -101,13 +103,23 @@ void vIMUProcessTask(void *pvParameters){
         Debug_Log("reg %d \r\n",i);
     }
     IMU_Filter_Data.sample_time = 1/500.0f;
+    Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.ax));
+    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data.ay));
+    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.az));
+    Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(acc_t[0]));
+    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(acc_t[1]));
+    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(acc_t[2]));
+    IMU_Filter_Data.Kp = 1.0;
+    IMU_Filter_Data.Ki = 0.01;
+    Debug_Register("Kp",DBG_FLOAT,&(IMU_Filter_Data.Kp));
+    Debug_Register("Ki",DBG_FLOAT,&(IMU_Filter_Data.Ki));
     for(;;){
         // vTaskDelay(pdMS_TO_TICKS(1000));
         // ICM42688_ReadData(&icm42688_Init_Structure,acc_t,gyro_t,&temp_t);
         // Debug_Log("%.2f %.2f %.2f ", acc_t[0],acc_t[1],acc_t[2]);
         if(xSemaphoreTake(xFIFOIntSemaphore,pdMS_TO_TICKS(100)) == pdTRUE){
             ICM42688_ReadFIFO(&icm42688_Init_Structure,FIFO_Buffer);
-            
+            P41=0;
             for(i=0;i<icm42688_Init_Structure.FIFO_THS;i++){
                 raw_acc_x = (int16_t)((ptr[1] << 8) | ptr[2]);
                 raw_acc_y = (int16_t)((ptr[3] << 8) | ptr[4]);
@@ -127,12 +139,16 @@ void vIMUProcessTask(void *pvParameters){
                 IMU_Filter_Data.gz = raw_gyro_z * icm42688_Init_Structure.gyro_sensitivity;
 
                 IMU_Filter_Data.time_stamp =  raw_timestamp;
+                IMU_Filter_Data.sample_time = raw_timestamp * 0.000001f;
                 IMU_Filter_Data.temp = (raw_temp / 2.07f) + 25.0f;
                 IMU_Filter_Update(&IMU_Filter_Data);
 
                 ptr+=16;
             }
-            
+            P41=1;
+            //Debug_Log("p %.2f r %.2f y %.2f \r\n",IMU_Filter_Data.pitch,IMU_Filter_Data.roll,IMU_Filter_Data.yaw);
+            ICM42688_ReadData(&icm42688_Init_Structure,acc_t,gyro_t,&temp_t);
+
         }else{
             continue;
         }

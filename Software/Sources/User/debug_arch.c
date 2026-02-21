@@ -13,8 +13,8 @@
 
 /* ================= 配置与定义 ================= */
 #define MAX_DEBUG_VARS  16
-#define TX_BUF_SIZE     128  // 统一发送缓冲区
-#define RX_BUF_SIZE     128  // 接收缓冲区
+#define TX_BUF_SIZE     512  // 统一发送缓冲区
+#define RX_BUF_SIZE     512  // 接收缓冲区
 
 // 协议常量
 #define CMD_HANDSHAKE   0x00

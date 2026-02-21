@@ -136,7 +136,7 @@ void PORT4_Init(void)
     SetP4nDigitalInput(PIN_ALL);        //使能P4数字信号输入功能
 
     //<<AICUBE_USER_PORT4_INITIAL_BEGIN>>
-    SetP4nFallingInt(PIN_6);            //设置P4.6为下降沿中断
+    SetP4nRisingInt(PIN_6);            //设置P4.6为下降沿中断
 
     EnableP4nInt(PIN_6);                //使能P4.6口中断
 
