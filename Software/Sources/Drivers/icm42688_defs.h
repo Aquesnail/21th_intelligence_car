@@ -282,19 +282,13 @@ UI_FILT
 #define TEMP_FILT_BW_10HZ   (0xA0) // DLPF BW = 10Hz, Latency = 16ms
 #define TEMP_FILT_BW_5HZ    (0xC0) // DLPF BW = 5Hz, Latency = 32ms
 
-// GYRO_UI_FILT_ORD 字段掩码
-#define GYRO_UI_FILT_ORD_MASK   (0x18) // 0b00011000 (bits 3:2)
+#define GYRO_UI_FILT_ORD_MASK   (0x0C) // 0b00001100 (bits 3:2)
+#define GYRO_UI_FILT_ORD_1ST    (0x00 << 2) // 1st Order
+#define GYRO_UI_FILT_ORD_2ND    (0x01 << 2) // 2nd Order -> 即 0x04
+#define GYRO_UI_FILT_ORD_3RD    (0x02 << 2) // 3rd Order -> 即 0x08
 
-// GYRO_UI_FILT_ORD 值定义
-#define GYRO_UI_FILT_ORD_1ST    (0x00) // 1st Order
-#define GYRO_UI_FILT_ORD_2ND    (0x08) // 2nd Order
-#define GYRO_UI_FILT_ORD_3RD    (0x10) // 3rd Order
-
-// GYRO_DEC2_M2_ORD 字段掩码
-#define GYRO_DEC2_M2_ORD_MASK   (0x06) // 0b00000110 (bits 1:0)
-
-// GYRO_DEC2_M2_ORD 值定义
-#define GYRO_DEC2_M2_ORD_3RD    (0x04) // 3rd Order
+#define GYRO_DEC2_M2_ORD_MASK   (0x03) // 0b00000011 (bits 1:0)
+#define GYRO_DEC2_M2_ORD_3RD    (0x02) // 3rd Order -> 根据手册 10 代表 3rd order
 
 
 

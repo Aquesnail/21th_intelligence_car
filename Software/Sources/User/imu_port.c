@@ -13,10 +13,13 @@
 #pragma warning disable = 138
 #pragma warning disable = 151
 
+#define FIFO_Packets 32
+
 static ICM42688_t icm42688_Init_Structure;
 SemaphoreHandle_t xDmaSemaphore;
 static SemaphoreHandle_t xFIFOIntSemaphore;
-static uint8_t xdata FIFO_Buffer[2048];
+static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1];
+static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1];
 static IMU_Filter_t IMU_Filter_Data;
 
 extern SemaphoreHandle_t xDebugReadySingal;
@@ -25,8 +28,8 @@ uint8_t IMU_Read_Bytes_DMA_IT(uint8_t reg,uint8_t* dat,uint16_t len){ //这里�
     
     ICM42688_CS_RESET();
     SPI2_WriteByte(reg | 0x80);
-    SPI2_DMA_ReadBytes_IT(dat,len);
-
+    //SPI2_DMA_ReadBytes_IT(dat,len);
+    SPI2_DMA_WriteReadBytes_IT(FIFO_TxBuffer,dat,len);
     if(xSemaphoreTake(xDmaSemaphore, pdMS_TO_TICKS(10)) == pdTRUE) { //这是用于同步的二值信号量，它是空的，在中断回调Give之前它都是拿不到的，会阻塞在这里直到回调完成
         // 获取成功 (DMA 完成)
     } else {
@@ -86,7 +89,7 @@ void vIMUProcessTask(void *pvParameters){
     uint16_t raw_timestamp;
     uint8_t xdata* ptr;
 		uint16_t i,j;
-    ptr=FIFO_Buffer;
+    ptr=FIFO_RxBuffer;
 		j=0;
 	(void)pvParameters;
     xDmaSemaphore = xSemaphoreCreateBinary();
@@ -95,6 +98,7 @@ void vIMUProcessTask(void *pvParameters){
         xSemaphoreTake(xDebugReadySingal,portMAX_DELAY);
         xSemaphoreGive(xDebugReadySingal);
     }
+    memset(FIFO_TxBuffer,0xff,sizeof(FIFO_TxBuffer));
     PORT4_Init();
     vTaskDelay(pdMS_TO_TICKS(2));
     IMU_Structure_Init();
@@ -118,9 +122,14 @@ void vIMUProcessTask(void *pvParameters){
         // ICM42688_ReadData(&icm42688_Init_Structure,acc_t,gyro_t,&temp_t);
         // Debug_Log("%.2f %.2f %.2f ", acc_t[0],acc_t[1],acc_t[2]);
         if(xSemaphoreTake(xFIFOIntSemaphore,pdMS_TO_TICKS(100)) == pdTRUE){
-            ICM42688_ReadFIFO(&icm42688_Init_Structure,FIFO_Buffer);
+           // memset(FIFO_TxBuffer,0,sizeof(FIFO_TxBuffer));
+            j = ICM42688_ReadFIFO(&icm42688_Init_Structure,FIFO_RxBuffer);
+           // memset(FIFO_TxBuffer,0xff,sizeof(FIFO_TxBuffer));
+            if(j!=ICM_ERROR && j!= 0){
+                Debug_Log("Pcakets: %u \r\n",j);
+            }
             P41=0;
-            ptr = FIFO_Buffer;
+            ptr = FIFO_RxBuffer;
             for(i=0;i<icm42688_Init_Structure.FIFO_THS;i++){
                 raw_acc_x = (int16_t)((ptr[1] << 8) | ptr[2]);
                 raw_acc_y = (int16_t)((ptr[3] << 8) | ptr[4]);
@@ -169,7 +178,7 @@ void IMU_Structure_Init(){
     icm42688_Init_Structure.read_byte = IMU_Read_Byte;
     icm42688_Init_Structure.write = IMU_Write_Byte;
     icm42688_Init_Structure.delay = task_delay_ms;
-    icm42688_Init_Structure.FIFO_THS = 32;
+    icm42688_Init_Structure.FIFO_THS = FIFO_Packets;
     icm42688_Init_Structure.delay(2);
    
     

@@ -24,6 +24,7 @@ uint8_t SPI2_WriteReadByte(uint8_t dat);
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>
 // 在此添加用户外部函数和外部变量声明  
 void SPI2_DMA_ReadBytes_IT(uint8_t xdata*rx_buf, uint16_t len);
+void SPI2_DMA_WriteReadBytes_IT(uint8_t xdata*tx_buf,uint8_t xdata*rx_buf, uint16_t len);
 //<<AICUBE_USER_EXTERNAL_DECLARE_END>>
 
 

@@ -39,8 +39,7 @@ static DMA_SPI2_Callback_t spi2_dma_callback = (void *)NULL;
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8SPI2DMATxBuffer[512];   //SPI2 DMA发送缓冲区数组
-uint8_t xdata pu8SPI2DMARxBuffer[16];   //SPI2 DMA接收缓冲区数组
+uint8_t xdata pu8SPI2DMATxBuffer[2048];   //SPI2 DMA发送缓冲区数组
 
 ////////////////////////////////////////
 // SPI2初始化函数
@@ -54,7 +53,7 @@ void SPI2_Init(DMA_SPI2_Callback_t callback)
     SPI2_MasterMode();                  //设置SPI2为主机模式
     SPI2_IgnoreSS();                    //忽略SS脚
     SPI2_DataMSB();                     //设置SPI2数据顺序为MSB (高位在前)
-    SPI2_SetMode0();                    //设置SPI2工作模式0 (CPOL=0, CPHA=0)
+    SPI2_SetMode3();                    //设置SPI2工作模式0 (CPOL=0, CPHA=0)
     SPI2_SetClockDivider16();           //设置SPI2时钟分频
 
     HSSPI2_Disable();                   //关闭SPI2高速模式
@@ -63,8 +62,8 @@ void SPI2_Init(DMA_SPI2_Callback_t callback)
 
     DMA_SPI2_ManualSS();                //关闭SPI2 DMA自动控制SS功能
    // DMA_SPI2_SetAmount(15);             //设置SPI2 DMA发送/接收字节数
-    DMA_SPI2_SetTxAddress(pu8SPI2DMATxBuffer); //设置SPI2 DMA发送缓冲区地址
-    DMA_SPI2_SetRxAddress(pu8SPI2DMARxBuffer); //设置SPI2 DMA接收缓冲区地址
+  //  DMA_SPI2_SetTxAddress(pu8SPI2DMATxBuffer); //设置SPI2 DMA发送缓冲区地址
+ //   DMA_SPI2_SetRxAddress(pu8SPI2DMARxBuffer); //设置SPI2 DMA接收缓冲区地址
     DMA_SPI2_SetInterval(0);            //设置SPI2 DMA发送/接收字节间隔时间（系统时钟）
     DMA_SPI2_ClearFIFO();               //清空SPI2 DMA FIFO缓冲区
     DMA_SPI2_ClearFlag();               //清除SPI2 DMA中断标志
@@ -179,7 +178,30 @@ void SPI2_DMA_ReadBytes_IT(uint8_t xdata*rx_buf, uint16_t len)
     // 函数立即返回，传输完成后进入中断并调用回调
 }
 
+void SPI2_DMA_WriteReadBytes_IT(uint8_t xdata*tx_buf,uint8_t xdata*rx_buf, uint16_t len)
+{
+    // 参数检查
 
+    
+    // 等待之前的非阻塞传输完成（简单轮询，也可改为返回错误）
+    while (spi2_dma_busy);
+
+    // 保存用户参数
+    spi2_rx_buffer = rx_buf;
+    spi2_transfer_len = len;
+    
+
+    // 配置DMA传输指定长度
+    DMA_SPI2_SetAmount(len);
+    DMA_SPI2_SetTxAddress(tx_buf);
+    DMA_SPI2_SetRxAddress(rx_buf);
+
+
+    // 启动DMA传输（非阻塞）
+    spi2_dma_busy = 1;          // 设置忙标志
+    DMA_SPI2_MasterTrigger();   // 触发主机DMA传输
+    // 函数立即返回，传输完成后进入中断并调用回调
+}
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_END>>
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_END>>

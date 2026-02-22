@@ -81,15 +81,14 @@ static uint8_t configure_aaf(ICM42688_t *dev, uint8_t is_accel, uint8_t delt, ui
     uint8_t ret;
     uint8_t deltsqr_low = deltsqr & 0xFF;
     uint8_t deltsqr_high = (deltsqr >> 8) & 0x0F;
-    
-    ret = icm_write_reg(dev, bank, reg_base, delt << 1);
+    uint8_t delt_val = is_accel ? (delt << 1) : delt;
+    ret = icm_write_reg(dev, bank, reg_base, delt_val);
     if (ret != ICM_OK) return ret;
     ret = icm_write_reg(dev, bank, (uint8_t)(reg_base + 1), deltsqr_low);
     if (ret != ICM_OK) return ret;
     ret = icm_write_reg(dev, bank, (uint8_t)(reg_base + 2), (uint8_t)(deltsqr_high | (bitshift << 4)));
     return ret;
-}
-uint8_t ICM42688_Init(ICM42688_t *dev) {
+}uint8_t ICM42688_Init(ICM42688_t *dev) {
     uint8_t chip_id = 0;
     uint8_t gyro_cfg;
     uint8_t accel_cfg;
@@ -107,38 +106,94 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     if (!dev || !dev->write || !dev->read || !dev->read_byte || !dev->delay) return ICM_ERROR;
 
     if (dev->FIFO_THS == 0) dev->FIFO_THS = 48;
-    dev->current_bank = 0xFF; // 强制首次切换
+    
+    // 强制首次切换 Bank 到 0，防止刚开机 Bank 状态未知
+    dev->current_bank = 0xFF; 
+    icm_set_bank(dev, 0);
     dev->delay(10); // 上电等待
 
-    // 2. 检查 ID
+    // =======================================================
+    // 阶段 1：软件复位与身份验证 (严格对齐 C++ reset() 行为)
+    // =======================================================
+    // 写入 0x01 触发软复位 (由于该位自清零，不要用带有校验的 icm_write_reg)
+    dev->write(ICM42688_DEVICE_CONFIG, 0x01);
+    dev->delay(2); // C++ 中是 delay(1)，我们给 2ms 留足裕量
+
+    // 检查 ID
     ret = icm_read_reg(dev, 0, ICM42688_WHO_AM_I, &chip_id);
     if (ret != ICM_OK) return ret;
     Debug_Log("WHO_I_AM %d \r\n", chip_id);
     if (chip_id != 0x47) return ICM_ERROR;
     
-    // 1. 软复位
-    ret = icm_write_reg(dev, 0, ICM42688_DEVICE_CONFIG, 0x01);
-   // if (ret != ICM_OK) return ret;
-    dev->delay(10);
+    // =======================================================
+    // 阶段 2：点火通电 (严格对齐 C++ 逻辑：最先打开传感器)
+    // =======================================================
+    pwr_mgmt = PWR_MGMT0_TEMP_ENABLED | PWR_MGMT0_GYRO_LN | PWR_MGMT0_ACCEL_LN;
+    ret = icm_write_reg(dev, 0, ICM42688_PWR_MGMT0, 0x0F);
+    if (ret != ICM_OK) return ret;
 
-    
-    
-    // 3. 配置 Gyro
+    // =======================================================
+    // 阶段 3：配置量程、滤波器等静态参数
+    // =======================================================
+    // 配置 Gyro
     gyro_cfg = GYRO_FS_SEL_500DPS | GYRO_ODR_500HZ;
     ret = icm_write_reg(dev, 0, ICM42688_GYRO_CONFIG0, gyro_cfg);
     if (ret != ICM_OK) return ret;
 
-    // 4. 配置 Accel
+    // 配置 Accel
     accel_cfg = ACCEL_FS_SEL_4G | ACCEL_ODR_500HZ;
     ret = icm_write_reg(dev, 0, ICM42688_ACCEL_CONFIG0, accel_cfg);
     if (ret != ICM_OK) return ret;
 
     update_sensitivity(dev, accel_cfg, gyro_cfg);
 
-    // 5. 配置 FIFO
-    
-    ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG, FIFO_MODE_BYPASS);
+    // UI 滤波器配置
+    ret = icm_write_reg(dev, 0, ICM42688_GYRO_CONFIG1, GYRO_UI_FILT_ORD_2ND | GYRO_DEC2_M2_ORD_3RD);
     if (ret != ICM_OK) return ret;
+    ret = icm_write_reg(dev, 0, ICM42688_ACCEL_CONFIG1, ACCEL_UI_FILT_ORD_2ND | ACCEL_DEC2_M2_ORD_3RD);
+    if (ret != ICM_OK) return ret;
+    ret = icm_write_reg(dev, 0, ICM42688_GYRO_ACCEL_CONFIG0, 
+                        GYRO_UI_FILT_BW_LOW_LATENCY_400HZ | ACCEL_UI_FILT_BW_LOW_LATENCY_400HZ);
+    if (ret != ICM_OK) return ret;
+
+    // AAF 设置
+    ret = configure_aaf(dev, 1, accel_delt, accel_delt_sqr, accel_bitshift);
+    if (ret != ICM_OK) return ret;
+    ret = configure_aaf(dev, 0, accel_delt, accel_delt_sqr, accel_bitshift);
+    if (ret != ICM_OK) return ret;
+
+    // Enable Gyro AAF (Bank 1)
+    ret = icm_read_reg(dev, 1, ICM42688_GYRO_CONFIG_STATIC2, &reg_val);
+    if (ret != ICM_OK) return ret;
+    reg_val &= ~0x02; // Bit 1 清零开启 AAF (0=Enable, 1=Disable)
+    reg_val |= 0x01;  // Bit 0 置 1 关闭 Notch Filter (如果您的意图是关闭NF)
+    ret = icm_write_reg(dev, 1, ICM42688_GYRO_CONFIG_STATIC2, reg_val);
+
+    // Enable Accel AAF (Bank 2)
+    ret = icm_read_reg(dev, 2, ICM42688_ACCEL_CONFIG_STATIC2, &reg_val);
+    if (ret != ICM_OK) return ret;
+    reg_val &= ~0x01;
+    ret = icm_write_reg(dev, 2, ICM42688_ACCEL_CONFIG_STATIC2, reg_val);
+    if (ret != ICM_OK) return ret;
+
+    // 切回 Bank 0 准备后续操作
+    icm_set_bank(dev, 0);
+
+    // =======================================================
+    // 阶段 4：极其关键的延时 (等待内部电荷泵启动、滤波器收敛)
+    // C++ 中进行了长达将近 1000ms 的校准延时，这里我们给 50ms (硬件最低要求 45ms)
+    // =======================================================
+    dev->delay(50);
+
+    // =======================================================
+    // 阶段 5：配置 FIFO 数据格式与中断 (此时传感器已经平稳运行)
+    // =======================================================
+    // 接口配置
+    intf_cfg0 = FIFO_COUNT_BIG_ENDIAN | SENSOR_DATA_BIG_ENDIAN | FIFO_COUNT_IN_RECORDS | 0x03;
+    ret = icm_write_reg(dev, 0, ICM42688_INTF_CONFIG0, intf_cfg0);
+    if (ret != ICM_OK) return ret;
+
+    // FIFO 数据包内容配置 (不包含开启数据流)
     fifo_cfg1 = FIFO_GYRO_EN_ENABLE 
               | FIFO_ACCEL_EN_ENABLE
               | FIFO_TEMP_EN_ENABLE  
@@ -150,10 +205,8 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     if (ret != ICM_OK) return ret;
    
     ret = icm_write_reg(dev, 0, ICM42688_TMST_CONFIG,
-                        TMST_EN_ENABLE | 
-                        TMST_RES_1US |
-                        TMST_DELTA_EN_DISABLE |
-                        TMST_FSYNC_EN_DISABLE |
+                        TMST_EN_ENABLE | TMST_RES_1US |
+                        TMST_DELTA_EN_DISABLE | TMST_FSYNC_EN_DISABLE |
                         TMST_TO_REGS_EN_DISABLE);
     if (ret != ICM_OK) return ret;
 
@@ -163,15 +216,10 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG3, (uint8_t)((dev->FIFO_THS)>>8));
     if (ret != ICM_OK) return ret;
 
-    // 6. 接口配置
-    intf_cfg0 = FIFO_COUNT_BIG_ENDIAN | SENSOR_DATA_BIG_ENDIAN | FIFO_COUNT_IN_RECORDS | 0x03;
-    ret = icm_write_reg(dev, 0, ICM42688_INTF_CONFIG0, intf_cfg0);
-    if (ret != ICM_OK) return ret;
-
-    // 7. 中断配置
-    ret = icm_write_reg(dev, 0, ICM42688_INT_SOURCE0, FIFO_THS_INT1_EN_ENABLE);
-    if (ret != ICM_OK) return ret;
+    // 中断配置
     ret = icm_write_reg(dev, 0, ICM42688_INT_CONFIG0, FIFO_THS_INT_CLEAR_ON_BOTH_READS);
+    if (ret != ICM_OK) return ret;
+    ret = icm_write_reg(dev, 0, ICM42688_INT_SOURCE0, FIFO_THS_INT1_EN_ENABLE);
     if (ret != ICM_OK) return ret;
 
     int_cfg = INT1_MODE_PULSED | INT2_MODE_PULSED | 
@@ -183,40 +231,17 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
     ret = icm_write_reg(dev, 0, ICM42688_INT_CONFIG1, 0x00);
     if (ret != ICM_OK) return ret;
 
-    // 8. UI 滤波器配置
-    ret = icm_write_reg(dev, 0, ICM42688_GYRO_CONFIG1, GYRO_UI_FILT_ORD_2ND | GYRO_DEC2_M2_ORD_3RD);
-    if (ret != ICM_OK) return ret;
-    ret = icm_write_reg(dev, 0, ICM42688_ACCEL_CONFIG1, ACCEL_UI_FILT_ORD_2ND | ACCEL_DEC2_M2_ORD_3RD);
-    if (ret != ICM_OK) return ret;
-    ret = icm_write_reg(dev, 0, ICM42688_GYRO_ACCEL_CONFIG0, 
-                        GYRO_UI_FILT_BW_LOW_LATENCY_400HZ | ACCEL_UI_FILT_BW_LOW_LATENCY_400HZ);
+    // =======================================================
+    // 阶段 6：排空残留物，正式开启数据流
+    // =======================================================
+    // 清空在配置期间可能积累的一点点错位垃圾数据 (由于是自清零寄存器，使用底层 write)
+    dev->write(ICM42688_SIGNAL_PATH_RESET, 0x02); // 0x02 为 FIFO_FLUSH
+    dev->delay(2); // 给硬件一点时间执行 Flush
+
+    // 此时芯片已经健康运转，FIFO 彻底干净，打开闸门！
+    ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG, FIFO_MODE_STREAM_TO_FIFO);
     if (ret != ICM_OK) return ret;
 
-    // 9. AAF 设置
-    ret = configure_aaf(dev, 1, accel_delt, accel_delt_sqr, accel_bitshift);
-    if (ret != ICM_OK) return ret;
-    ret = configure_aaf(dev, 0, accel_delt, accel_delt_sqr, accel_bitshift);
-    if (ret != ICM_OK) return ret;
-
-    // Enable Gyro AAF (Bank 1)
-    ret = icm_write_reg(dev, 1, ICM42688_GYRO_CONFIG_STATIC2, 0x01);
-    if (ret != ICM_OK) return ret;
-
-    // Enable Accel AAF (Bank 2)
-    ret = icm_read_reg(dev, 2, ICM42688_ACCEL_CONFIG_STATIC2, &reg_val);
-    if (ret != ICM_OK) return ret;
-    reg_val &= ~0x01;
-    ret = icm_write_reg(dev, 2, ICM42688_ACCEL_CONFIG_STATIC2, reg_val);
-    if (ret != ICM_OK) return ret;
-
-     ret = icm_write_reg(dev, 0, ICM42688_FIFO_CONFIG, FIFO_MODE_STREAM_TO_FIFO);
-    if (ret != ICM_OK) return ret;
-    // 10. 开启电源管理
-    pwr_mgmt = PWR_MGMT0_TEMP_ENABLED | PWR_MGMT0_GYRO_LN | PWR_MGMT0_ACCEL_LN;
-    ret = icm_write_reg(dev, 0, ICM42688_PWR_MGMT0, pwr_mgmt);
-    if (ret != ICM_OK) return ret;
-
-    dev->delay(50);
     return ICM_OK;
 }
 //uint8_t count_buf[2]; 
@@ -226,10 +251,10 @@ uint16_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer) {
 
     // 1. 读取当前 FIFO 中的有效数据包数量 (因为你在 INTF_CONFIG0 中设置了 FIFO_COUNT_IN_RECORDS)
     // 连续读 COUNTH 和 COUNTL
-    dev->write(ICM42688_REG_BANK_SEL,0);
-    dev->read_byte(ICM42688_FIFO_COUNTH,&count_buf[0]);
-    dev->read_byte(ICM42688_FIFO_COUNTL,&count_buf[1]);
-
+    //icm_read_regs(dev, 0, ICM42688_FIFO_COUNTH, count_buf, 2);
+    icm_set_bank(dev,0);
+    dev->read_byte(ICM42688_FIFO_COUNTH,&(count_buf[0]));
+    dev->read_byte(ICM42688_FIFO_COUNTL,&(count_buf[1]));
     // 注意：文件1配置了 FIFO_COUNT_BIG_ENDIAN，所以 count_buf[0] 是高字节
     fifo_packets = (count_buf[0] << 8) | count_buf[1];
 
@@ -239,14 +264,14 @@ uint16_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer) {
     // 2. 防溢出保护 (ICM-42688 FIFO 最大 2048 字节，即 128 包)
     if (fifo_packets >= 128) {
         // FIFO 溢出，必须清空，否则后续数据全乱
-        dev->write(ICM42688_REG_BANK_SEL, 0x00);
+        icm_set_bank(dev, 0);
         dev->write(ICM42688_SIGNAL_PATH_RESET, 0x02); // 写入 FIFO_FLUSH_ENABLE
         return 0; 
     }
     
     // 3. 连续突发读取全部有效数据
     // 只要 CS 没拉高，传进去长度 fifo_packets * 16，底层就会一次性把数据全部读完
-    if (icm_read_regs(dev, 0, ICM42688_FIFO_DATA, buffer, fifo_packets * 16) != ICM_OK) {
+    if (icm_read_regs(dev, 0, ICM42688_FIFO_DATA, buffer, fifo_packets*16) != ICM_OK) {
         return 0; 
     }
     
