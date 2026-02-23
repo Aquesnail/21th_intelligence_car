@@ -11,7 +11,8 @@
                 "./Sources/User",
                 "./Sources/Comm",
                 "./Sources/Drivers",
-                "./Sources/Apptest"
+                "./Sources/Apptest",
+                "./Sources/Device"
             ],
            "defines": [
                 "__C251__",

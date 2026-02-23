@@ -1,31 +1,23 @@
 #include "dma_uart.h"
+#include "dma_uart_ring.h"
+/* 定义缓冲区大小 */
+#define UART_DMATxBufferLength 512
+#define UART_DMARxBufferLength 512
+#define UART_TxRingBufferLength 2048
+#define UART_RxRingBufferLength 2048
 
-// ==========================================
-// 变量定义
-// ==========================================
-
-// 物理 DMA 缓冲区 (必须在 XDATA 或 EDATA，STC32默认变量在EDATA/XDATA)
-static uint8_t xdata uartDMATxBuffer[UART_DMATxBufferLength];
-static uint8_t xdata uartDMARxBuffer[UART_DMARxBufferLength];
-
-// 逻辑 环形缓冲区
-static uint8_t xdata uartTxRingBuffer[UART_TxRingBufferLength];
-static uint8_t xdata uartRxRingBuffer[UART_RxRingBufferLength];
-
-// 环形缓冲区指针
-static volatile uint16_t txHead = 0;
-static volatile uint16_t txTail = 0;
-static volatile uint16_t txCount = 0;
-
-static volatile uint16_t rxHead = 0;
-static volatile uint16_t rxTail = 0;
-static volatile uint16_t rxCount = 0;
+/* 物理与逻辑缓冲区 (必须在 XDATA 或 EDATA) */
+static uint8_t xdata uart5_dma_tx[UART_DMATxBufferLength];
+static uint8_t xdata uart5_dma_rx[UART_DMARxBufferLength];
+static uint8_t xdata uart5_ring_tx[UART_TxRingBufferLength];
+static uint8_t xdata uart5_ring_rx[UART_RxRingBufferLength];
 
 // DMA 状态标志
 static volatile uint8_t isDmaTxBusy = 0;
 
 #define Baudrate 115200
 
+dma_uart_manager_t uart5_mgr;
 // ==========================================
 // 内部函数声明
 // ==========================================
@@ -33,6 +25,28 @@ static void Start_DMA_Tx_From_RingBuffer(void);
 static void Copy_DMA_Rx_To_RingBuffer(uint16_t length);
 void UART5_Timer2_Config(uint16_t dat);
 
+
+/* --- 硬件控制回调函数 --- */
+static void UART5_HW_StartTx(uint16_t len) {
+    DMA_UR5T_TXAH = (uint8_t)((uint16_t)&uart5_dma_tx >> 8);
+    DMA_UR5T_TXAL = (uint8_t)((uint16_t)&uart5_dma_tx);
+    DMA_UR5T_AMT = (uint8_t)(len - 1);
+    DMA_UR5T_AMTH = (uint8_t)((len - 1) >> 8);
+    
+    DMA_UR5T_STA = 0x00;
+    DMA_UR5T_CR = 0xc0; /* 启动 DMA Tx */
+}
+
+static void UART5_HW_RestartRx(void) {
+    DMA_UR5R_AMT = (uint8_t)(UART_DMARxBufferLength - 1);
+    DMA_UR5R_AMTH = (uint8_t)((UART_DMARxBufferLength - 1) >> 8);
+    DMA_UR5R_CR = 0xa1; /* 重新启动 DMA Rx */
+}
+
+/* --- OS 包装回调函数 --- */
+static void OS_EnterCritical(void) { taskENTER_CRITICAL(); }
+static void OS_ExitCritical(void)  { taskEXIT_CRITICAL(); }
+static void OS_Delay(uint32_t ms)  { vTaskDelay(pdMS_TO_TICKS(ms)); }
 // ==========================================
 // 硬件配置函数
 // ==========================================
@@ -82,8 +96,8 @@ void UART5_DMA_Config(void) {
      DMA_UART5_SetTxIntPriority(1);      //设置中断为较低优先级
      DMA_UART5_SetRxIntPriority(1);      //设置中断为较低优先级
     // 设置 RX DMA 指向 buffer
-    DMA_UR5R_RXAH = (uint8_t)((uint16_t)&uartDMARxBuffer >> 8);
-    DMA_UR5R_RXAL = (uint8_t)((uint16_t)&uartDMARxBuffer);
+    DMA_UR5R_RXAH = (uint8_t)((uint16_t)&uart5_dma_rx >> 8);
+    DMA_UR5R_RXAL = (uint8_t)((uint16_t)&uart5_dma_rx);
     
     // 设置最大接收长度 (n+1)
     DMA_UR5R_AMT = (uint8_t)(UART_DMARxBufferLength - 1);
@@ -96,171 +110,26 @@ void UART5_DMA_Config(void) {
 void UART5_Init(void) {
     UART5_Config(2);
     UART5_DMA_Config();
+
+    /* 组装管理器 */
+    uart5_mgr.dma_tx_buf = uart5_dma_tx;
+    uart5_mgr.dma_tx_buf_size = UART_DMATxBufferLength;
+    uart5_mgr.dma_rx_buf = uart5_dma_rx;
+    uart5_mgr.dma_rx_buf_size = UART_DMARxBufferLength;
+    uart5_mgr.ring_tx_buf = uart5_ring_tx;
+    uart5_mgr.ring_tx_buf_size = UART_TxRingBufferLength;
+    uart5_mgr.ring_rx_buf = uart5_ring_rx;
+    uart5_mgr.ring_rx_buf_size = UART_RxRingBufferLength;
+
+    uart5_mgr.hw_start_dma_tx_cb = UART5_HW_StartTx;
+    uart5_mgr.hw_restart_dma_rx_cb = UART5_HW_RestartRx;
+    uart5_mgr.os_enter_critical_cb = OS_EnterCritical;
+    uart5_mgr.os_exit_critical_cb = OS_ExitCritical;
+    uart5_mgr.os_delay_cb = OS_Delay;
+
+    DMA_UART_Manager_Init(&uart5_mgr);
 }
 
-// ==========================================
-// 内部辅助逻辑
-// ==========================================
-
-// 尝试从 RingBuffer 取数据填入 DMA 并发送
-static void Start_DMA_Tx_From_RingBuffer(void) {
-    uint16_t bytesToSend;
-    uint16_t i;
-    
-    // 如果 RingBuffer 为空，标记发送空闲并退出
-    if (txCount == 0) {
-        isDmaTxBusy = 0;
-        return;
-    }
-
-    isDmaTxBusy = 1;
-
-    // 计算本次能从 RingBuffer 取出的最大连续长度
-    if (txTail > txHead) {
-        bytesToSend = txTail - txHead;
-    } else {
-        // 包含回绕 (txTail < txHead) 以及缓冲区刚好全满 (txTail == txHead 且 txCount > 0) 的情况
-        bytesToSend = UART_TxRingBufferLength - txHead;
-    }
-
-    // 限制单次 DMA 传输长度不超过 DMA 物理缓冲区大小
-    if (bytesToSend > UART_DMATxBufferLength) {
-        bytesToSend = UART_DMATxBufferLength;
-    }
-
-    // 搬运数据到 DMA 专用缓冲区
-    for (i = 0; i < bytesToSend; i++) {
-        uartDMATxBuffer[i] = uartTxRingBuffer[txHead];
-        txHead = (txHead + 1) % UART_TxRingBufferLength;
-    }
-
-    // 安全更新剩余数量 (调用者已保证在临界区或 ISR 中，所以此处绝对安全)
-    txCount -= bytesToSend;
-
-    // 配置 DMA 发送寄存器
-    DMA_UR5T_TXAH = (uint8_t)((uint16_t)&uartDMATxBuffer >> 8);
-    DMA_UR5T_TXAL = (uint8_t)((uint16_t)&uartDMATxBuffer);
-    
-    // 设置长度 (寄存器值为 len - 1)
-    DMA_UR5T_AMT = (uint8_t)(bytesToSend - 1);
-    DMA_UR5T_AMTH = (uint8_t)((bytesToSend - 1) >> 8);
-
-    // 启动 DMA 发送前清除状态标志，避免误触发
-    DMA_UR5T_STA = 0x00;
-    DMA_UR5T_CR = 0xc0; // Enable DMA, Start Tx
-}
-
-// 将接收到的 DMA 数据拷入 RingBuffer
-static void Copy_DMA_Rx_To_RingBuffer(uint16_t length) {
-    uint16_t i;
-    uint16_t freeSpace;
-
-    if (length == 0) return;
-
-    // 简单的溢出保护：如果 RingBuffer 满，则丢弃新数据
-    // 实际项目中可能需要更复杂的错误处理
-    freeSpace = UART_RxRingBufferLength - rxCount;
-    if (length > freeSpace) {
-        length = freeSpace; 
-    }
-
-    for (i = 0; i < length; i++) {
-        uartRxRingBuffer[rxTail] = uartDMARxBuffer[i];
-        rxTail = (rxTail + 1) % UART_RxRingBufferLength;
-    }
-
-    // 临界区保护 rxCount
-   // taskENTER_CRITICAL();
-    rxCount += length;
-    //taskEXIT_CRITICAL();
-}
-
-// ==========================================
-// 外部接口函数 (Read / Write)
-// ==========================================
-
-// 将数据写入发送缓冲区，如果 DMA 空闲则自动启动
-// ==========================================
-// 外部接口函数 (彻底线程安全版)
-// ==========================================
-
-uint16_t UART5_Write(char* dat, uint16_t len) {
-    uint16_t i;
-    uint16_t freeSpace;
-    
-    if (len == 0) return 0;
-    if (len > UART_TxRingBufferLength) len = UART_TxRingBufferLength;
-
-    // 1. 等待缓冲区有足够空间
-    do {
-        taskENTER_CRITICAL();
-        freeSpace = UART_TxRingBufferLength - txCount;
-        taskEXIT_CRITICAL();
-
-        if (freeSpace < len) {
-            // 延时让出 CPU，等待 DMA 消耗数据释放空间
-            vTaskDelay(pdMS_TO_TICKS(1));
-        }
-    } while (freeSpace < len);
-
-    // 2. 核心操作区：必须整体包裹在临界区内！
-    // 这样可以彻底防止：多任务同时调用 UART5_Write 导致数据交错，
-    // 以及在判断 isDmaTxBusy 时被 DMA 发送完成中断打断。
-    taskENTER_CRITICAL();
-
-    // 写入 RingBuffer
-    for (i = 0; i < len; i++) {
-        uartTxRingBuffer[txTail] = dat[i];
-        txTail = (txTail + 1) % UART_TxRingBufferLength;
-    }
-    
-    // 批量更新计数器 (在 8051 上 16位加法不是原子的，在此处更新绝对安全)
-    txCount += len;
-
-    // 如果 DMA 当前空闲，立即触发第一次发送
-    if (isDmaTxBusy == 0) {
-        // 此时由于在临界区内，内部执行也是安全的
-        Start_DMA_Tx_From_RingBuffer();
-    }
-
-    taskEXIT_CRITICAL();
-
-    return len;
-}
-
-// 从接收缓冲区读取数据
-uint16_t UART5_Read(char* dat, uint16_t len) {
-    uint16_t i;
-    uint16_t readLen = 0;
-
-    taskENTER_CRITICAL();
-    if (rxCount < len) {
-        readLen = rxCount;
-    } else {
-        readLen = len;
-    }
-    
-
-    for (i = 0; i < readLen; i++) {
-        dat[i] = uartRxRingBuffer[rxHead];
-        rxHead = (rxHead + 1) % UART_RxRingBufferLength;
-    }
-
-   
-    rxCount -= readLen;
-    taskEXIT_CRITICAL();
-
-    return readLen;
-}
-
-// 查询当前有多少字节可读
-uint16_t UART5_Available(void) {
-    uint16_t count;
-    taskENTER_CRITICAL();
-    count = rxCount;
-    taskEXIT_CRITICAL();
-    return count;
-}
 
 // ==========================================
 // 中断服务函数
@@ -283,20 +152,11 @@ void UART5_ISR(void) interrupt UART5_VECTOR {
         UR5TOSR = 0x80; 
         S5CON &= ~0x02;
 
-			 // 2. 计算已接收字节数
-        receivedCount = ((u16)DMA_UR5R_DONEH << 8) + DMA_UR5R_DONE; 
-        // 1. 停止 DMA 接收以读取状态
-        DMA_UR5R_CR = 0 ; // Clear Start Bit (Stop)
-
-       
-
-        // 3. 搬运数据
-        Copy_DMA_Rx_To_RingBuffer(receivedCount);
-
-        // 4. 重置并重新启动 DMA 接收
-        DMA_UR5R_AMT = (uint8_t)(UART_DMARxBufferLength - 1);
-        DMA_UR5R_AMTH = (uint8_t)((UART_DMARxBufferLength - 1) >> 8);
-        DMA_UR5R_CR = 0xa1; // Restart
+        DMA_UR5R_CR = 0; /* 停止 DMA 读取状态 */
+        receivedCount = ((uint16_t)DMA_UR5R_DONEH << 8) + DMA_UR5R_DONE; 
+        
+        /* 仅需将事件推给管理器 */
+        DMA_UART_OnRxTimeout_ISR(&uart5_mgr, receivedCount);
     }
 }
 
@@ -306,7 +166,7 @@ void UART5_DMATx_ISR(void) interrupt DMA_UR5T_VECTOR {
         DMA_UART5_ClearTxFlag();
         // 当前一批数据发送完毕，检查 RingBuffer 是否还有数据
         // 如果有，继续发送下一批
-        Start_DMA_Tx_From_RingBuffer();
+        DMA_UART_OnTxDone_ISR(&uart5_mgr);
     }
     if (DMA_UR5T_STA & 0x04)    //数据覆盖
     {
@@ -320,7 +180,7 @@ void UART5_DMARx_ISR(void) interrupt DMA_UR5R_VECTOR {
         DMA_UR5R_STA &= ~0x01;
         
         // DMA 缓冲区已满，全部拷走
-        Copy_DMA_Rx_To_RingBuffer(UART_DMARxBufferLength);
+        DMA_UART_OnRxFull_ISR(&uart5_mgr);
 
         // 重置并重新启动 DMA
         DMA_UR5R_AMT = (uint8_t)(UART_DMARxBufferLength - 1);

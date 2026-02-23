@@ -7,12 +7,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-// 缓冲区大小定义
-#define UART_DMATxBufferLength 512   // DMA 物理发送缓冲区大小 (建议较小，如16-64)
-#define UART_DMARxBufferLength 512   // DMA 物理接收缓冲区大小 (取决于最大帧长)
-#define UART_TxRingBufferLength 2048 // 软件发送环形缓冲区
-#define UART_RxRingBufferLength 2048 // 软件接收环形缓冲区
-
 // 外部接口
 void UART5_Init(void);
 uint16_t UART5_Write(char* dat, uint16_t len);
