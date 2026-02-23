@@ -180,3 +180,4 @@ void DMA_UART_OnRxFull_ISR(dma_uart_manager_t* mgr) {
         mgr->hw_restart_dma_rx_cb();
     }
 }
+

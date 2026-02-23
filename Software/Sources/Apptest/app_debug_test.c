@@ -6,15 +6,25 @@
 //#include "debug.h" // 包含刚才写的 debug 模块
 #include <stdio.h>
 #include "delay.h"
+#include "dma_uart_ring.h"
+#include "dma_uart.h"
 #define DEBUG_TASK_STACK_SIZE 512
 #define DEBUG_TASK_PRIORITY (tskIDLE_PRIORITY + 2 )
 
 #pragma warning disable = 138
 #pragma warning disable = 47
 
+debug_port_t debug_init_structure;
 TaskHandle_t xDebugTaskHandle = NULL;
 TaskHandle_t xDebugTaskHandle2 = NULL;
 SemaphoreHandle_t xRegistrationSemaphore = NULL;
+static void Debug_Write(uint8_t* pData,uint16_t len){
+    DMA_UART_Write(&uart5_mgr,pData,len);
+}
+static uint16_t Debug_Read(uint8_t* pData,uint16_t len){
+   return DMA_UART_Read(&uart5_mgr,pData,len);
+}
+
 void vDebugTaskDelayedStart(void *pvParameters);
 void vTestLoopTask(void *pvParameters);
 void App_DebugTask_Init(void){
@@ -48,7 +58,9 @@ void vDebugTaskDelayedStart(void *pvParameters) {
     (void)pvParameters;
     // 延时等待系统稳定
    //vTaskDelay(pdMS_TO_TICKS(2000)); // 延时2秒
-    Debug_Init();
+   debug_init_structure.debug_read = Debug_Read;
+   debug_init_structure.debug_write = Debug_Write;
+    Debug_Init(&debug_init_structure);
     if (xSemaphoreTake(xRegistrationSemaphore, portMAX_DELAY) == pdTRUE) {
         // 注册完成后创建真正的调试任务
         xTaskCreate(vDebugTask,

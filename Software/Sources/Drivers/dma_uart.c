@@ -21,8 +21,6 @@ dma_uart_manager_t uart5_mgr;
 // ==========================================
 // 内部函数声明
 // ==========================================
-static void Start_DMA_Tx_From_RingBuffer(void);
-static void Copy_DMA_Rx_To_RingBuffer(uint16_t length);
 void UART5_Timer2_Config(uint16_t dat);
 
 
@@ -152,9 +150,9 @@ void UART5_ISR(void) interrupt UART5_VECTOR {
         UR5TOSR = 0x80; 
         S5CON &= ~0x02;
 
-        DMA_UR5R_CR = 0; /* 停止 DMA 读取状态 */
+       
         receivedCount = ((uint16_t)DMA_UR5R_DONEH << 8) + DMA_UR5R_DONE; 
-        
+         DMA_UR5R_CR = 0; /* 停止 DMA 读取状态 */
         /* 仅需将事件推给管理器 */
         DMA_UART_OnRxTimeout_ISR(&uart5_mgr, receivedCount);
     }

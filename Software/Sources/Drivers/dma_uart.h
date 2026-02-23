@@ -6,11 +6,9 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include "dma_uart_ring.h"
 
+extern dma_uart_manager_t uart5_mgr;
 // 外部接口
 void UART5_Init(void);
-uint16_t UART5_Write(char* dat, uint16_t len);
-uint16_t UART5_Read(char* dat, uint16_t len);
-uint16_t UART5_Available(void); // 查询接收缓冲区有多少数据
-
 #endif

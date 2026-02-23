@@ -272,7 +272,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>.\Sources\FreeRTOS\include;.\Sources\User;.\Sources\FreeRTOS\portable\STC32G12K128;.\Sources\Comm;.\Sources\Drivers</IncludePath>
+              <IncludePath>.\Sources\FreeRTOS\include;.\Sources\User;.\Sources\FreeRTOS\portable\STC32G12K128;.\Sources\Comm;.\Sources\Drivers;.\Sources\Device</IncludePath>
             </VariousControls>
           </C251>
           <Ax51>
@@ -775,16 +775,6 @@
               <FilePath>.\Sources\Drivers\pwm.h</FilePath>
             </File>
             <File>
-              <FileName>ws2812.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Drivers\ws2812.c</FilePath>
-            </File>
-            <File>
-              <FileName>ws2812.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\ws2812.h</FilePath>
-            </File>
-            <File>
               <FileName>iap_user.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Drivers\iap_user.c</FilePath>
@@ -803,21 +793,6 @@
               <FileName>timer.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\timer.h</FilePath>
-            </File>
-            <File>
-              <FileName>icm42688.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Drivers\icm42688.c</FilePath>
-            </File>
-            <File>
-              <FileName>icm42688.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\icm42688.h</FilePath>
-            </File>
-            <File>
-              <FileName>icm42688_defs.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\icm42688_defs.h</FilePath>
             </File>
             <File>
               <FileName>spi2_user.c</FileName>
@@ -890,11 +865,6 @@
           <GroupName>Apptest</GroupName>
           <Files>
             <File>
-              <FileName>app_uart_test.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Apptest\app_uart_test.c</FilePath>
-            </File>
-            <File>
               <FileName>app_debug_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_debug_test.c</FilePath>
@@ -908,6 +878,46 @@
               <FileName>app_storage_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_storage_test.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Device</GroupName>
+          <Files>
+            <File>
+              <FileName>dma_uart_ring.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Device\dma_uart_ring.c</FilePath>
+            </File>
+            <File>
+              <FileName>dma_uart_ring.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Device\dma_uart_ring.h</FilePath>
+            </File>
+            <File>
+              <FileName>icm42688.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Device\icm42688.c</FilePath>
+            </File>
+            <File>
+              <FileName>icm42688.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Device\icm42688.h</FilePath>
+            </File>
+            <File>
+              <FileName>icm42688_defs.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Device\icm42688_defs.h</FilePath>
+            </File>
+            <File>
+              <FileName>ws2812.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Device\ws2812.c</FilePath>
+            </File>
+            <File>
+              <FileName>ws2812.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Device\ws2812.h</FilePath>
             </File>
           </Files>
         </Group>

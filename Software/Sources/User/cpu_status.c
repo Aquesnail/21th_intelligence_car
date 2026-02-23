@@ -117,7 +117,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
 		taskname = pcTaskName;
 		(void) xTask;
     while(1){
-      UART5_Write(pcTaskName,strlen(pcTaskName));
+     // UART5_Write(pcTaskName,strlen(pcTaskName));
     };
 }
 

@@ -15,7 +15,7 @@
 #define MAX_DEBUG_VARS  16
 #define TX_BUF_SIZE     512  // 统一发送缓冲区
 #define RX_BUF_SIZE     512  // 接收缓冲区
-
+debug_port_t* debug_init_struct;
 // 协议常量
 #define CMD_HANDSHAKE   0x00
 #define CMD_WRITE       0x55
@@ -70,12 +70,13 @@ static uint16_t Debug_Arch_CRC16(uint8_t *pData, uint16_t len) {
 
 // 串口写入封装
 static void Debug_Arch_Write(uint8_t *pData, uint16_t len) {
-    UART5_Write((char *)pData, len);
+   debug_init_struct->debug_write(pData,len);
 }
 
 // 串口读取封装
 static uint16_t Debug_Arch_Read(uint8_t *pData, uint16_t len) {
-    return UART5_Read((char *)pData, len);
+   return debug_init_struct->debug_read(pData,len);
+   // return UART5_Read((char *)pData, len);
 }
 // 获取类型长度
 static uint8_t GetTypeSize(uint8_t type) {
@@ -325,7 +326,9 @@ static void Debug_ProcessIncoming(void) {
 
 /*================== 初始化 =================== */
 
-void Debug_Init(){
+void Debug_Init(debug_port_t* debug_port_initstruct){
+    if(debug_port_initstruct!=NULL)
+        debug_init_struct = debug_port_initstruct;
     xLogMutex = xSemaphoreCreateMutex();
     xDebugReadySingal = xSemaphoreCreateBinary();
    // UART5_Init();
