@@ -8,30 +8,30 @@
 #include "port.h"
 #include "icm42688_defs.h"
 
-
-//#define ICM;
 extern uint8_t imu_ready;
+
+/* 片选操作直接留在头文件供底层调用 */
 #define ICM42688_CS_SET() P45 = 1
 #define ICM42688_CS_RESET() P45 = 0
 
 #define ICM42688_SPI_TIMEOUt 1000
+
 /* 错误码定义 */
 #define ICM_OK      0
 #define ICM_ERROR   1
 #define ICM_TIMEOUT 2
 
-/* 函数指针类型定义 */
-typedef uint8_t (*icm_write_reg_t)(uint8_t reg, uint8_t dat);
-typedef uint8_t (*icm_read_reg_t)(uint8_t reg, uint8_t * dat, uint16_t len);
-typedef uint8_t (*icm_read_reg_byte_t)(uint8_t reg, uint8_t *dat);  // 新增
-typedef void    (*icm_delay_ms_t)(uint32_t ms);
+/* --- 核心：极简的函数指针类型定义 --- */
+typedef uint8_t (*spi_tx_rx_byte_t)(uint8_t dat);                 // SPI 单字节全双工收发
+typedef void    (*spi_dma_read_t)(uint8_t *rx_buf, uint16_t len); // SPI DMA 批量读取
+typedef void    (*icm_delay_ms_t)(uint32_t ms);                   // 毫秒延时
 
 /* 核心对象结构体 */
 typedef struct {
-    icm_write_reg_t      write;
-    icm_read_reg_t       read;
-    icm_read_reg_byte_t  read_byte;    // 新增
+    spi_tx_rx_byte_t     spi_tx_rx;      // 传入你的 SPI2_WriteReadByte 封装
+    spi_dma_read_t       spi_dma_read;   // 传入你的 DMA 读函数封装
     icm_delay_ms_t       delay;
+    
     float                acc_sensitivity;
     float                gyro_sensitivity;
     uint8_t              current_bank;
@@ -45,5 +45,3 @@ uint8_t ICM42688_ReadData(ICM42688_t *dev, float *acc, float *gyro, float *temp)
 uint16_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer);
 
 #endif
-
-

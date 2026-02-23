@@ -79,6 +79,8 @@ void UART5_DMA_Config(void) {
     DMA_UR5R_CFG = 0x80;        // Enable Interrupt
     DMA_UR5R_STA = 0x00;
     
+     DMA_UART5_SetTxIntPriority(1);      //设置中断为较低优先级
+     DMA_UART5_SetRxIntPriority(1);      //设置中断为较低优先级
     // 设置 RX DMA 指向 buffer
     DMA_UR5R_RXAH = (uint8_t)((uint16_t)&uartDMARxBuffer >> 8);
     DMA_UR5R_RXAL = (uint8_t)((uint16_t)&uartDMARxBuffer);
@@ -114,10 +116,10 @@ static void Start_DMA_Tx_From_RingBuffer(void) {
     isDmaTxBusy = 1;
 
     // 计算本次能从 RingBuffer 取出的最大连续长度
-    // 注意：如果是回绕（Tail < Head），只能取到缓冲区末尾
-    if (txTail >= txHead) {
+    if (txTail > txHead) {
         bytesToSend = txTail - txHead;
     } else {
+        // 包含回绕 (txTail < txHead) 以及缓冲区刚好全满 (txTail == txHead 且 txCount > 0) 的情况
         bytesToSend = UART_TxRingBufferLength - txHead;
     }
 
@@ -132,10 +134,8 @@ static void Start_DMA_Tx_From_RingBuffer(void) {
         txHead = (txHead + 1) % UART_TxRingBufferLength;
     }
 
-    // FreeRTOS 临界区：保护 txCount 更新
-    taskENTER_CRITICAL();
+    // 安全更新剩余数量 (调用者已保证在临界区或 ISR 中，所以此处绝对安全)
     txCount -= bytesToSend;
-    taskEXIT_CRITICAL();
 
     // 配置 DMA 发送寄存器
     DMA_UR5T_TXAH = (uint8_t)((uint16_t)&uartDMATxBuffer >> 8);
@@ -145,7 +145,8 @@ static void Start_DMA_Tx_From_RingBuffer(void) {
     DMA_UR5T_AMT = (uint8_t)(bytesToSend - 1);
     DMA_UR5T_AMTH = (uint8_t)((bytesToSend - 1) >> 8);
 
-    // 启动 DMA 发送
+    // 启动 DMA 发送前清除状态标志，避免误触发
+    DMA_UR5T_STA = 0x00;
     DMA_UR5T_CR = 0xc0; // Enable DMA, Start Tx
 }
 
@@ -179,40 +180,49 @@ static void Copy_DMA_Rx_To_RingBuffer(uint16_t length) {
 // ==========================================
 
 // 将数据写入发送缓冲区，如果 DMA 空闲则自动启动
+// ==========================================
+// 外部接口函数 (彻底线程安全版)
+// ==========================================
+
 uint16_t UART5_Write(char* dat, uint16_t len) {
     uint16_t i;
     uint16_t freeSpace;
     
+    if (len == 0) return 0;
+    if (len > UART_TxRingBufferLength) len = UART_TxRingBufferLength;
 
-    if(len > UART_TxRingBufferLength) len = UART_TxRingBufferLength; //超出缓冲长度直接截断
-    // 等待缓冲区有足够空间 (简单的阻塞模式，也可改为非阻塞返回写入数量)
+    // 1. 等待缓冲区有足够空间
     do {
-       // taskENTER_CRITICAL();
+        taskENTER_CRITICAL();
         freeSpace = UART_TxRingBufferLength - txCount;
-       // taskEXIT_CRITICAL();
-        // 如果是 RTOS，这里可以加个 vTaskDelay(1) 避免死等占满 CPU
+        taskEXIT_CRITICAL();
 
-        if(freeSpace < len){
+        if (freeSpace < len) {
+            // 延时让出 CPU，等待 DMA 消耗数据释放空间
             vTaskDelay(pdMS_TO_TICKS(1));
         }
-
     } while (freeSpace < len);
+
+    // 2. 核心操作区：必须整体包裹在临界区内！
+    // 这样可以彻底防止：多任务同时调用 UART5_Write 导致数据交错，
+    // 以及在判断 isDmaTxBusy 时被 DMA 发送完成中断打断。
+    taskENTER_CRITICAL();
 
     // 写入 RingBuffer
     for (i = 0; i < len; i++) {
         uartTxRingBuffer[txTail] = dat[i];
         txTail = (txTail + 1) % UART_TxRingBufferLength;
-        
-      //  taskENTER_CRITICAL();
-        txCount++;
-      //  taskEXIT_CRITICAL();
     }
+    
+    // 批量更新计数器 (在 8051 上 16位加法不是原子的，在此处更新绝对安全)
+    txCount += len;
 
-    // 如果 DMA 当前没有在工作，手动触发第一次发送
-    taskENTER_CRITICAL();
+    // 如果 DMA 当前空闲，立即触发第一次发送
     if (isDmaTxBusy == 0) {
+        // 此时由于在临界区内，内部执行也是安全的
         Start_DMA_Tx_From_RingBuffer();
     }
+
     taskEXIT_CRITICAL();
 
     return len;
@@ -229,14 +239,14 @@ uint16_t UART5_Read(char* dat, uint16_t len) {
     } else {
         readLen = len;
     }
-    taskEXIT_CRITICAL();
+    
 
     for (i = 0; i < readLen; i++) {
         dat[i] = uartRxRingBuffer[rxHead];
         rxHead = (rxHead + 1) % UART_RxRingBufferLength;
     }
 
-    taskENTER_CRITICAL();
+   
     rxCount -= readLen;
     taskEXIT_CRITICAL();
 

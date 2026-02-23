@@ -257,8 +257,10 @@ static void Debug_ProcessIncoming(void) {
                 // ---> 握手请求 (Payload: 4 Bytes Magic)
                 case CMD_HANDSHAKE:
                     if(len == 4) {
-                        // 回复 Pong (ID=0xFD)
-                        Debug_TxCore(0xFD, 0x00, &rxBuf[3], 4);
+                        if(xSemaphoreTake(xLogMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                            Debug_TxCore(0xFD, 0x00, &rxBuf[3], 4);
+                            xSemaphoreGive(xLogMutex);
+                        }
                         
                         // RTOS 事件组：标记连接并触发元数据发送
                         if((xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) == 0) {

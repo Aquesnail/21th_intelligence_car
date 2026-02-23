@@ -24,39 +24,32 @@ static IMU_Filter_t IMU_Filter_Data;
 
 extern SemaphoreHandle_t xDebugReadySingal;
 void IMU_Structure_Init(void);
-uint8_t IMU_Read_Bytes_DMA_IT(uint8_t reg,uint8_t* dat,uint16_t len){ //这里只能传入Xdata域内的数组，不要传输错了
+
+/* --- 极简传入函数 1：SPI 单字节纯净收发 --- */
+uint8_t IMU_SPI_TxRx_Byte(uint8_t dat){
+    uint8_t rx_dat;
+    // icm42688.c 已经帮你控制好了 CS 拉低拉高，这里只需干活
+    taskENTER_CRITICAL(); // 保留你的原逻辑，防止单点传输被打断
+    rx_dat = SPI2_WriteReadByte(dat);
+    taskEXIT_CRITICAL();
+    return rx_dat;
+}
+
+/* --- 极简传入函数 2：SPI DMA 批量读取 --- */
+void IMU_SPI_Dma_Read(uint8_t* rx_buf, uint16_t len){ 
+    // icm42688.c 已经发过了 寄存器地址，并拉低了 CS
+    // 此时直接开启 DMA 收取数据
+    SPI2_DMA_WriteReadBytes_IT(FIFO_TxBuffer, rx_buf, len);
     
-    ICM42688_CS_RESET();
-    SPI2_WriteByte(reg | 0x80);
-    //SPI2_DMA_ReadBytes_IT(dat,len);
-    SPI2_DMA_WriteReadBytes_IT(FIFO_TxBuffer,dat,len);
-    if(xSemaphoreTake(xDmaSemaphore, pdMS_TO_TICKS(10)) == pdTRUE) { //这是用于同步的二值信号量，它是空的，在中断回调Give之前它都是拿不到的，会阻塞在这里直到回调完成
+    if(xSemaphoreTake(xDmaSemaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
         // 获取成功 (DMA 完成)
     } else {
-        // 超时处理 (比如复位 SPI，或者记录错误)
+        // 超时处理
     }
-
-    ICM42688_CS_SET();
-    return 0;
-}
-uint8_t IMU_Read_Byte(uint8_t reg,uint8_t *dat){
-    ICM42688_CS_RESET();
-    taskENTER_CRITICAL();
-    SPI2_WriteReadByte(reg|0x80);
-    *dat = SPI2_WriteReadByte(0xFF);
-    taskEXIT_CRITICAL();
-    ICM42688_CS_SET();
-    return 0;
+    // 函数退出后，icm42688.c 会自动拉高 CS
 }
 
-uint8_t IMU_Write_Byte(uint8_t reg,uint8_t dat){
-    ICM42688_CS_RESET();
-    SPI2_WriteByte(reg);
-    SPI2_WriteByte(dat);
-    ICM42688_CS_SET();
-    return 0;
-}
- uint8_t intf;
+// -------------------------------------------------------------
 
 void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
     uint8_t intf;
@@ -64,36 +57,34 @@ void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
     intf = CheckP4nFlag(PIN_ALL);       //读取中断请求标志
     if(intf & PIN_6){
         xSemaphoreGiveFromISR(xFIFOIntSemaphore,xHigherPriorityTaskWoken);
-       
     }
     ClearP4nFlag(PIN_ALL);              //清除中断请求标志
 }
 
 void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore){
-   
     xSemaphoreGiveFromISR(xDmaSemaphore,xSPI_DmaSemaphore);
-    //这里会释放信号量
     return;
 }
+
 float acc_t[3];
 float gyro_t[3];
 float temp_t;
+
 void vIMUProcessTask(void *pvParameters){
-    int16_t raw_acc_x;
-    int16_t raw_acc_y ;
-    int16_t raw_acc_z ;
-    int16_t raw_gyro_x ;
-    int16_t raw_gyro_y ;
-    int16_t raw_gyro_z ;
+    int16_t raw_acc_x, raw_acc_y, raw_acc_z;
+    int16_t raw_gyro_x, raw_gyro_y, raw_gyro_z;
     uint8_t raw_temp;
     uint16_t raw_timestamp;
     uint8_t xdata* ptr;
-		uint16_t i,j;
-    ptr=FIFO_RxBuffer;
-		j=0;
-	(void)pvParameters;
+    uint16_t i,j;
+    
+    ptr = FIFO_RxBuffer;
+    j = 0;
+    (void)pvParameters;
+    
     xDmaSemaphore = xSemaphoreCreateBinary();
     xFIFOIntSemaphore = xSemaphoreCreateBinary();
+    
     if(xDebugReadySingal != NULL){
         xSemaphoreTake(xDebugReadySingal,portMAX_DELAY);
         xSemaphoreGive(xDebugReadySingal);
@@ -101,30 +92,30 @@ void vIMUProcessTask(void *pvParameters){
     memset(FIFO_TxBuffer,0xff,sizeof(FIFO_TxBuffer));
     PORT4_Init();
     vTaskDelay(pdMS_TO_TICKS(2));
+    
     IMU_Structure_Init();
     i = ICM42688_Init(&icm42688_Init_Structure);
     if(i!=ICM_OK){
         Debug_Log("reg %d \r\n",i);
     }
-    IMU_Filter_Data.sample_time = 1/500.0f;
-    Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.ax));
-    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data.ay));
-    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.az));
-    Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(acc_t[0]));
-    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(acc_t[1]));
-    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(acc_t[2]));
-    IMU_Filter_Data.Kp = 1.0;
-    IMU_Filter_Data.Ki = 0.01;
+    
+   // IMU_Filter_Data.sample_time = 1/500.0f;
+    Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
+    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data.gy));
+    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
+    Debug_Register("pitch",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.pitch));
+    Debug_Register("roll",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.roll));
+    Debug_Register("yaw",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.yaw));
+    
+    IMU_Filter_Data.Kp = 0.8;
+    IMU_Filter_Data.Ki = 0.002;
     Debug_Register("Kp",DBG_FLOAT,&(IMU_Filter_Data.Kp));
     Debug_Register("Ki",DBG_FLOAT,&(IMU_Filter_Data.Ki));
+    
     for(;;){
-        // vTaskDelay(pdMS_TO_TICKS(1000));
-        // ICM42688_ReadData(&icm42688_Init_Structure,acc_t,gyro_t,&temp_t);
-        // Debug_Log("%.2f %.2f %.2f ", acc_t[0],acc_t[1],acc_t[2]);
         if(xSemaphoreTake(xFIFOIntSemaphore,pdMS_TO_TICKS(100)) == pdTRUE){
-           // memset(FIFO_TxBuffer,0,sizeof(FIFO_TxBuffer));
+           // Debug_Log("sample %f \r\n",100*IMU_Filter_Data.sample_time);
             j = ICM42688_ReadFIFO(&icm42688_Init_Structure,FIFO_RxBuffer);
-           // memset(FIFO_TxBuffer,0xff,sizeof(FIFO_TxBuffer));
             if(j!=ICM_ERROR && j!= 0){
                 Debug_Log("Pcakets: %u \r\n",j);
             }
@@ -144,21 +135,19 @@ void vIMUProcessTask(void *pvParameters){
                 IMU_Filter_Data.ay = raw_acc_y * icm42688_Init_Structure.acc_sensitivity * 9.80665f;
                 IMU_Filter_Data.az = raw_acc_z * icm42688_Init_Structure.acc_sensitivity * 9.80665f;
 
-                IMU_Filter_Data.gx = raw_gyro_x * icm42688_Init_Structure.gyro_sensitivity;
-                IMU_Filter_Data.gy = raw_gyro_y * icm42688_Init_Structure.gyro_sensitivity;
-                IMU_Filter_Data.gz = raw_gyro_z * icm42688_Init_Structure.gyro_sensitivity;
+                IMU_Filter_Data.gx = raw_gyro_x * icm42688_Init_Structure.gyro_sensitivity * 0.01745;
+                IMU_Filter_Data.gy = raw_gyro_y * icm42688_Init_Structure.gyro_sensitivity * 0.01745;
+                IMU_Filter_Data.gz = raw_gyro_z * icm42688_Init_Structure.gyro_sensitivity * 0.01745;
 
                 IMU_Filter_Data.time_stamp =  raw_timestamp;
-                IMU_Filter_Data.sample_time = raw_timestamp * 0.000001f;
+                IMU_Filter_Data.sample_time =  raw_timestamp / 1000000.0f;//1 / 500.0f;
                 IMU_Filter_Data.temp = (raw_temp / 2.07f) + 25.0f;
                 IMU_Filter_Update(&IMU_Filter_Data);
 
                 ptr+=16;
             }
             P41=1;
-            //Debug_Log("p %.2f r %.2f y %.2f \r\n",IMU_Filter_Data.pitch,IMU_Filter_Data.roll,IMU_Filter_Data.yaw);
             ICM42688_ReadData(&icm42688_Init_Structure,acc_t,gyro_t,&temp_t);
-
         }else{
             continue;
         }
@@ -169,18 +158,19 @@ static void task_delay_ms(uint32_t t){
     vTaskDelay(pdMS_TO_TICKS(t));
     return;
 }
+
 void IMU_Init(){
     xTaskCreate(vIMUProcessTask,"IMU",1024,NULL,tskIDLE_PRIORITY+4,NULL);
 }
+
 void IMU_Structure_Init(){
     SPI2_Init(IMU_DMA_Read_CallBack);
-    icm42688_Init_Structure.read = IMU_Read_Bytes_DMA_IT;
-    icm42688_Init_Structure.read_byte = IMU_Read_Byte;
-    icm42688_Init_Structure.write = IMU_Write_Byte;
+    
+    /* 仅仅只传两个最极简的 SPI 函数给它 */
+    icm42688_Init_Structure.spi_tx_rx = IMU_SPI_TxRx_Byte;
+    icm42688_Init_Structure.spi_dma_read = IMU_SPI_Dma_Read;
+    
     icm42688_Init_Structure.delay = task_delay_ms;
     icm42688_Init_Structure.FIFO_THS = FIFO_Packets;
     icm42688_Init_Structure.delay(2);
-   
-    
 }
-

@@ -73,8 +73,8 @@ void UART5_Init(void)
     DMA_UART5_SetInterval(0);           //设置串口DMA发送/接收字节间隔时间（系统时钟）
     DMA_UART5_ClearFIFO();              //清空串口DMA接收FIFO缓冲区
     DMA_UART5_ClearRxFlag();            //清除串口接收DMA中断标志
-    DMA_UART5_SetRxBusPriority(0);      //设置总线访问为最低优先级
-    DMA_UART5_SetRxIntPriority(0);      //设置中断为最低优先级
+    DMA_UART5_SetRxBusPriority(1);      //设置总线访问为较低优先级
+    DMA_UART5_SetRxIntPriority(1);      //设置中断为较低优先级
     DMA_UART5_EnableRxInt();            //使能串口5DMA接收中断
     DMA_UART5_EnableRx();               //使能串口5DMA接收功能
 //  DMA_UART5_TriggerRx();              //触发串口5DMA接收

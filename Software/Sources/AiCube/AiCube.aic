@@ -1536,8 +1536,8 @@
 		<EnableRxDMAInt>1</EnableRxDMAInt>
 		<RxDMAAmount>16</RxDMAAmount>
 		<RxDMAInterval>0</RxDMAInterval>
-		<RxDMAIntPriority>0</RxDMAIntPriority>
-		<RxDMABusPriority>0</RxDMABusPriority>
+		<RxDMAIntPriority>1</RxDMAIntPriority>
+		<RxDMABusPriority>1</RxDMABusPriority>
 		<TxDMABuffer>pu8UR5DMATxBuffer</TxDMABuffer>
 		<RxDMABuffer>pu8UR5DMARxBuffer</RxDMABuffer>
 		<EnableP2PA>0</EnableP2PA>
