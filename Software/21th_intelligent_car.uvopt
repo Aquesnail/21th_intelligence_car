@@ -1113,8 +1113,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\Sources\Apptest\app_debug_test.c</PathWithFileName>
-      <FilenameWithoutPath>app_debug_test.c</FilenameWithoutPath>
+      <PathWithFileName>.\Sources\Apptest\app_clk_test.c</PathWithFileName>
+      <FilenameWithoutPath>app_clk_test.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -1125,8 +1125,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\Sources\Apptest\app_clk_test.c</PathWithFileName>
-      <FilenameWithoutPath>app_clk_test.c</FilenameWithoutPath>
+      <PathWithFileName>.\Sources\Apptest\app_storage_test.c</PathWithFileName>
+      <FilenameWithoutPath>app_storage_test.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -1137,8 +1137,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\Sources\Apptest\app_storage_test.c</PathWithFileName>
-      <FilenameWithoutPath>app_storage_test.c</FilenameWithoutPath>
+      <PathWithFileName>.\Sources\Apptest\app_debug.c</PathWithFileName>
+      <FilenameWithoutPath>app_debug.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

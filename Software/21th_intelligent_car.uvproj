@@ -865,11 +865,6 @@
           <GroupName>Apptest</GroupName>
           <Files>
             <File>
-              <FileName>app_debug_test.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Apptest\app_debug_test.c</FilePath>
-            </File>
-            <File>
               <FileName>app_clk_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_clk_test.c</FilePath>
@@ -878,6 +873,11 @@
               <FileName>app_storage_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_storage_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_debug.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_debug.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -379,38 +379,8 @@ void vDebugTask(void *pvParameters) {
                     if((debugTable[i].type&FreqType_Msk)==0){
                         Debug_SendValuePacket(i);
                     }
-                    // 给 DMA 一点点喘息时间，避免环形缓冲溢出
-                    //vTaskDelay(pdMS_TO_TICKS(2)); 
                 }
             }
         }
-        // 这里的延时决定了对下行指令的响应速度
-        // 20ms 的延时意味着每秒检查 50 次指令，足够流畅
-        //vTaskDelay(pdMS_TO_TICKS(20)); 
-
-        // B. 周期性发送数据 (Time Slicing)
-        // 检查是否距离上次发送超过了 100ms
-        // if ((xTaskGetTickCount() - xLastWakeTime) >= xFrequency) {
-        //     xLastWakeTime = xTaskGetTickCount(); // 更新基准时间
-        //     // 检查连接状态
-        //     if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) {
-        //         for(i = 0; i < debugVarCount; i++) {
-        //             if((debugTable[i].type&FreqType_Msk)==0){
-        //                 Debug_SendValuePacket(i);
-        //             }
-        //             // 给 DMA 一点点喘息时间，避免环形缓冲溢出
-        //             vTaskDelay(pdMS_TO_TICKS(2)); 
-        //         }
-        //     }
-        // }
-        // if((xTaskGetTickCount() - xLastWakeTimeHighFreq >= 20 )){
-        //     if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) {
-        //         for(i = 0; i < debugVarCount; i++){
-        //             if(debugTable[i].type&FreqType_Msk){
-        //                 Debug_SendHighFreqValuePacket(i);
-        //             }
-        //         }
-        //     }
-        // }
     }
 }
