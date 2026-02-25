@@ -53,7 +53,7 @@
 typedef portSTACK_TYPE StackType_t;
 typedef signed char BaseType_t;
 typedef unsigned char UBaseType_t;
-
+extern volatile uint8_t data uxCriticalNesting;
 
 #if( configUSE_16_BIT_TICKS == 1 )
 	typedef uint16_t TickType_t;
@@ -77,8 +77,23 @@ extern void vPortYield();
 #define portNOP()	                _nop_()
 
 /* Critical section management. */
-#define portENTER_CRITICAL()		EA = 0
-#define portEXIT_CRITICAL()			EA = 1
+#define portENTER_CRITICAL()            \
+    do {                                \
+        EA = 0;                         \
+        uxCriticalNesting++;            \
+    } while(0)
+
+#define portEXIT_CRITICAL()             \
+    do {                                \
+        if( uxCriticalNesting > 0 )     \
+        {                               \
+            uxCriticalNesting--;        \
+            if( uxCriticalNesting == 0 )\
+            {                           \
+                EA = 1;                 \
+            }                           \
+        }                               \
+    } while(0)
 
 #define portDISABLE_INTERRUPTS()	EA = 0
 #define portENABLE_INTERRUPTS()		EA = 1

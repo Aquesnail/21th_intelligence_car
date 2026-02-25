@@ -44,7 +44,7 @@
 static StackType_t data xPCL;
 static StackType_t data xPCH;
 static StackType_t data xPCB;
-
+volatile uint8_t data uxCriticalNesting = 0;
 
 /* Setup the timer to generate the tick interrupts. */
 static void prvPortSetupTimerInterrupt( void );
