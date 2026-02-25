@@ -34,7 +34,7 @@ static uint8_t spi2_transfer_len;        // 传输长度
 uint8_t spi2_dma_busy;   // 非阻塞传输忙标志
 
 
-static DMA_SPI2_Callback_t spi2_dma_callback = (void *)NULL;
+static DMA_SPI2_Callback_t spi2_dma_callback = (void code*)NULL;
 
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 

@@ -1,6 +1,9 @@
 #include "imu_filter.h"
 #include <math.h>
 
+#define TARGET_CALIB_TIME 2.0f
+#define GYRO_JITTER_THRESH 0.1f
+#define ACCEL_JITTER_THRESH 0.05f
 void IMU_Filter_Update(IMU_Filter_t* dat){
     /* =========================================================
      * 1. 局部变量声明 (严格遵循 C89 标准)
@@ -8,7 +11,6 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     /* 新增：开机自动校准相关的静态变量 */
     static uint8_t is_calibrated = 0;                        /* 校准完成标志位 */
     static uint32_t calib_count = 0;                         /* 有效静止采样计数 */
-    static float bias_gx = 0.0f, bias_gy = 0.0f, bias_gz = 0.0f; /* 陀螺仪零偏计算累加器/结果 */
     static float last_gx = 0.0f, last_gy = 0.0f, last_gz = 0.0f; /* 上一次的陀螺仪数据 (用于抖动检测) */
     static float last_ax = 0.0f, last_ay = 0.0f, last_az = 0.0f; /* 上一次的加速度计数据 (用于抖动检测) */
 
@@ -24,10 +26,6 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     float gx, gy, gz, ax, ay, az;
     float dt;
 
-    /* 新增：校准阈值参数 (可根据实际传感器噪声底噪微调) */
-    float target_calib_time = 2.0f;       /* 目标纯静止时间，单位：秒 */
-    float gyro_jitter_thresh = 0.1f;     /* 陀螺仪抖动阈值，单位：rad/s */
-    float accel_jitter_thresh = 0.05f;    /* 加速度计抖动阈值，单位：g */
     uint32_t target_calib_count;          /* 目标需要达到的静止采样总次数 */
 
     /* =========================================================
@@ -49,23 +47,23 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
      * 3. 核心功能新增：开机静止零偏校准
      * =========================================================*/
     if (is_calibrated == 0) {
-        target_calib_count = (uint32_t)(target_calib_time / dt);
+        target_calib_count = (uint32_t)(TARGET_CALIB_TIME / dt);
 
         /* 检测是否发生抖动：通过计算当前值与上一次值的差值绝对值 */
         if (calib_count > 0) {
             /* C89标准中 fabs 返回 double，此处强转为 float 以提高运算效率并避免警告 */
-            if ((float)fabs(gx - last_gx) > gyro_jitter_thresh ||
-                (float)fabs(gy - last_gy) > gyro_jitter_thresh ||
-                (float)fabs(gz - last_gz) > gyro_jitter_thresh ||
-                (float)fabs(ax - last_ax) > accel_jitter_thresh ||
-                (float)fabs(ay - last_ay) > accel_jitter_thresh ||
-                (float)fabs(az - last_az) > accel_jitter_thresh) {
+            if ((float)fabs(gx - last_gx) > GYRO_JITTER_THRESH ||
+                (float)fabs(gy - last_gy) > GYRO_JITTER_THRESH ||
+                (float)fabs(gz - last_gz) > GYRO_JITTER_THRESH ||
+                (float)fabs(ax - last_ax) > ACCEL_JITTER_THRESH ||
+                (float)fabs(ay - last_ay) > ACCEL_JITTER_THRESH ||
+                (float)fabs(az - last_az) > ACCEL_JITTER_THRESH) {
                 
                 /* 检测到突发抖动，清空累加器，重置校准进程 */
                 calib_count = 0;
-                bias_gx = 0.0f;
-                bias_gy = 0.0f;
-                bias_gz = 0.0f;
+                dat->bias_gx = 0.0f;
+                dat->bias_gy = 0.0f;
+                dat->bias_gz = 0.0f;
             }
         }
 
@@ -74,17 +72,17 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
         last_ax = ax; last_ay = ay; last_az = az;
 
         /* 数据平稳，累加陀螺仪当前数据 */
-        bias_gx += gx;
-        bias_gy += gy;
-        bias_gz += gz;
+        dat->bias_gx += gx;
+        dat->bias_gy += gy;
+        dat->bias_gz += gz;
         calib_count++;
 
         /* 判断是否已经满足所需的纯静止时间 */
         if (calib_count >= target_calib_count) {
             /* 计算平均值，得到真实的静态零漂 */
-            bias_gx /= (float)calib_count;
-            bias_gy /= (float)calib_count;
-            bias_gz /= (float)calib_count;
+            dat->bias_gx /= (float)calib_count;
+            dat->bias_gy /= (float)calib_count;
+            dat->bias_gz /= (float)calib_count;
             is_calibrated = 1; /* 校准完成，锁定基准 */
         }
         
@@ -96,9 +94,9 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     /* =========================================================
      * 4. 正常运行阶段：减去静态零偏
      * =========================================================*/
-    gx -= bias_gx;
-    gy -= bias_gy;
-    gz -= bias_gz;
+    gx -= dat->bias_gx;
+    gy -= dat->bias_gy;
+    gz -= dat->bias_gz;
 
     /* =========================================================
      * 5. 原始的 Mahony 滤波逻辑 (保持不变)

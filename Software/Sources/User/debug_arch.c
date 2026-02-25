@@ -13,7 +13,7 @@
 
 /* ================= 配置与定义 ================= */
 #define MAX_DEBUG_VARS  16
-#define TX_BUF_SIZE     512  // 统一发送缓冲区
+#define TX_BUF_SIZE     255  // 统一发送缓冲区
 #define RX_BUF_SIZE     512  // 接收缓冲区
 debug_port_t* debug_init_struct;
 // 协议常量
