@@ -42,7 +42,6 @@ void TIMER11_Init(void)
     TIMER11_SetPrescale(T11_PSCR);      //设置定时器11的8位预分频
     TIMER11_SetReload16(T11_RELOAD);    //设置定时器11的16位重载值
     TIMER11_Run();                      //定时器11开始运行
-
     //<<AICUBE_USER_TIMER11_INITIAL_BEGIN>>
     // 在此添加用户初始化代码  
     //<<AICUBE_USER_TIMER11_INITIAL_END>>

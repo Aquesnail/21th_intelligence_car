@@ -12,23 +12,24 @@ static uint8_t hw_write_reg(ICM42688_t *dev, uint8_t reg, uint8_t value) {
 }
 
 static uint8_t hw_read_reg(ICM42688_t *dev, uint8_t reg, uint8_t *value) {
-    //ICM42688_CS_RESET();
+    ICM42688_CS_RESET();
     dev->spi_tx_rx(reg | 0x80);  // 发送寄存器地址 (最高位设为1表示读)
     *value = dev->spi_tx_rx(0xFF); // 发送空字节换取数据
-   // ICM42688_CS_SET();
+    ICM42688_CS_SET();
     return 0;
 }
 
 static uint8_t hw_read_regs_dma_trig(ICM42688_t *dev, uint8_t reg, uint8_t *dat, uint16_t len) {
 	uint16_t i;
-		
+	ICM42688_CS_RESET();
     dev->spi_tx_rx(reg | 0x80);  // 先把读取地址发过去
-    if(dev->spi_dma_read!=NULL) {
+    if(dev->spi_dma_read) {
         dev->spi_dma_read(dat, len); // 开启 DMA 暴风吸入
     } else {
-        return ICM_ERROR;
+       // for(i=0; i<len; i++) dat[i] = dev->spi_tx_rx(0xFF);
+       return ICM_ERROR;
     }
-    
+    ICM42688_CS_SET();
     return 0;
 }
 

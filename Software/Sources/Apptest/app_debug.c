@@ -90,9 +90,17 @@ void vDebugTaskDelayedStart(void *pvParameters)
     // 删除自身任务
     vTaskDelete(NULL);
 }
+extern uint8_t Storage_HandleCommand(const char* cmd);
+extern uint8_t CPUStatus_HandleCommand(const char* cmd);
 char xdata echoBuf[70];
 void Debug_OnTextReceived(char* str, uint8_t len)
-{
+{   
+    if(Storage_HandleCommand(str)){
+        return;
+    }
+    if(CPUStatus_HandleCommand(str)){
+        return;
+    }
     sprintf(echoBuf, "Echo: %s", str);
     Debug_Log(echoBuf);
 }

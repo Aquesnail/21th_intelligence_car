@@ -91,8 +91,8 @@ void UART5_DMA_Config(void) {
     DMA_UR5R_CFG = 0x80;        // Enable Interrupt
     DMA_UR5R_STA = 0x00;
     
-     DMA_UART5_SetTxIntPriority(1);      //设置中断为较低优先级
-     DMA_UART5_SetRxIntPriority(1);      //设置中断为较低优先级
+    DMA_UART5_SetTxIntPriority(1);      //设置中断为较低优先级
+    DMA_UART5_SetRxIntPriority(1);      //设置中断为较低优先级
     // 设置 RX DMA 指向 buffer
     DMA_UR5R_RXAH = (uint8_t)((uint16_t)&uart5_dma_rx >> 8);
     DMA_UR5R_RXAL = (uint8_t)((uint16_t)&uart5_dma_rx);

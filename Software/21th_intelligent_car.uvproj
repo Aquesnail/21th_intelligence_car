@@ -272,7 +272,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>.\Sources\FreeRTOS\include;.\Sources\User;.\Sources\FreeRTOS\portable\STC32G12K128;.\Sources\Comm;.\Sources\Drivers;.\Sources\Device</IncludePath>
+              <IncludePath>.\Sources\FreeRTOS\include;.\Sources\User;.\Sources\FreeRTOS\portable\STC32G12K128;.\Sources\Comm;.\Sources\Drivers;.\Sources\Device;.\Sources\Apptest</IncludePath>
             </VariousControls>
           </C251>
           <Ax51>
@@ -709,6 +709,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Comm\FreeRTOSConfig.h</FilePath>
             </File>
+            <File>
+              <FileName>simple_queue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Comm\simple_queue.c</FilePath>
+            </File>
+            <File>
+              <FileName>simple_queue.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Comm\simple_queue.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -873,6 +883,11 @@
               <FileName>app_debug.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_debug.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_storage.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_storage.c</FilePath>
             </File>
           </Files>
         </Group>

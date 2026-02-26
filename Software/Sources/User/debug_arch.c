@@ -46,7 +46,7 @@ SemaphoreHandle_t xLogMutex = NULL;
 
 /*================== 信号量 =====================*/
 
-SemaphoreHandle_t xDebugReadySingal = NULL;
+SemaphoreHandle_t xDebugReadySignal = NULL;
 
 // RTOS 句柄
 static EventGroupHandle_t xDebugEventGroup = NULL;
@@ -330,7 +330,7 @@ void Debug_Init(debug_port_t* debug_port_initstruct){
     if(debug_port_initstruct!=NULL)
         debug_init_struct = debug_port_initstruct;
     xLogMutex = xSemaphoreCreateMutex();
-    xDebugReadySingal = xSemaphoreCreateBinary();
+    xDebugReadySignal = xSemaphoreCreateBinary();
    // UART5_Init();
 }
 
@@ -354,7 +354,7 @@ void vDebugTask(void *pvParameters) {
     // 初始化时间戳
     //xLastWakeTime = xTaskGetTickCount();
     //xLastWakeTimeHighFreq = xTaskGetTickCount();
-    xSemaphoreGive(xDebugReadySingal);
+    xSemaphoreGive(xDebugReadySignal);
     for(;;) {
         vTaskDelay(pdMS_TO_TICKS(10));
         t++;

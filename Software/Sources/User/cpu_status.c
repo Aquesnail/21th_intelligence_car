@@ -5,11 +5,11 @@
 #include "timer.h"
 #include "dma_uart.h"
 
-
 #pragma warning disable = 138
 
 volatile uint32_t ulHighFrequencyTimerTicks = 0;
 extern uint16_t g_u16OverflowCount ;
+TaskHandle_t vTaskMonitor_Handle;
 // 初始化定时器 (这只是伪代码，请使用 HAL 库或寄存器配置实际硬件)
 void ConfigureTimeForRunTimeStats(void)
 {
@@ -20,6 +20,13 @@ void ConfigureTimeForRunTimeStats(void)
     TIMER11_Init();
     ulHighFrequencyTimerTicks = 0;
 }
+void TimDisable(void){
+  T11H = 0x00;
+  T11L = 0x00;
+  ulHighFrequencyTimerTicks = 0;
+  TIMER11_Stop();
+}
+
 
 // 获取当前时间值
 uint32_t GetRunTimeCounterValue(void)
@@ -53,8 +60,22 @@ uint32_t GetRunTimeCounterValue(void)
     
     return ulReturn;
 }
-
+uint8_t xdata taskbit = 1;
+uint8_t CPUStatus_HandleCommand(const char* cmd) {
+    if (strcmp(cmd, "cpuon") == 0) {
+      taskbit = 1;
+      Debug_Log("COU_ON");
+      return 1;
+    }else if(strcmp(cmd,"cpuoff") == 0){
+      taskbit = 0;
+      TimDisable();
+      Debug_Log("CPU_OFF");
+      return 1;
+    }
+    return 0; // 未识别
+}
 char xdata pcWriteBuffer[512]={0};
+
 void vTaskMonitor(void *pvParameters)
 {
     // 分配一个足够大的缓冲区来存储统计信息
@@ -66,7 +87,7 @@ void vTaskMonitor(void *pvParameters)
         // 每 3 秒打印一次
         vTaskDelay(pdMS_TO_TICKS(1500));
 				
-        if (pcWriteBuffer != NULL)
+        if (pcWriteBuffer != NULL && taskbit == 1)
         {
             // 获取统计信息
             // 格式为：任务名   运行时间(绝对值)   百分比
@@ -108,7 +129,7 @@ void CPU_STATUS_TASK_Init(void){
         512,
         NULL,
         tskIDLE_PRIORITY + 2,
-        NULL
+        &vTaskMonitor_Handle
     );
 }
 char *taskname;

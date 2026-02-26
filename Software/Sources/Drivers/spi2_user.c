@@ -159,7 +159,7 @@ void SPI2_DMA_ReadBytes_IT(uint8_t xdata*rx_buf, uint16_t len)
 
     
     // 等待之前的非阻塞传输完成（简单轮询，也可改为返回错误）
-    while (spi2_dma_busy);
+    if (spi2_dma_busy) return;
 
     // 保存用户参数
     spi2_rx_buffer = rx_buf;

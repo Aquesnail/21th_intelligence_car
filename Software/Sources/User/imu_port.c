@@ -9,7 +9,7 @@
 #include "imu_filter.h"
 #include "debug_arch.h"
 #include "port.h"
-#include "storage.h"
+#include "app_storage.h"
 
 #pragma warning disable = 138
 #pragma warning disable = 151
@@ -18,14 +18,14 @@
 
 static ICM42688_t IMU_Init_Structure;
 SemaphoreHandle_t xDmaSemaphore;
-static SemaphoreHandle_t xFIFOIntSemaphore;
+TaskHandle_t   xImuTaskHandle;
 static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1];
 static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1];
 IMU_Filter_t IMU_Filter_Data;
 static ICM42688_Pack16_t IMU_Dat;
 
 
-extern SemaphoreHandle_t xDebugReadySingal;
+extern SemaphoreHandle_t xDebugReadySignal;
 void IMU_Structure_Init(void);
 
 /* --- 极简传入函数 1：SPI 单字节纯净收发 --- */
@@ -42,12 +42,10 @@ uint8_t IMU_SPI_TxRx_Byte(uint8_t dat){
 void IMU_SPI_Dma_Read(uint8_t* rx_buf, uint16_t len){ 
     // icm42688.c 已经发过了 寄存器地址，并拉低了 CS
     // 此时直接开启 DMA 收取数据
-    ICM42688_CS_RESET();
     SPI2_DMA_WriteReadBytes_IT(FIFO_TxBuffer, rx_buf, len);
     
     if(xSemaphoreTake(xDmaSemaphore, pdMS_TO_TICKS(10)) == pdTRUE) {
         // 获取成功 (DMA 完成)
-        ICM42688_CS_SET();
     } else {
         // 超时处理
     }
@@ -61,7 +59,7 @@ void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
 
     intf = CheckP4nFlag(PIN_ALL);       //读取中断请求标志
     if(intf & PIN_6){
-        xSemaphoreGiveFromISR(xFIFOIntSemaphore,xHigherPriorityTaskWoken);
+        vTaskNotifyGiveFromISR(xImuTaskHandle,xHigherPriorityTaskWoken);
     }
     ClearP4nFlag(PIN_ALL);              //清除中断请求标志
 }
@@ -82,13 +80,16 @@ void vIMUProcessTask(void *pvParameters){
     ptr = FIFO_RxBuffer;
     j = 0;
     (void)pvParameters;
+  
+    xImuTaskHandle = xTaskGetCurrentTaskHandle();
     
-    xDmaSemaphore = xSemaphoreCreateBinary();
-    xFIFOIntSemaphore = xSemaphoreCreateBinary();
-    
-    if(xDebugReadySingal != NULL){
-        xSemaphoreTake(xDebugReadySingal,portMAX_DELAY);
-        xSemaphoreGive(xDebugReadySingal);
+    if(xDebugReadySignal != NULL){
+        xSemaphoreTake(xDebugReadySignal,portMAX_DELAY);
+        xSemaphoreGive(xDebugReadySignal);
+    }
+    if(xStorageReadySignal != NULL){
+        xSemaphoreTake(xStorageReadySignal,portMAX_DELAY);
+        xSemaphoreGive(xStorageReadySignal);
     }
     memset(FIFO_TxBuffer,0xff,sizeof(FIFO_TxBuffer));
     PORT4_Init();
@@ -101,43 +102,31 @@ void vIMUProcessTask(void *pvParameters){
     }
     
    // IMU_Filter_Data.sample_time = 1/500.0f;
-    Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
-    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data.gy));
-    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
-    Debug_Register("pitch",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.pitch));
-    Debug_Register("roll",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.roll));
-    Debug_Register("yaw",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.yaw));
-     Debug_Register("Kp",DBG_FLOAT,&(IMU_Filter_Data.Kp));
-    Debug_Register("Ki",DBG_FLOAT,&(IMU_Filter_Data.Ki));
-    
-    IMU_Filter_Data.Kp = 0.8;
-    IMU_Filter_Data.Ki = 0.002;
-    IMU_Filter_Data.bias_gx=0.0f;
-    IMU_Filter_Data.bias_gy=0.0f;
-    IMU_Filter_Data.bias_gz=0.0f;
-    IMU_Filter_Data.is_calibrated = 0;
-    
-    if(Storage_Data_Writed(&(IMU_Filter_Data.bias_gx))==0){
-        IMU_Filter_Data.is_calibrated = 1;
-        Storage_Load(&(IMU_Filter_Data.bias_gx));
-        Storage_Load(&(IMU_Filter_Data.bias_gy));
-        Storage_Load(&(IMU_Filter_Data.bias_gz));
-    }else{
-        Debug_Log("Bias Not In Flash");
-    }
-    if(Storage_Data_Writed(&(IMU_Filter_Data.Kp))==0){
-        Storage_Load(&(IMU_Filter_Data.Kp));
-    }else{
-        Debug_Log("Kp Not In Flash");
-    }
-    if(Storage_Data_Writed(&(IMU_Filter_Data.Kp))==0){
-        Storage_Load(&(IMU_Filter_Data.Ki));
-    }else{
-        Debug_Log("Ki Not In Falsh");
-    }
+   
+/*
+***********************参数固化之后用如下代码*******************
+*/
+    // if(Storage_Data_Writed(&(IMU_Filter_Data.bias_gx))==0){
+    //     IMU_Filter_Data.is_calibrated = 1;
+    //     Storage_Load(&(IMU_Filter_Data.bias_gx));
+    //     Storage_Load(&(IMU_Filter_Data.bias_gy));
+    //     Storage_Load(&(IMU_Filter_Data.bias_gz));
+    // }else{
+    //     Debug_Log("Bias Not In Flash");
+    // }
+    // if(Storage_Data_Writed(&(IMU_Filter_Data.Kp))==0){
+    //     Storage_Load(&(IMU_Filter_Data.Kp));
+    // }else{
+    //     Debug_Log("Kp Not In Flash");
+    // }
+    // if(Storage_Data_Writed(&(IMU_Filter_Data.Ki))==0){
+    //     Storage_Load(&(IMU_Filter_Data.Ki));
+    // }else{
+    //     Debug_Log("Ki Not In Falsh");
+    // }
     
     for(;;){
-        if(xSemaphoreTake(xFIFOIntSemaphore,pdMS_TO_TICKS(100)) == pdTRUE){
+        if(ulTaskNotifyTake(pdTRUE,portMAX_DELAY)){
            // Debug_Log("sample %f \r\n",100*IMU_Filter_Data.sample_time);
             j = ICM42688_ReadFIFO(&IMU_Init_Structure,FIFO_RxBuffer);
             if(j!=ICM_ERROR && j!= 0){
@@ -145,9 +134,6 @@ void vIMUProcessTask(void *pvParameters){
             }
             P41=0;
             ptr = FIFO_RxBuffer;
-            if(IMU_Filter_Data.is_calibrated){
-
-            }
             for(i=0;i<IMU_Init_Structure.FIFO_THS;i++){
                 
                 ICM42688_FIFO_Data_Handle(&IMU_Init_Structure,&IMU_Dat,ptr);
@@ -180,7 +166,23 @@ static void task_delay_ms(uint32_t t){
 }
 
 void IMU_Init(){
+    xDmaSemaphore = xSemaphoreCreateBinary();
     xTaskCreate(vIMUProcessTask,"IMU",1024,NULL,tskIDLE_PRIORITY+4,NULL);
+     Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
+    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data.gy));
+    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
+    Debug_Register("pitch",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.pitch));
+    Debug_Register("roll",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.roll));
+    Debug_Register("yaw",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.yaw));
+    Debug_Register("Kp",DBG_FLOAT,&(IMU_Filter_Data.Kp));
+    Debug_Register("Ki",DBG_FLOAT,&(IMU_Filter_Data.Ki));
+    
+    IMU_Filter_Data.Kp = 0.8;
+    IMU_Filter_Data.Ki = 0.002;
+    IMU_Filter_Data.bias_gx=0.0f;
+    IMU_Filter_Data.bias_gy=0.0f;
+    IMU_Filter_Data.bias_gz=0.0f;
+    IMU_Filter_Data.is_calibrated = 0;
 }
 
 void IMU_Structure_Init(){
@@ -193,4 +195,5 @@ void IMU_Structure_Init(){
     IMU_Init_Structure.delay = task_delay_ms;
     IMU_Init_Structure.FIFO_THS = FIFO_Packets;
     IMU_Init_Structure.delay(2);
+    
 }

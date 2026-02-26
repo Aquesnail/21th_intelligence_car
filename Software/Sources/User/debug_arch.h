@@ -22,7 +22,7 @@ typedef struct{
     debug_read_t debug_read;
     debug_write_t debug_write;
 }debug_port_t;
-extern SemaphoreHandle_t xDebugReadySingal;
+extern SemaphoreHandle_t xDebugReadySignal;
 void vDebugTask(void *pvParameters);
 void Debug_Register(char* name, uint8_t type, void* addr);
 void Debug_Log(const char* fmt,...);
