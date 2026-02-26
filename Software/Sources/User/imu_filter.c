@@ -9,7 +9,7 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
      * 1. 局部变量声明 (严格遵循 C89 标准)
      * =========================================================*/
     /* 新增：开机自动校准相关的静态变量 */
-    static uint8_t is_calibrated = 0;                        /* 校准完成标志位 */
+   // static uint8_t is_calibrated = 0;                        /* 校准完成标志位 */
     static uint32_t calib_count = 0;                         /* 有效静止采样计数 */
     static float last_gx = 0.0f, last_gy = 0.0f, last_gz = 0.0f; /* 上一次的陀螺仪数据 (用于抖动检测) */
     static float last_ax = 0.0f, last_ay = 0.0f, last_az = 0.0f; /* 上一次的加速度计数据 (用于抖动检测) */
@@ -46,7 +46,7 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     /* =========================================================
      * 3. 核心功能新增：开机静止零偏校准
      * =========================================================*/
-    if (is_calibrated == 0) {
+    if (dat->is_calibrated == 0) {
         target_calib_count = (uint32_t)(TARGET_CALIB_TIME / dt);
 
         /* 检测是否发生抖动：通过计算当前值与上一次值的差值绝对值 */
@@ -83,7 +83,7 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
             dat->bias_gx /= (float)calib_count;
             dat->bias_gy /= (float)calib_count;
             dat->bias_gz /= (float)calib_count;
-            is_calibrated = 1; /* 校准完成，锁定基准 */
+            dat->is_calibrated = 1; /* 校准完成，锁定基准 */
         }
         
         /* 在校准未完成期间，我们不进行四元数更新，直接返回 */

@@ -10,14 +10,16 @@ typedef enum {
     OUT_OF_RAM = 1,
     OUT_OF_FLASH = 2,
     NOT_REGISTERED = 3,
+    NOT_IN_FLASH   = 4,
 
 }StorageErr_t;
 
 //void Storage_Register(void* addr);
+StorageErr_t Storage_Data_Writed(void far* addr);
 StorageErr_t Storage_Load(void far* addr);
 StorageErr_t Storage_Mark_Data(void far* addr);
 void Storage_Save_Data();
-StorageErr_t Storage_Register(void far * addr,VarType_t type);
+StorageErr_t Storage_Register(void far * addr,VarType_t type,char*name);
 void Storage_Init();
 
 

@@ -1,5 +1,4 @@
 #include "icm42688.h"
-#include "debug_arch.h"
 
 /* =======================================================
  * 底层硬件包装函数 (包办了 CS 拉低拉高、读命令 | 0x80)
@@ -13,24 +12,23 @@ static uint8_t hw_write_reg(ICM42688_t *dev, uint8_t reg, uint8_t value) {
 }
 
 static uint8_t hw_read_reg(ICM42688_t *dev, uint8_t reg, uint8_t *value) {
-    ICM42688_CS_RESET();
+    //ICM42688_CS_RESET();
     dev->spi_tx_rx(reg | 0x80);  // 发送寄存器地址 (最高位设为1表示读)
     *value = dev->spi_tx_rx(0xFF); // 发送空字节换取数据
-    ICM42688_CS_SET();
+   // ICM42688_CS_SET();
     return 0;
 }
 
-static uint8_t hw_read_regs_dma(ICM42688_t *dev, uint8_t reg, uint8_t *dat, uint16_t len) {
+static uint8_t hw_read_regs_dma_trig(ICM42688_t *dev, uint8_t reg, uint8_t *dat, uint16_t len) {
 	uint16_t i;
-    ICM42688_CS_RESET();
 		
     dev->spi_tx_rx(reg | 0x80);  // 先把读取地址发过去
-    if(dev->spi_dma_read) {
+    if(dev->spi_dma_read!=NULL) {
         dev->spi_dma_read(dat, len); // 开启 DMA 暴风吸入
     } else {
-        for(i=0; i<len; i++) dat[i] = dev->spi_tx_rx(0xFF); // 降级方案
+        return ICM_ERROR;
     }
-    ICM42688_CS_SET();
+    
     return 0;
 }
 
@@ -62,7 +60,7 @@ static uint8_t icm_write_reg(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t
 /* 辅助函数：连续读特定 Bank 的寄存器 */
 static uint8_t icm_read_regs(ICM42688_t *dev, uint8_t bank, uint8_t reg, uint8_t *dat, uint16_t len) {
     if (icm_set_bank(dev, bank) != ICM_OK) return ICM_ERROR;
-    return hw_read_regs_dma(dev, reg, dat, len) == 0 ? ICM_OK : ICM_ERROR;
+    return hw_read_regs_dma_trig(dev, reg, dat, len) == 0 ? ICM_OK : ICM_ERROR;
 }
 
 /* 辅助函数：单读特定 Bank 的寄存器 */
@@ -137,7 +135,7 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
 
     ret = icm_read_reg(dev, 0, ICM42688_WHO_AM_I, &chip_id);
     if (ret != ICM_OK) return ret;
-    Debug_Log("WHO_I_AM %d \r\n", chip_id);
+    dev->print("WHO_I_AM %d \r\n", chip_id);
     if (chip_id != 0x47) return ICM_ERROR;
     
     pwr_mgmt = PWR_MGMT0_TEMP_ENABLED | PWR_MGMT0_GYRO_LN | PWR_MGMT0_ACCEL_LN;
@@ -241,8 +239,8 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
 }
 
 uint16_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer) {
-    uint16_t fifo_packets = 0;
-    uint8_t count_buf[2];
+   // uint16_t fifo_packets = 0;
+   // uint8_t count_buf[2];
 
     // icm_set_bank(dev,0);
     // hw_read_reg(dev, ICM42688_FIFO_COUNTH, &(count_buf[0]));
@@ -264,6 +262,31 @@ uint16_t ICM42688_ReadFIFO(ICM42688_t *dev, uint8_t *buffer) {
     return 0;
 }
 
+void ICM42688_FIFO_Data_Handle(ICM42688_t *dev,ICM42688_Pack16_t *dat,uint8_t* ptr){
+    int16_t raw_acc_x, raw_acc_y, raw_acc_z;
+    int16_t raw_gyro_x, raw_gyro_y, raw_gyro_z;
+    uint8_t raw_temp;
+    uint16_t raw_timestamp;
+    
+    raw_acc_x = (int16_t)((ptr[1] << 8) | ptr[2]);
+    raw_acc_y = (int16_t)((ptr[3] << 8) | ptr[4]);
+    raw_acc_z = (int16_t)((ptr[5] << 8) | ptr[6]);
+    raw_gyro_x = (int16_t)((ptr[7] << 8) | ptr[8]);
+    raw_gyro_y = (int16_t)((ptr[9] << 8) | ptr[10]);
+    raw_gyro_z = (int16_t)((ptr[11] << 8) | ptr[12]);
+    raw_temp = ptr[13];
+    raw_timestamp = (uint16_t)((ptr[14] << 8) | ptr[15]);
+    dat->ax = raw_acc_x * dev->acc_sensitivity * 9.80665f;
+    dat->ay = raw_acc_y * dev->acc_sensitivity * 9.80665f;
+    dat->az = raw_acc_z * dev->acc_sensitivity * 9.80665f;
+
+    dat->gx = raw_gyro_x * dev->gyro_sensitivity * 0.01745;
+    dat->gy = raw_gyro_y * dev->gyro_sensitivity * 0.01745;
+    dat->gz = raw_gyro_z * dev->gyro_sensitivity * 0.01745;
+
+    dat->timestamp =  raw_timestamp;
+    dat->temp = (raw_temp / 2.07f) + 25.0f;
+}
 uint8_t xdata raw_data[14];
 uint8_t ICM42688_ReadData(ICM42688_t *dev, float *acc, float *gyro, float *temp) {
     int16_t raw_acc[3];

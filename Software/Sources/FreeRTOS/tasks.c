@@ -25,7 +25,8 @@
  * https://github.com/FreeRTOS
  *
  */
-
+#pragma warning disable = 138
+#pragma warning disable = 153
 /* Standard includes. */
 #include <stdlib.h>
 #include <string.h>
@@ -3856,7 +3857,7 @@ static void prvCheckTasksWaitingTermination( void )
 
 #endif /* configUSE_TRACE_FACILITY */
 /*-----------------------------------------------------------*/
-
+#pragma warning disable = 138
 #if ( ( configUSE_TRACE_FACILITY == 1 ) || ( INCLUDE_uxTaskGetStackHighWaterMark == 1 ) || ( INCLUDE_uxTaskGetStackHighWaterMark2 == 1 ) )
 
     static configSTACK_DEPTH_TYPE prvTaskCheckFreeStackSpace( const uint8_t * pucStackByte )

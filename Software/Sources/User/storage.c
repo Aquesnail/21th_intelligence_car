@@ -38,6 +38,7 @@ typedef struct{
     uint16_t next_sector;//这个对应下一个同扇区的元素在池子中的索引，用于处理保存时的逻辑
     VarType_t type : 4;
     uint8_t dirty_flags : 1; //这个脏标记flag是为了应对哈希冲突时，无法辨认修改变量的问题
+    char name[10];
    // uint8_t dirty_sector : 1; //标记脏扇区
 }StorageObj_t;
 //维护一个单向链表头数组，每一个数组元素代表这个哈希值对应的链表头
@@ -61,6 +62,7 @@ static StorageObj_t xdata storageVarPool[STATIC_RAM_SIZE]={0};
 static uint16_t xdata storageTable[HASH_SIZE]={0};//这个数组的索引是对应的哈希值，其元素是链表头在池中的位置
 static uint16_t xdata storageWritedSector[FLASH_SECTOR_NUM]; //这个数组的索引是对应的扇区值，其元素是链表头在池中的位置
 uint8_t xdata storageSectorMark[FLASH_SECTOR_NUM];
+
 
 //写入缓存
 static uint8_t xdata storageWriteBuffer[FLASH_SECTOR_SIZE];
@@ -230,7 +232,7 @@ static uint16_t hash_cal(void far* addr){
 输入地址，完成静态分配(得到在storageVarPool的下标)并
 返回错误代码//在storageTable中的下标（哈希值）。
 */
-StorageErr_t Storage_Register(void far * addr,VarType_t type){
+StorageErr_t Storage_Register(void far * addr,VarType_t type,char* name){
     uint16_t index;
     uint16_t table;
     StorageObj_t far* obj;
@@ -261,6 +263,7 @@ StorageErr_t Storage_Register(void far * addr,VarType_t type){
     }
     obj->type = type;
     obj->dirty_flags = 0; //之前初始化为0xFF时这玩意儿也被置1了
+    memcpy(obj->name,name,strlen(name));
     table = _get_Sector_Index(obj->flash_addr);
     if(storageWritedSector[table]==0xFFFF){
         storageWritedSector[table]=index;
@@ -314,6 +317,25 @@ StorageErr_t Storage_Mark_Data(void far* addr){
         table = obj->next;
     }
     return NOT_REGISTERED;
+}
+uint8_t xdata temp_flash_buf[16];
+StorageErr_t Storage_Data_Writed(void far* addr){
+    StorageObj_t far* obj;
+    StorageErr_t e;
+    uint8_t i,j;
+    e = hash_search(addr,&obj);
+    if(e){
+        return e;
+    }
+    _flash_read_single(temp_flash_buf,obj->flash_addr,obj->type);
+    e=_getTypeSize(obj->type);
+    j=0;
+    for(i=0;i<e;i++){
+        if(temp_flash_buf[i]==0xFF)
+            j++;
+    }
+    if(j==e)return NOT_IN_FLASH;
+    return 0;
 }
 
 void Storage_Save_Data(){

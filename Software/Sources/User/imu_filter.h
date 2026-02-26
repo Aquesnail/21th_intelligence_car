@@ -16,6 +16,7 @@ typedef struct{
     float sample_time;
     float Kp,Ki;
     float bias_gx,bias_gy,bias_gz;
+    uint8_t is_calibrated;
 }IMU_Filter_t;
 
 void IMU_Filter_Update(IMU_Filter_t* dat);
