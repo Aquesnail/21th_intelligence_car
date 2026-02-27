@@ -41,6 +41,7 @@ typedef struct BeepController BeepController_t;
  * 创建蜂鸣器控制器
  * @param hw_beep       硬件控制函数
  * @param timer_if      定时器接口（指针，内部会拷贝内容）
+ * @param sync_if       信号量接口，传入NULL代表阻塞式调用
  * @param queue_capacity 队列最大容量（元素个数）
  * @param malloc_fn     外部内存分配函数
  * @param free_fn       外部内存释放函数
@@ -64,7 +65,8 @@ void BeepController_Destroy(BeepController_t *ctrl);
  * @param ctrl         控制器句柄
  * @param freq         频率（Hz），0 表示静音段
  * @param duration_ms  持续时间（ms）
- * @return             0 成功，-1 参数无效，-2 队列满
+ * @param timeout      若信号量满，最多挂起 ms
+ * @return             0 成功，1 参数无效，2 队列满
  */
 uint8_t BeepController_Play(BeepController_t *ctrl, uint16_t freq, uint16_t duration_ms,uint32_t timeout);
 
