@@ -14,6 +14,7 @@ extern void Storage_Test_Init(void);
 extern void CPU_STATUS_TASK_Init(void);
 extern void Storage_App_Init(void);
 extern void IMU_Init();
+extern void Beep_Task_Init();
 void app_init(void){
     UART5_Init(); 
     CRC_Init();
@@ -24,6 +25,7 @@ void app_init(void){
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
     Storage_App_Init();
+    Beep_Task_Init();
     IMU_Init();
     //Storage_Test_Init();
     vTaskStartScheduler();

@@ -73,9 +73,9 @@
     #pragma ROM ( HUGE )
 #endif
 
-#pragma WARNING DISABLE = 47                                            //关闭47号警告: unreferenced local variable
-#pragma WARNING DISABLE = 138                                           //关闭138号警告: expression with possibly no effect
-#pragma WARNING DISABLE = 183                                           //关闭183号警告: dead assignment eliminated
+#pragma warning disable = 47                                            //关闭47号警告: unreferenced local variable
+#pragma warning disable = 138                                           //关闭138号警告: expression with possibly no effect
+#pragma warning disable = 183                                           //关闭183号警告: dead assignment eliminated
 
 #ifndef configUSE_ROMHUGE
     #error Missing definition:  configUSE_ROMHUGE must be defined in FreeRTOSConfig.h as either 1 or 0.
@@ -121,7 +121,7 @@
 #define configUSE_RECURSIVE_MUTEXES             0                       //为1时使用递归互斥信号量
 #define configUSE_MALLOC_FAILED_HOOK            1                       //1使用内存申请失败钩子函数
 #define configUSE_APPLICATION_TASK_TAG          0
-#define configUSE_COUNTING_SEMAPHORES           0                       //为1时使用计数信号量
+#define configUSE_COUNTING_SEMAPHORES           1                       //为1时使用计数信号量
 
 #define configGENERATE_RUN_TIME_STATS	        1                       //为1时启用运行时间统计功能
 #define configUSE_TRACE_FACILITY				1                       //为1启用可视化跟踪调试
@@ -131,6 +131,11 @@
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES 			        0                       //为1时启用协程，启用协程以后必须添加文件croutine.c
 #define configMAX_CO_ROUTINE_PRIORITIES         (2)                     //协程的有效优先级数目
+
+#define configUSE_TIMERS                        1
+#define configTIMER_TASK_PRIORITY               ( configMAX_PRIORITIES - 1 ) //决定了能同时缓存多少个启动/停止/改变周期的命令
+#define configTIMER_QUEUE_LENGTH                20
+#define configTIMER_TASK_STACK_DEPTH            ( configMINIMAL_STACK_SIZE * 2 )
 
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */

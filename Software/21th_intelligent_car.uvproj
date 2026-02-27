@@ -929,6 +929,21 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Device\ws2812.h</FilePath>
             </File>
+            <File>
+              <FileName>beep.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Device\beep.c</FilePath>
+            </File>
+            <File>
+              <FileName>beep.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Device\beep.h</FilePath>
+            </File>
+            <File>
+              <FileName>beep_port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Device\beep_port.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
