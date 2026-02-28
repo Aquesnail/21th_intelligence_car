@@ -889,6 +889,11 @@
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_storage.c</FilePath>
             </File>
+            <File>
+              <FileName>app_beep_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_beep_test.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -943,6 +948,11 @@
               <FileName>beep_port.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Device\beep_port.c</FilePath>
+            </File>
+            <File>
+              <FileName>beep_port.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Device\beep_port.h</FilePath>
             </File>
           </Files>
         </Group>
