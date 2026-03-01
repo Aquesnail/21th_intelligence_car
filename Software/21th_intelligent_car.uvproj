@@ -894,6 +894,21 @@
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_beep_test.c</FilePath>
             </File>
+            <File>
+              <FileName>app_storage.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Apptest\app_storage.h</FilePath>
+            </File>
+            <File>
+              <FileName>music.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Apptest\music.h</FilePath>
+            </File>
+            <File>
+              <FileName>pitches.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Apptest\pitches.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
