@@ -21,6 +21,7 @@ debug_port_t* debug_init_struct;
 #define CMD_WRITE       0x55
 #define CMD_REGISTER    0x56
 #define CMD_TEXT        0x57
+#define CMD_BULK_HFREQ  0xFC
 
 
 // RTOS 事件位
@@ -224,6 +225,40 @@ void Debug_Register(char* name, uint8_t type, void* addr) {
     }
 }
 
+static void Debug_SendBulkHighFreqPacket(void) {
+    uint8_t i;
+    uint8_t payload_len = 0;
+    // 缓冲区大小计算：最多16个变量，每个最多(1字节ID + 4字节数据) = 80字节
+    uint8_t xdata temp_buf[MAX_DEBUG_VARS * 5]; 
+
+    for(i = 0; i < debugVarCount; i++) {
+        // 判断是否为高频变量
+        if((debugTable[i].type & FreqType_Msk) != 0) {
+            uint8_t var_len = GetTypeSize(debugTable[i].type & DataType_Msk);
+            
+            // 防止越界保护
+            if(var_len > 0 && (payload_len + 1 + var_len) <= sizeof(temp_buf)) {
+                // 1. 写入变量 ID
+                temp_buf[payload_len++] = i;
+                
+                // 2. 写入变量值 (加入临界区防止8位机读取32位浮点数时数据撕裂)    
+                memcpy(&temp_buf[payload_len], debugTable[i].addr, var_len);
+                
+                payload_len += var_len;
+            }
+        }
+    }
+
+    // 如果有数据被打包，则统一发送
+    if(payload_len > 0) {
+        if(xSemaphoreTake(xLogMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+            // 参数说明：ID填0xFC, Type填0(用不到), 传入聚合后的负载和总长度
+            Debug_TxCore(CMD_BULK_HFREQ, 0x00, temp_buf, payload_len);
+            xSemaphoreGive(xLogMutex);
+        }
+    }
+}
+
 // [核心精简] 统一接收处理
 static uint8_t xdata rxBuf[RX_BUF_SIZE];
 static void Debug_ProcessIncoming(void) {
@@ -263,15 +298,14 @@ static void Debug_ProcessIncoming(void) {
                             xSemaphoreGive(xLogMutex);
                         }
                         
-                        // RTOS 事件组：标记连接并触发元数据发送
-                        if((xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) == 0) {
-                            xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
-                            vTaskDelay(pdMS_TO_TICKS(10)); // 防止突发
-                            // 首次连接，发送所有元数据
-                            for(i=0; i<debugVarCount; i++) {
-                                Debug_SendMetaPacket(i);
-                                vTaskDelay(pdMS_TO_TICKS(5)); // 防止突发
-                            }
+                        // RTOS 事件组：标记连接 (确保 vDebugTask 可以开始发送 value 报文)
+                        xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
+                        
+                        // 【修改点】：移除原有的 if 判断，每次握手都强制遍历并发送所有元数据
+                        vTaskDelay(pdMS_TO_TICKS(10)); // 防止突发
+                        for(i=0; i<debugVarCount; i++) {
+                            Debug_SendMetaPacket(i);
+                            vTaskDelay(pdMS_TO_TICKS(5)); // 防止突发，避免填满串口缓冲区
                         }
                     }
                     break;
@@ -319,6 +353,7 @@ static void Debug_ProcessIncoming(void) {
                     rxBuf[3+len] = '\0'; // 安全截断
                     Debug_OnTextReceived((char*)&rxBuf[3], len);
                     break;
+                
             }
         }
     }
@@ -366,11 +401,7 @@ void vDebugTask(void *pvParameters) {
         if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED){
             if(t%HIGH_FREQ==0){
                 //HighFreqTx=0;
-                for(i = 0; i < debugVarCount; i++) {
-                    if((debugTable[i].type&FreqType_Msk)!=0){
-                        Debug_SendHighFreqValuePacket(i);
-                    }
-                }
+                Debug_SendBulkHighFreqPacket();
             }
             if(t%LOW_FREQ==0){
                // LowFreqTx=0;

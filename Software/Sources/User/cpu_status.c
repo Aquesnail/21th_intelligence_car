@@ -62,13 +62,15 @@ uint32_t GetRunTimeCounterValue(void)
 }
 uint8_t xdata taskbit = 1;
 uint8_t CPUStatus_HandleCommand(const char* cmd) {
-    if (strcmp(cmd, "cpuon") == 0) {
+    if (strcmp(cmd, "cpuOn") == 0) {
       taskbit = 1;
+      vTaskResume(vTaskMonitor_Handle);
       Debug_Log("COU_ON");
       return 1;
-    }else if(strcmp(cmd,"cpuoff") == 0){
+    }else if(strcmp(cmd,"cpuOff") == 0){
       taskbit = 0;
       TimDisable();
+      vTaskSuspend(vTaskMonitor_Handle);
       Debug_Log("CPU_OFF");
       return 1;
     }
@@ -82,6 +84,7 @@ void vTaskMonitor(void *pvParameters)
     // 每个任务大概需要 40 字节，如果有 10 个任务，建议分配 512 字节以上
     
 		(void)pvParameters;
+    vTaskSuspend(NULL); // 刚开始挂起，等待 cpuOn 命令唤醒
     while (1)
     {
         // 每 3 秒打印一次
