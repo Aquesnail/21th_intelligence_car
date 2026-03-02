@@ -340,19 +340,29 @@
 							<FilePath>.\Sources\clock.c</FilePath>
 						</File>
 						<File>
-							<FileName>lvr.c</FileName>
-							<FileType>1</FileType>
-							<FilePath>.\Sources\lvr.c</FilePath>
-						</File>
-						<File>
 							<FileName>iap.c</FileName>
 							<FileType>1</FileType>
 							<FilePath>.\Sources\iap.c</FilePath>
 						</File>
 						<File>
+							<FileName>timer.c</FileName>
+							<FileType>1</FileType>
+							<FilePath>.\Sources\timer.c</FilePath>
+						</File>
+						<File>
 							<FileName>uart.c</FileName>
 							<FileType>1</FileType>
 							<FilePath>.\Sources\uart.c</FilePath>
+						</File>
+						<File>
+							<FileName>spi.c</FileName>
+							<FileType>1</FileType>
+							<FilePath>.\Sources\spi.c</FilePath>
+						</File>
+						<File>
+							<FileName>i2c.c</FileName>
+							<FileType>1</FileType>
+							<FilePath>.\Sources\i2c.c</FilePath>
 						</File>
 						<File>
 							<FileName>pwm.c</FileName>

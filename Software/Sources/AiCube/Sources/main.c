@@ -82,6 +82,7 @@ void SYS_Init(void)
     TIMER11_Init();                     //定时器11初始化
     UART5_Init();                       //串口5初始化
     SPI2_Init();                        //SPI2初始化
+    I2C2_Init();                        //I2C2初始化
     PWMA_Init();                        //高级PWMA初始化
     PWME_Init();                        //高级PWME初始化
     MATHLIB_Init();                     //MATH库初始化

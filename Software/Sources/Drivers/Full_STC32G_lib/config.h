@@ -45,6 +45,7 @@
 #include "timer.h"
 #include "uart.h"
 #include "spi.h"
+#include "i2c.h"
 #include "pwm.h"
 #include "mathlib.h"
 #include "crc.h"

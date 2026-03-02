@@ -15,6 +15,7 @@ extern void Storage_App_Init(void);
 extern void IMU_Init();
 extern void BeepPort_Init(void);
 extern void BeepTestTask_Init();
+extern void Task_OLED_Test_Init(void);
 void app_init(void){
     UART5_Init(); 
     CRC_Init();
@@ -28,6 +29,7 @@ void app_init(void){
     BeepPort_Init();
     IMU_Init();
     BeepTestTask_Init();
+   // Task_OLED_Test_Init();
     //Storage_Test_Init();
     vTaskStartScheduler();
 

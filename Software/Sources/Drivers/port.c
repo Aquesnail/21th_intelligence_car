@@ -79,8 +79,9 @@ void PORT1_Init(void)
 void PORT2_Init(void)
 {
     SetP2nInitLevelHigh(PIN_ALL);       //设置P2初始化电平
-    SetP2nQuasiMode(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_3 | PIN_2); //设置P2.7,P2.6,P2.5,P2.4,P2.3,P2.2为无弱上拉准双向口模式
+    SetP2nQuasiMode(PIN_5 | PIN_4 | PIN_3 | PIN_2); //设置P2.5,P2.4,P2.3,P2.2为无弱上拉准双向口模式
     SetP2nPushPullMode(PIN_1 | PIN_0);  //设置P2.1,P2.0为推挽输出模式
+    SetP2nOpenDrainMode(PIN_7 | PIN_6); //设置P2.7,P2.6为开漏模式
 
     DisableP2nPullUp(PIN_ALL);          //关闭P2内部上拉电阻
     DisableP2nPullDown(PIN_ALL);        //关闭P2内部下拉电阻
@@ -138,11 +139,7 @@ void PORT4_Init(void)
     SetP4nDigitalInput(PIN_ALL);        //使能P4数字信号输入功能
 
     //<<AICUBE_USER_PORT4_INITIAL_BEGIN>>
-    SetP4nRisingInt(PIN_6);            //设置P4.6为下降沿中断
-
-    EnableP4nInt(PIN_6);                //使能P4.6口中断
-
-    SetP4IntPriority(0);                //设置中断为最低优先级  
+   
     //<<AICUBE_USER_PORT4_INITIAL_END>>
 }
 

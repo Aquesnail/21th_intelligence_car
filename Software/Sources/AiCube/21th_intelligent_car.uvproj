@@ -360,6 +360,11 @@
 							<FilePath>.\Sources\spi.c</FilePath>
 						</File>
 						<File>
+							<FileName>i2c.c</FileName>
+							<FileType>1</FileType>
+							<FilePath>.\Sources\i2c.c</FilePath>
+						</File>
+						<File>
 							<FileName>pwm.c</FileName>
 							<FileType>1</FileType>
 							<FilePath>.\Sources\pwm.c</FilePath>
