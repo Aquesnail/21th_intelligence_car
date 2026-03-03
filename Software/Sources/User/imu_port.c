@@ -55,13 +55,7 @@ void IMU_SPI_Dma_Read(uint8_t* rx_buf, uint16_t len){
 // -------------------------------------------------------------
 
 void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
-    uint8_t intf;
-
-    intf = CheckP4nFlag(PIN_ALL);       //读取中断请求标志
-    if(intf & PIN_6){
         vTaskNotifyGiveFromISR(xImuTaskHandle,xHigherPriorityTaskWoken);
-    }
-    ClearP4nFlag(PIN_ALL);              //清除中断请求标志
 }
 
 void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore){

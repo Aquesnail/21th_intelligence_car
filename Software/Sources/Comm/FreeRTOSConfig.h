@@ -106,7 +106,7 @@
 #define configUSE_IDLE_HOOK						0                       //1使用空闲钩子,0不使用 /*void vApplicationIdleHook( void );*/
 #define configUSE_TICK_HOOK						0                       //1使用时间片钩子,0不使用 /*void vApplicationTickHook( void );*/
 #define configSUPPORT_DYNAMIC_ALLOCATION        1                       //支持动态内存申请
-#define configTOTAL_HEAP_SIZE					((size_t)(13*1024))     // 系统所有总的堆大小
+#define configTOTAL_HEAP_SIZE					((size_t)(8*1024))     // 系统所有总的堆大小
 
 #define configUSE_16_BIT_TICKS                  0                       //系统节拍计数器变量数据类型，
                                                                         //1表示为16位无符号整形，0表示为32位无符号整形
