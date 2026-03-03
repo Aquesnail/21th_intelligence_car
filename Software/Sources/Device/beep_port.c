@@ -52,7 +52,7 @@ static void hw_beep_0(uint16_t freq) {
         return;
     }
     PWMA_SetReload16(((100000/(freq)) - 1));
-    PWM_UpdateDuty(PWMA_CH3, ((100000/(freq)) - 1)/2); 
+    PWM_UpdateDuty(PWMA_CH3,(uint16_t)(((100000/(freq)) - 1)/2)); 
 }
 
 static void hw_beep_1(uint16_t freq) {
@@ -61,7 +61,7 @@ static void hw_beep_1(uint16_t freq) {
         return;
     }
     PWMA_SetReload16(((100000/(freq)) - 1));
-    PWM_UpdateDuty(PWMA_CH4, ((100000/(freq)) - 1)/2); 
+    PWM_UpdateDuty(PWMA_CH4, (uint16_t)(((100000/(freq)) - 1)/2)); 
 }
 
 static const beep_out_t hw_beep_funcs[BEEP_MAX_INSTANCES] = {

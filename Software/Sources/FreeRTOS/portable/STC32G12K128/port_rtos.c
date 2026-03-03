@@ -285,6 +285,44 @@ void P4_ISR(void){
     portRETURN_TASK();
 }
 
+extern void P6_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
+void P6_ISR(void){
+    static BaseType_t xHigherPriorityTaskWoken;
+
+    portNORMALIZE_INTERRUPT_STACK();
+    portSAVE_CONTEXT();
+    xHigherPriorityTaskWoken = pdFALSE;
+    P6_ISR_Handle(&xHigherPriorityTaskWoken);
+
+    if (xHigherPriorityTaskWoken != pdFALSE)
+    {
+        portEND_SWITCHING_ISR();
+    }
+    portRESTORE_CONTEXT();
+    portRELEASE_INTERRUPT();
+
+    portRETURN_TASK();
+}
+
+
+extern void P8_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
+void P8_ISR(void){
+    static BaseType_t xHigherPriorityTaskWoken;
+
+    portNORMALIZE_INTERRUPT_STACK();
+    portSAVE_CONTEXT();
+    xHigherPriorityTaskWoken = pdFALSE;
+    P8_ISR_Handle(&xHigherPriorityTaskWoken);
+
+    if (xHigherPriorityTaskWoken != pdFALSE)
+    {
+        portEND_SWITCHING_ISR();
+    }
+    portRESTORE_CONTEXT();
+    portRELEASE_INTERRUPT();
+
+    portRETURN_TASK();
+}
 __asm   { CSEG    AT   027BH       }
 #if ( configUSE_ROMHUGE == 0 )
     __asm   { JMP     DMA_SPI2_ISR?_  }
@@ -307,4 +345,17 @@ __asm   { CSEG    AT   027BH       }
     __asm   { JMP     P4_ISR??  }
 #endif
 
+ __asm   { CSEG    AT  015BH      }///
+#if ( configUSE_ROMHUGE == 0 )
+    __asm   { JMP     P6_ISR?_  }
+#else
+    __asm   { JMP     P6_ISR??  }
+#endif
+
+ __asm   { CSEG    AT  016BH      }///
+#if ( configUSE_ROMHUGE == 0 )
+    __asm   { JMP     P8_ISR?_  }
+#else
+    __asm   { JMP     P8_ISR??  }
+#endif
 

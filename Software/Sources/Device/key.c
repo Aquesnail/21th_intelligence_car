@@ -1,7 +1,7 @@
 #include "key.h"
 
 #define KEY_POLL_INTERVAL_MS   20
-#define KEY_LONG_PRESS_MS      1000
+#define KEY_LONG_PRESS_MS      500
 #define KEY_DOUBLE_WAIT_MS     300
 
 #define KEY_LONG_PRESS_TICKS   (KEY_LONG_PRESS_MS / KEY_POLL_INTERVAL_MS)
@@ -25,7 +25,8 @@ typedef struct key_node_s {
     uint32_t key_id;                 
     key_config_t config;             
     volatile key_state_t state;      /* 增加 volatile，因为在中断和任务中都会访问 */
-    uint32_t state_ticks;            
+    uint32_t state_ticks;    
+    uint8_t release_filter;        
 } key_node_t;
 
 /* 全局变量：使用指针数组替代链表，实现 O(1) 访问 */
@@ -130,7 +131,7 @@ void key_timer_callback(void) {
     uint8_t pin_level;
     uint8_t is_active;
     uint8_t any_key_active = 0;
-		uint8_t i;
+	uint8_t i;
     key_event_t event_to_emit;
     int emit_event;
 
@@ -161,16 +162,28 @@ void key_timer_callback(void) {
                 break;
 
             case KEY_STATE_PRESSED:
+                /* 如果检测到按下，清除松手滤波计数，并继续累加长按时间 */
                 if (is_active) {
+                    node->release_filter = 0; /* 只要有一次接触良好，就重置松手计数 */
+
                     if (node->state_ticks >= KEY_LONG_PRESS_TICKS) {
                         event_to_emit = KEY_EVENT_LONG_PRESS;
                         emit_event = 1;
-                        node->state = KEY_STATE_WAIT_RELEASE; // 触发长按后等待松手
+                        node->state = KEY_STATE_WAIT_RELEASE; 
                     }
-                } else {
-                    // 未达到长按时间就松手，进入等待双击状态
-                    node->state = KEY_STATE_WAIT_DOUBLE;
-                    node->state_ticks = 0;
+                } 
+                /* 检测到松开：不立即跳转，而是先累加“松手确认计数器” */
+                else {
+                    node->release_filter++;
+                    
+                    /* 只有连续 3 次 (3 * 20ms = 60ms) 检测到松开，才认定为真松手 */
+                    /* 你可以根据损坏程度调整这个阈值，3-5 之间通常比较合适 */
+                    if (node->release_filter >= 3) {
+                        node->state = KEY_STATE_WAIT_DOUBLE;
+                        node->state_ticks = 0;
+                        node->release_filter = 0;
+                    }
+                    /* 如果没达到阈值，说明是接触不良造成的毛刺，忽略它，保持 PRESSED 状态 */
                 }
                 break;
 

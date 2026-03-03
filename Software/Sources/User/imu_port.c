@@ -171,7 +171,7 @@ void IMU_Init(){
     Debug_Register("Kp",DBG_FLOAT,&(IMU_Filter_Data.Kp));
     Debug_Register("Ki",DBG_FLOAT,&(IMU_Filter_Data.Ki));
     
-    IMU_Filter_Data.Kp = 0.8;
+    IMU_Filter_Data.Kp = 1.5;
     IMU_Filter_Data.Ki = 0.002;
     IMU_Filter_Data.bias_gx=0.0f;
     IMU_Filter_Data.bias_gy=0.0f;

@@ -37,7 +37,7 @@ void PWMA_Init(void)
 
     HSPWMA_Disable();                   //关闭高速模式，使用同步方式进行初始化
     PWMA_InternalClockMode();           //选择内部时钟模式
-    PWMA_SetClockDivider(11999);        //设置16位预分频
+    PWMA_SetClockDivider(1199);        //设置16位预分频
     PWMA_SetReload16(999);              //设置16位重载值
     PWMA_BufferARR();                   //使能重载值寄存器预装载功能
     PWMA_SetCounter(0);                 //初始化计数值

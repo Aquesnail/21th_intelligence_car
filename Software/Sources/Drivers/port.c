@@ -139,7 +139,11 @@ void PORT4_Init(void)
     SetP4nDigitalInput(PIN_ALL);        //使能P4数字信号输入功能
 
     //<<AICUBE_USER_PORT4_INITIAL_BEGIN>>
-   
+    SetP4nRisingInt(PIN_6 | PIN_0);            //设置P4.6为下降沿中断
+
+    EnableP4nInt(PIN_6 | PIN_0);                //使能P4.6口中断
+
+    SetP4IntPriority(0);                //设置中断为最低优先级  
     //<<AICUBE_USER_PORT4_INITIAL_END>>
 }
 
@@ -188,9 +192,9 @@ void PORT6_Init(void)
     SetP6nDigitalInput(PIN_ALL);        //使能P6数字信号输入功能
 
     //<<AICUBE_USER_PORT6_INITIAL_BEGIN>>
-    SetP6nFallingInt(PIN_1);            //设置P6.1为下降沿中断
+    SetP6nFallingInt(PIN_1 | PIN_5 | PIN_7);            //设置P6.1为下降沿中断
 
-    EnableP6nInt(PIN_1);                //使能P6.1口中断
+    EnableP6nInt(PIN_1 | PIN_5 | PIN_7);                //使能P6.1口中断
 
     SetP6IntPriority(0);                //设置中断为最低优先级
     //<<AICUBE_USER_PORT6_INITIAL_END>>
@@ -240,7 +244,11 @@ void PORT8_Init(void)
     SetP8nDigitalInput(PIN_ALL);        //使能P8数字信号输入功能
 
     //<<AICUBE_USER_PORT8_INITIAL_BEGIN>>
-    // 在此添加用户初始化代码  
+   // SetP8nFallingInt(PIN_4 | PIN_6);            //设置P6.1为下降沿中断
+
+   // EnableP8nInt(PIN_4 | PIN_6);                //使能P6.1口中断
+
+    SetP8IntPriority(0);                //设置中断为最低优先级  
     //<<AICUBE_USER_PORT8_INITIAL_END>>
 }
 
