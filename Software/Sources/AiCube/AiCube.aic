@@ -286,7 +286,7 @@
 		<PortIE_0>0</PortIE_0>
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
-		<PortMD_1>0</PortMD_1>
+		<PortMD_1>2</PortMD_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -296,7 +296,7 @@
 		<PortIE_1>0</PortIE_1>
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
-		<PortMD_2>0</PortMD_2>
+		<PortMD_2>2</PortMD_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -2471,7 +2471,7 @@
 	<PWMA>
 		<PeriEnable>1</PeriEnable>
 		<WorkMode>2</WorkMode>
-		<Prescaler>11999</Prescaler>
+		<Prescaler>1199</Prescaler>
 		<Counter>0</Counter>
 		<AutoReload>999</AutoReload>
 		<RepeatCounter>0</RepeatCounter>

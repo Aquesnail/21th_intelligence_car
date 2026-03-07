@@ -103,7 +103,8 @@ void PORT2_Init(void)
 void PORT3_Init(void)
 {
     SetP3nInitLevelHigh(PIN_ALL);       //设置P3初始化电平
-    SetP3nQuasiMode(PIN_ALL);           //设置P3为无弱上拉准双向口模式
+    SetP3nQuasiMode(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_3 | PIN_0); //设置P3.7,P3.6,P3.5,P3.4,P3.3,P3.0为无弱上拉准双向口模式
+    SetP3nHighZInputMode(PIN_2 | PIN_1); //设置P3.2,P3.1为高阻输入模式
 
     DisableP3nPullUp(PIN_ALL);          //关闭P3内部上拉电阻
     DisableP3nPullDown(PIN_ALL);        //关闭P3内部下拉电阻

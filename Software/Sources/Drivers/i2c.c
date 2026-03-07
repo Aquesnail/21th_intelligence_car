@@ -34,7 +34,7 @@ void I2C2_Init(void)
     I2C2_SwitchP2627();                 //选择I2C2数据口: SCL(P2.7), SDA(P2.6)
 
     I2C2_MasterMode();                  //设置I2C2为主机模式
-    I2C2_SetClockDivider(1000);          //设置I2C2为主机模式时钟
+    I2C2_SetClockDivider(400);          //设置I2C2为主机模式时钟
 
     I2C2_Enable();                      //使能I2C2功能
 
