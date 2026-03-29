@@ -19,8 +19,8 @@ void I2C2_Init(void);
 void I2C2_MasterWait(void);
 void I2C2_MasterStart(void);
 void I2C2_MasterStop(void);
-uint8_t I2C2_MasterSendByte(uint8_t dat);
-uint8_t I2C2_MasterReadByte(uint8_t ack);
+BOOL I2C2_MasterSendByte(uint8_t dat);
+uint8_t I2C2_MasterReadByte(BOOL ack);
 
 
 

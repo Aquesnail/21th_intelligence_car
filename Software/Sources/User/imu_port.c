@@ -54,7 +54,7 @@ void IMU_SPI_Dma_Read(uint8_t* rx_buf, uint16_t len){
 
 // -------------------------------------------------------------
 
-void IMU_INT_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
+void IMU_INT1_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
         vTaskNotifyGiveFromISR(xImuTaskHandle,xHigherPriorityTaskWoken);
 }
 

@@ -83,7 +83,7 @@ void I2C2_MasterStop(void)
 // 函数返回: 0   (接收的应答信号为ACK)
 //           1   (接收的应答信号为NAK)
 ////////////////////////////////////////
-uint8_t I2C2_MasterSendByte(uint8_t dat)
+BOOL I2C2_MasterSendByte(uint8_t dat)
 {
     I2C2_WriteData(dat);                //将数据写入I2C2数据寄存器
     I2C2_SendData();                    //触发主机模式写数据命令
@@ -99,7 +99,7 @@ uint8_t I2C2_MasterSendByte(uint8_t dat)
 // 入口参数: ack (待发送的应答信号)
 // 函数返回:     (接收的字节数据)
 ////////////////////////////////////////
-uint8_t I2C2_MasterReadByte(uint8_t ack)
+uint8_t I2C2_MasterReadByte(BOOL ack)
 {
     uint8_t dat;
 

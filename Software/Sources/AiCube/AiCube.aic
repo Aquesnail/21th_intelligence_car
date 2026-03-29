@@ -276,7 +276,7 @@
 	<PORT3>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
-		<PortMD_0>0</PortMD_0>
+		<PortMD_0>2</PortMD_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -296,7 +296,7 @@
 		<PortIE_1>0</PortIE_1>
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
-		<PortMD_2>2</PortMD_2>
+		<PortMD_2>0</PortMD_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -464,27 +464,27 @@
 		<PortIE_1>0</PortIE_1>
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
-		<PortMD_2>0</PortMD_2>
+		<PortMD_2>2</PortMD_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
-		<PortSR_2>1</PortSR_2>
+		<PortSR_2>0</PortSR_2>
 		<PortDR_2>1</PortDR_2>
 		<PortAD_2>1</PortAD_2>
 		<PortIE_2>0</PortIE_2>
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
-		<PortMD_3>0</PortMD_3>
+		<PortMD_3>1</PortMD_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
-		<PortSR_3>1</PortSR_3>
+		<PortSR_3>0</PortSR_3>
 		<PortDR_3>1</PortDR_3>
 		<PortAD_3>1</PortAD_3>
 		<PortIE_3>0</PortIE_3>
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
-		<PortMD_4>1</PortMD_4>
+		<PortMD_4>0</PortMD_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -700,14 +700,14 @@
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
-		<PortSR_0>0</PortSR_0>
+		<PortSR_0>1</PortSR_0>
 		<PortDR_0>1</PortDR_0>
 		<PortAD_0>1</PortAD_0>
 		<PortIE_0>0</PortIE_0>
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
-		<PortMD_1>0</PortMD_1>
-		<PortPU_1>1</PortPU_1>
+		<PortMD_1>1</PortMD_1>
+		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
 		<PortSR_1>0</PortSR_1>
@@ -717,17 +717,17 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
-		<PortPU_2>0</PortPU_2>
-		<PortPD_2>1</PortPD_2>
+		<PortPU_2>1</PortPU_2>
+		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
-		<PortSR_2>1</PortSR_2>
-		<PortDR_2>1</PortDR_2>
+		<PortSR_2>0</PortSR_2>
+		<PortDR_2>0</PortDR_2>
 		<PortAD_2>1</PortAD_2>
 		<PortIE_2>0</PortIE_2>
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
-		<PortMD_3>0</PortMD_3>
-		<PortPU_3>1</PortPU_3>
+		<PortMD_3>1</PortMD_3>
+		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
 		<PortSR_3>0</PortSR_3>
@@ -968,18 +968,18 @@
 		<PortIE_1>0</PortIE_1>
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
-		<PortMD_2>1</PortMD_2>
+		<PortMD_2>0</PortMD_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
-		<PortSR_2>0</PortSR_2>
+		<PortSR_2>1</PortSR_2>
 		<PortDR_2>1</PortDR_2>
 		<PortAD_2>1</PortAD_2>
 		<PortIE_2>0</PortIE_2>
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
-		<PortPU_3>1</PortPU_3>
+		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
 		<PortSR_3>1</PortSR_3>
@@ -988,11 +988,11 @@
 		<PortIE_3>0</PortIE_3>
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
-		<PortMD_4>1</PortMD_4>
+		<PortMD_4>0</PortMD_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
-		<PortSR_4>0</PortSR_4>
+		<PortSR_4>1</PortSR_4>
 		<PortDR_4>1</PortDR_4>
 		<PortAD_4>1</PortAD_4>
 		<PortIE_4>0</PortIE_4>
@@ -1476,7 +1476,7 @@
 		<P2PDestination>0</P2PDestination>
 	</UART3>
 	<UART4>
-		<PeriEnable>0</PeriEnable>
+		<PeriEnable>1</PeriEnable>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1485,9 +1485,9 @@
 		<ModbusCRC16>0</ModbusCRC16>
 		<BaudGenerator>0</BaudGenerator>
 		<UartBit>0</UartBit>
-		<UartBaudrate>9600</UartBaudrate>
+		<UartBaudrate>115200</UartBaudrate>
 		<AutoParity>0</AutoParity>
-		<UartPort>-1</UartPort>
+		<UartPort>1</UartPort>
 		<TMOInterval>10</TMOInterval>
 		<TMOUnit>0</TMOUnit>
 		<IntPriority>0</IntPriority>
@@ -1520,7 +1520,7 @@
 		<ModbusCRC16>0</ModbusCRC16>
 		<BaudGenerator>0</BaudGenerator>
 		<UartBit>0</UartBit>
-		<UartBaudrate>9600</UartBaudrate>
+		<UartBaudrate>115200</UartBaudrate>
 		<AutoParity>0</AutoParity>
 		<UartPort>0</UartPort>
 		<TMOInterval>10</TMOInterval>
@@ -1627,7 +1627,7 @@
 		<UartBit>0</UartBit>
 		<UartBaudrate>9600</UartBaudrate>
 		<AutoParity>0</AutoParity>
-		<UartPort>0</UartPort>
+		<UartPort>-1</UartPort>
 		<TMOInterval>10</TMOInterval>
 		<TMOUnit>0</TMOUnit>
 		<IntPriority>0</IntPriority>
@@ -2009,7 +2009,7 @@
 		<P2PDestination>0</P2PDestination>
 	</I2C1>
 	<I2C2>
-		<PeriEnable>1</PeriEnable>
+		<PeriEnable>0</PeriEnable>
 		<EnableMasterInt>0</EnableMasterInt>
 		<EnableSlaveSTAInt>0</EnableSlaveSTAInt>
 		<EnableSlaveSTOInt>0</EnableSlaveSTOInt>
@@ -3528,11 +3528,9 @@
 	</CRC>
 	<PINMAP>
 		<PinCount>256</PinCount>
-		<Pin01Map>2</Pin01Map>
+		<Pin01Map>1</Pin01Map>
 		<Pin02Map>16</Pin02Map>
 		<Pin17Map>-1</Pin17Map>
-		<Pin23Map>4</Pin23Map>
-		<Pin24Map>4</Pin24Map>
 		<Pin25Map>-1</Pin25Map>
 		<Pin26Map>-1</Pin26Map>
 		<Pin28Map>-1</Pin28Map>
@@ -3554,7 +3552,7 @@
 		<Pin88Map>4</Pin88Map>
 		<Pin92Map>-1</Pin92Map>
 		<Pin99Map>16</Pin99Map>
-		<Pin100Map>2</Pin100Map>
+		<Pin100Map>1</Pin100Map>
 	</PINMAP>
 	<PINALIAS></PINALIAS>
 </Project>

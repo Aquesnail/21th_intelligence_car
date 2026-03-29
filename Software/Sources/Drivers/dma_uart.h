@@ -8,7 +8,9 @@
 #include "task.h"
 #include "dma_uart_ring.h"
 
-extern dma_uart_manager_t uart5_mgr;
+extern dma_uart_manager_t uart4_mgr;
+
 // 外部接口
-void UART5_Init(void);
+void UART4_Init(void);
+
 #endif

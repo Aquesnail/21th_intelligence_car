@@ -870,16 +870,6 @@
               <FilePath>.\Sources\Drivers\AI8051U_32_TFPU.LIB</FilePath>
             </File>
             <File>
-              <FileName>i2c.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Drivers\i2c.c</FilePath>
-            </File>
-            <File>
-              <FileName>i2c.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\i2c.h</FilePath>
-            </File>
-            <File>
               <FileName>gpio_isr_handle.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Drivers\gpio_isr_handle.c</FilePath>
@@ -965,9 +955,9 @@
               <FilePath>.\Sources\Apptest\pitches.h</FilePath>
             </File>
             <File>
-              <FileName>drivers_iic_test.c</FileName>
+              <FileName>app_uart_test.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Sources\Apptest\drivers_iic_test.c</FilePath>
+              <FilePath>.\Sources\Apptest\app_uart_test.c</FilePath>
             </File>
           </Files>
         </Group>

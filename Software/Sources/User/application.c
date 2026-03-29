@@ -18,12 +18,12 @@ extern void BeepTestTask_Init();
 extern void Task_OLED_Test_Init(void);
 extern void key_port_init(void);
 void app_init(void){
-    UART5_Init(); 
+    UART4_Init(); 
     CRC_Init();
     Storage_Init();
    
-    //App_UartTest_Init();
-		App_DebugTask_Init();
+    App_UartTest_Init();
+		//App_DebugTask_Init();
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
     Storage_App_Init();

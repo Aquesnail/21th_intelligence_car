@@ -1,13 +1,12 @@
 /*
  * 文件名称: app_uart_test.c
- * 描述: UART5 功能测试任务，包含简单的CRC硬件验证
- * 编译标准: C99
+ * 描述: UART4 环形缓冲区回环测试任务
+ * 编译标准: C89 (局部变量定义在函数开头)
  */
 
 #include "FreeRTOS.h"
 #include "task.h"
 #include "dma_uart.h"
-#include "crc.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -20,194 +19,103 @@
 
 TaskHandle_t xUartTestTaskHandle = NULL;
 
-/* CRC测试数据结构 */
-typedef struct {
-    const char *name;
-    const uint8_t *dat;
-    uint16_t length;
-    uint16_t expected_crc;
-} crc_test_case_t;
-
-/* MODBUS CRC标准测试数据 */
-static const uint8_t test_dat1[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x0A};
-static const uint8_t test_dat2[] = {0x01, 0x10, 0x00, 0x01, 0x00, 0x02, 0x04, 0x00, 0x0A, 0x01, 0x02};
-static const uint8_t test_dat3[] = "123456789";
-
-/* CRC测试用例表 */
-static const crc_test_case_t crc_test_cases[] = {
-    {"MODBUS读取10个寄存器", test_dat1, sizeof(test_dat1), 0xCDC5},
-    {"MODBUS写保持寄存器",   test_dat2, sizeof(test_dat2), 0x3092},
-    {"ASCII字符串123456789", test_dat3, sizeof(test_dat3)-1, 0x4B37},
-};
-
-#define CRC_TEST_CASE_COUNT  (sizeof(crc_test_cases) / sizeof(crc_test_cases[0]))
-
-/* CRC验证测试函数 */
-static void run_crc_verification_test(void)
+/* * 环形缓冲区压力测试辅助函数 
+ * 描述: 向发送缓冲区大量写入预设字符，测试 DMA 与 RingBuffer 的协同
+ */
+static void run_ring_buffer_stress_test(void)
 {
-    uint8_t all_pass = 1;
-    char result_msg[128];
-    uint8_t i = 0;
-    uint32_t hw_crc = 0;
-    uint16_t hw_crc_16 = 0;
-    const crc_test_case_t *test = NULL;
-    uint8_t pass = 0;
+    /* C89: 变量定义在开头 */
+    const char *stress_msg;
+    uint16_t msg_len;
     
-    /* 发送测试开始信息 */
-    UART5_Write((uint8_t *)"\r\n=== CRC Hardware Verification Test ===\r\n", 44);
-    
-    /* 初始化CRC模块 */
-    CRC_Init();
-    
-    /* 运行所有测试用例 */
-    for (i = 0; i < CRC_TEST_CASE_COUNT; i++)
-    {
-        test = &crc_test_cases[i];
-        
-        /* 计算硬件CRC */
-        hw_crc = CRC_Calculate((uint8_t *)test->dat, test->length);
-        hw_crc_16 = hw_crc & 0xFFFF;
-        
-        /* 判断结果 */
-        pass = (hw_crc_16 == test->expected_crc);
-        
-        if (!pass)
-        {
-            all_pass = 0;
-        }
-        
-        /* 格式化并发送测试结果 */
-        sprintf(result_msg, "Test %d [%s]:\r\n"
-                           "  Expected: 0x%04X\r\n"
-                           "  Actual:   0x%04X\r\n"
-                           "  Result:   %s\r\n\r\n",
-                           i+1, test->name,
-                           test->expected_crc,
-                           hw_crc_16,
-                           pass ? "PASS" : "FAIL");
-        
-        UART5_Write((uint8_t *)result_msg, strlen(result_msg));
-        
-        /* 短暂延时 */
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-    
-    /* 显示最终结果 */
-    if (all_pass)
-    {
-        UART5_Write((uint8_t *)"=== All tests PASSED! ===\r\n\r\n", 32);
-    }
-    else
-    {
-        UART5_Write((uint8_t *)"!!! Some tests FAILED !!!\r\n\r\n", 32);
-    }
+    stress_msg = "--- Ring Buffer Stress Pattern: [ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789] ---\r\n";
+    msg_len = (uint16_t)strlen(stress_msg);
+
+    /* 连续写入两次，触发环形缓冲区跨越边界逻辑 */
+    DMA_UART_Write(&uart4_mgr, (const uint8_t *)stress_msg, msg_len);
+    DMA_UART_Write(&uart4_mgr, (const uint8_t *)stress_msg, msg_len);
 }
-static void verify_crc_hardware(void)
-{
-	  uint8_t test1[] = {0x12, 0x34};
-    uint8_t test2[] = {0xFF, 0xFF};
-    uint8_t test3[] = {0x00, 0x00};
-    uint32_t crc1, crc2, crc3;
-    char msg[64];
-    
-    UART5_Write((uint8_t *)"\r\n=== Simple CRC Test ===\r\n", 28);
-    
-    // 测试1: 0x12 0x34
-    CRC_Init();  // 使用您在config.h中的初始化
-    crc1 = CRC_Calculate(test1, 2);
-    sprintf(msg, "Data 0x12 0x34 -> CRC: 0x%04X\r\n", crc1 & 0xFFFF);
-    UART5_Write((uint8_t *)msg, strlen(msg));
-    
-    // 测试2: 0xFF 0xFF
-    CRC_Init();
-    crc2 = CRC_Calculate(test2, 2);
-    sprintf(msg, "Data 0xFF 0xFF -> CRC: 0x%04X\r\n", crc2 & 0xFFFF);
-    UART5_Write((uint8_t *)msg, strlen(msg));
-    
-    // 测试3: 0x00 0x00
-    CRC_Init();
-    crc3 = CRC_Calculate(test3, 2);
-    sprintf(msg, "Data 0x00 0x00 -> CRC: 0x%04X\r\n", crc3 & 0xFFFF);
-    UART5_Write((uint8_t *)msg, strlen(msg));
-}
+
 /* UART测试任务主函数 */
 void vUartTestTask(void *pvParameters)
 {
-    /* 所有变量定义在函数开头（C99标准） */
-    uint8_t echo_buffer[64];
-    uint16_t rx_len = 0;
-    uint16_t i = 0;
-    uint8_t ch = 0;
+    /* C89: 局部变量定义在函数开头 */
+    uint8_t loop_buffer[128];
+    uint16_t rx_available;
+    uint16_t read_count;
     char tx_buffer[64];
-    static uint32_t loop_count = 0;
-    TickType_t xLastWakeTime = 0;
-    TickType_t xCurrentTick = 0;
+    TickType_t xLastWakeTime;
+    TickType_t xCurrentTick;
     const TickType_t xHeartbeatFreq = pdMS_TO_TICKS(1000);
+    static uint32_t loop_count = 0;
     
     /* 避免编译器警告 */
     (void)pvParameters;
     
     /* 1. 初始化外设 */
-    UART5_Init();
-    CRC_Init();
+    UART4_Init();
     
-    /* 初始化IO */
-    P0M1 = 0x00; 
-    P0M0 = 0x20;   /* P0.5 推挽输出 */
-    P0PU |= 0x10;  /* P0.4 内部上拉 */
+    /* 初始化IO (P5.2 RXD4, P5.3 TXD4) */
+    P5M1 &= ~0x0C; 
+    P5M0 |= 0x08;   /* P5.3 (TX4) 推挽输出 */
+    P5PU |= 0x04;   /* P5.2 (RX4) 内部上拉 */
     
-    /* 发送启动信息 */
-    UART5_Write((uint8_t *)"\r\n=== UART5 Test Start ===\r\n", 28);
+    /* 2. 发送测试启动信息 */
+    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"\r\n======================================\r\n", 42);
+    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"  UART4 Ring Buffer Loopback Test   \r\n", 40);
+    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"======================================\r\n", 42);
     
-    /* 2. 运行CRC验证测试（只运行一次） */
-    run_crc_verification_test();
-    //verify_crc_hardware();
-    /* 3. 发送操作提示 */
-    UART5_Write((uint8_t *)"System started. Type anything for echo test.\r\n", 45);
-    UART5_Write((uint8_t *)"Heartbeat will be sent every 1 second.\r\n\r\n", 42);
+    /* 执行一次简单的压力输出测试 */
+    run_ring_buffer_stress_test();
+    
+    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"\r\nSystem ready. Waiting for data echo...\r\n", 42);
     
     /* 获取当前Tick作为基准 */
     xLastWakeTime = xTaskGetTickCount();
     
-    /* 4. 任务主循环 */
+    /* 3. 任务主循环 */
     for (;;)
     {
-        /* 功能A: 回显服务 */
-        rx_len = UART5_Available();
-        if (rx_len > 0)
+        /* --- 核心回环测试逻辑 --- */
+        /* 检查环形缓冲区中是否有待处理数据 */
+        rx_available = DMA_UART_Available(&uart4_mgr);
+        
+        if (rx_available > 0)
         {
-            /* 限制读取长度 */
-            if (rx_len > sizeof(echo_buffer))
+            /* 每次最多读取 loop_buffer 的大小 */
+            if (rx_available > sizeof(loop_buffer))
             {
-                rx_len = sizeof(echo_buffer);
+                rx_available = sizeof(loop_buffer);
             }
             
-            /* 读取数据 */
-            UART5_Read(echo_buffer, rx_len);
+            /* 从 RingBuffer 读取数据 (DMA接收的内容已由中断存入此处) */
+            read_count = DMA_UART_Read(&uart4_mgr, loop_buffer, rx_available);
             
-            /* 回显接收到的数据 */
-            UART5_Write(echo_buffer, rx_len);
+            if (read_count > 0)
+            {
+                /* 将读取到的数据原样写回发送缓冲区 (将触发 DMA 发送) */
+                DMA_UART_Write(&uart4_mgr, loop_buffer, read_count);
+            }
         }
         
-        /* 功能B: 定时心跳 */
+        /* --- 定时心跳监控 --- */
         xCurrentTick = xTaskGetTickCount();
         
-        /* 检查是否到达1秒时间点 */
         if ((xCurrentTick - xLastWakeTime) >= xHeartbeatFreq)
         {
-            /* 更新上次唤醒时间 */
             xLastWakeTime = xCurrentTick;
             loop_count++;
             
-            /* 格式化心跳包 */
-            sprintf(tx_buffer, "[%lu] System running...\r\n", (unsigned long)loop_count);
+            /* 格式化并发送心跳包，监控任务存活状态 */
+            sprintf(tx_buffer, "[Alive:%lu] Ring-Free-TX:%u\r\n", 
+                    (unsigned long)loop_count,
+                    (unsigned int)(uart4_mgr.ring_tx_buf_size - uart4_mgr.tx_count));
             
-            /* 发送心跳 */
-            UART5_Write((uint8_t *)tx_buffer, strlen(tx_buffer));
+            DMA_UART_Write(&uart4_mgr, (const uint8_t *)tx_buffer, (uint16_t)strlen(tx_buffer));
         }
         
-        /* 任务调度让步 */
-        vTaskDelay(pdMS_TO_TICKS(2));
+        /* 让出 CPU，给 DMA 中断留出处理时间 */
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
