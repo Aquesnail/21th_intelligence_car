@@ -80,9 +80,9 @@ void UART4_Config(uint8_t brt) {
     UART4_SwitchP5253(); // 切换至 P5.2 RXD4, P5.3 TXD4
 
     // 串口接收超时配置
-    UR4TOCR = 0xc0;     // bit7:使能超时接收, bit6:使能超时中断, bit5:时钟源选择
-    UR4TOTL = 0xA0;
-    UR4TOTH = 0x00;
+    UR4TOCR = 0xe0;     // bit7:使能超时接收, bit6:使能超时中断, bit5:时钟源选择
+    UR4TOTL = 0x00;
+    UR4TOTH = 0x20;
     UR4TOTE = 0x00;     // 触发生效
 
     ES4 = 1;
@@ -115,6 +115,7 @@ void UART4_DMA_Config(void) {
 void UART4_Init(void) {
     UART4_Config(2); // 默认使用 Timer2
     UART4_DMA_Config();
+    
 
     /* 组装管理器 */
     uart4_mgr.dma_tx_buf = uart4_dma_tx;
