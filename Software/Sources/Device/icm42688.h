@@ -11,8 +11,8 @@
 extern uint8_t imu_ready;
 
 /* 片选操作直接留在头文件供底层调用 */
-#define ICM42688_CS_SET() P45 = 1
-#define ICM42688_CS_RESET() P45 = 0
+#define ICM42688_CS_SET() P8SETB=PIN_0
+#define ICM42688_CS_RESET() P8CLRB=PIN_0
 
 #define ICM42688_SPI_TIMEOUt 1000
 

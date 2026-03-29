@@ -22,8 +22,8 @@ void app_init(void){
     CRC_Init();
     Storage_Init();
    
-    App_UartTest_Init();
-		//App_DebugTask_Init();
+    //App_UartTest_Init();
+		App_DebugTask_Init();
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
     Storage_App_Init();

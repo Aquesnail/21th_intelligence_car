@@ -58,7 +58,8 @@ void PORT1_Init(void)
     SetP1nQuasiMode(PIN_5 | PIN_4 | PIN_2 | PIN_1 | PIN_0); //设置P1.5,P1.4,P1.2,P1.1,P1.0为无弱上拉准双向口模式
     SetP1nHighZInputMode(PIN_7 | PIN_6 | PIN_3); //设置P1.7,P1.6,P1.3为高阻输入模式
 
-    DisableP1nPullUp(PIN_ALL);          //关闭P1内部上拉电阻
+    EnableP1nPullUp(PIN_5 | PIN_4);     //使能P1.5,P1.4内部上拉电阻
+    DisableP1nPullUp(PIN_7 | PIN_6 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //关闭P1.7,P1.6,P1.3,P1.2,P1.1,P1.0内部上拉电阻
     DisableP1nPullDown(PIN_ALL);        //关闭P1内部下拉电阻
     DisableP1nSchmitt(PIN_ALL);         //使能P1施密特触发
     SetP1nSlewRateNormal(PIN_ALL);      //设置P1一般翻转速度
@@ -236,8 +237,8 @@ void PORT7_Init(void)
 void PORT8_Init(void)
 {
     SetP8nInitLevelHigh(PIN_ALL);       //设置P8初始化电平
-    SetP8nQuasiMode(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_2 | PIN_0); //设置P8.7,P8.6,P8.5,P8.4,P8.2,P8.0为无弱上拉准双向口模式
-    SetP8nPushPullMode(PIN_3 | PIN_1);  //设置P8.3,P8.1为推挽输出模式
+    SetP8nQuasiMode(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_2); //设置P8.7,P8.6,P8.5,P8.4,P8.2为无弱上拉准双向口模式
+    SetP8nPushPullMode(PIN_3 | PIN_1 | PIN_0); //设置P8.3,P8.1,P8.0为推挽输出模式
 
     EnableP8nPullUp(PIN_2);             //使能P8.2内部上拉电阻
     DisableP8nPullUp(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_3 | PIN_1 | PIN_0); //关闭P8.7,P8.6,P8.5,P8.4,P8.3,P8.1,P8.0内部上拉电阻

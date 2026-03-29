@@ -266,6 +266,24 @@ void DMA_SPI2_ISR(void)
     portRETURN_TASK();
 //<<AICUBE_USER_SPI2_ISR_CODE2_END>>
 }
+extern void P1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
+void P1_ISR(void){
+    static BaseType_t xHigherPriorityTaskWoken;
+
+    portNORMALIZE_INTERRUPT_STACK();
+    portSAVE_CONTEXT();
+    xHigherPriorityTaskWoken = pdFALSE;
+    P1_ISR_Handle(&xHigherPriorityTaskWoken);
+
+    if (xHigherPriorityTaskWoken != pdFALSE)
+    {
+        portEND_SWITCHING_ISR();
+    }
+    portRESTORE_CONTEXT();
+    portRELEASE_INTERRUPT();
+
+    portRETURN_TASK();
+}
 extern void P4_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 void P4_ISR(void){
     static BaseType_t xHigherPriorityTaskWoken;
@@ -359,3 +377,9 @@ __asm   { CSEG    AT   027BH       }
     __asm   { JMP     P8_ISR??  }
 #endif
 
+ __asm   { CSEG    AT  0133H      }///
+#if ( configUSE_ROMHUGE == 0 )
+    __asm   { JMP     P1_ISR?_  }
+#else
+    __asm   { JMP     P1_ISR??  }
+#endif

@@ -2,7 +2,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
-#include "portasm.h"
+
  
 extern uint32_t g_key_ids[5];
 extern void key_isr_handler(uint32_t key_id);
@@ -15,8 +15,10 @@ void P1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     intf = CheckP1nFlag(PIN_ALL);
     if(intf & PIN_5){
         IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
-	}
-
+		}else if(intf & PIN_4){
+				IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
+		}
+    ClearP1nFlag(PIN_ALL);       
 }
 
 void P4_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){

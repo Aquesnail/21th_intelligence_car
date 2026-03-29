@@ -126,7 +126,7 @@ void vIMUProcessTask(void *pvParameters){
             if(j!=ICM_ERROR && j!= 0){
                 Debug_Log("Pcakets: %u \r\n",j);
             }
-            P41=0;
+            //P41=0;
             ptr = FIFO_RxBuffer;
             for(i=0;i<IMU_Init_Structure.FIFO_THS;i++){
                 
@@ -146,7 +146,7 @@ void vIMUProcessTask(void *pvParameters){
 
                 ptr+=16;
             }
-            P41=1;
+            //P41=1;
             ICM42688_ReadData(&IMU_Init_Structure,acc_t,gyro_t,&temp_t);
         }else{
             continue;

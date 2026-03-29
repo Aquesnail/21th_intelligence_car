@@ -136,6 +136,10 @@ uint8_t ICM42688_Init(ICM42688_t *dev) {
 
     ret = icm_read_reg(dev, 0, ICM42688_WHO_AM_I, &chip_id);
     if (ret != ICM_OK) return ret;
+    while(chip_id != 0x47){
+        dev->delay(3);
+        ret = icm_read_reg(dev,0,ICM42688_WHO_AM_I,&chip_id);
+    }
     dev->print("WHO_I_AM %d \r\n", chip_id);
     if (chip_id != 0x47) return ICM_ERROR;
     
