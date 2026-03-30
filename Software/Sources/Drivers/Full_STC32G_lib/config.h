@@ -44,6 +44,7 @@
 #include "iap.h"
 #include "timer.h"
 #include "uart.h"
+#include "adc.h"
 #include "spi.h"
 #include "pwm.h"
 #include "mathlib.h"

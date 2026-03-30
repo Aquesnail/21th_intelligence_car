@@ -1,13 +1,13 @@
 //<<AICUBE_USER_HEADER_REMARK_BEGIN>>
 ////////////////////////////////////////
 // 在此添加用户文件头说明信息  
-// 文件名称: port.h
+// 文件名称: adc.h
 ////////////////////////////////////////
 //<<AICUBE_USER_HEADER_REMARK_END>>
 
 
-#ifndef __PORT_H__
-#define __PORT_H__
+#ifndef __ADC_H__
+#define __ADC_H__
 
 
 //<<AICUBE_USER_DEFINE_BEGIN>>
@@ -15,18 +15,8 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
-void PORT0_Init(void);
-void PORT1_Init(void);
-void PORT2_Init(void);
-void PORT3_Init(void);
-void PORT4_Init(void);
-void PORT5_Init(void);
-void PORT6_Init(void);
-void PORT7_Init(void);
-void PORT8_Init(void);
-void PORT9_Init(void);
-void PORTA_Init(void);
-void PORTB_Init(void);
+void ADC1_Init(void);
+uint16_t ADC1_Convert(uint8_t ch);
 
 
 

@@ -16,10 +16,7 @@
 
 
 void UART4_Init(void);
-void UART5_Init(void);
 
-extern uint8_t xdata pu8UR5DMATxBuffer[16];
-extern uint8_t xdata pu8UR5DMARxBuffer[16];
 
 
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>

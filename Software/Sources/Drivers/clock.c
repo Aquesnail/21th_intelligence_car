@@ -31,6 +31,10 @@
 ////////////////////////////////////////
 void CLK_Init(void)
 {
+    P1M0 = 0x00;
+    P1M1 = PIN_0 | PIN_1 | PIN_2 | PIN_3 | PIN_6 | PIN_7;
+
+    
     CLK_I2S1CLK_Divider(1);             //设置I2S1时钟预分频系数
     CLK_I2S2CLK_Divider(1);             //设置I2S2时钟预分频系数
     CLK_SPI1CLK_Divider(1);             //设置SPI1时钟预分频系数

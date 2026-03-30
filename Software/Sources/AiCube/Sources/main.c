@@ -81,7 +81,7 @@ void SYS_Init(void)
     IAP_Init();                         //EEPROM初始化
     TIMER11_Init();                     //定时器11初始化
     UART4_Init();                       //串口4初始化
-    UART5_Init();                       //串口5初始化
+    ADC1_Init();                        //ADC1初始化
     SPI2_Init();                        //SPI2初始化
     PWMA_Init();                        //高级PWMA初始化
     PWME_Init();                        //高级PWME初始化

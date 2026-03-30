@@ -2,7 +2,8 @@
 
 #include "config.h"
 #include "application.h"
-#include "port.h"
+#include "gpio_user.h"
+//#include "port.h"
 #include "clock.h"
 #include "pwm.h"
 #include "timer.h"
@@ -12,7 +13,7 @@
 
 void sys_init(void);
 void main(){
-	  EnableAccessXFR();                  //??????XFR
+	EnableAccessXFR();                  //??????XFR
     AccessCodeFastest();                //????????????
     AccessIXramFastest();               //??????????XDATA
     IAP_SetTimeBase();                  //??IAP????,??1us??
@@ -24,19 +25,11 @@ void main(){
 }
 
 void sys_init(void){
-	PORT0_Init();
-	PORT1_Init();
-	PORT2_Init();
-	PORT3_Init();
-	PORT4_Init();
-	PORT5_Init();
-	PORT6_Init();
-	PORT7_Init();
-	PORT8_Init();
-	PORT9_Init();
-	PORTA_Init();
-	PORTB_Init();
-	CLK_Init();    
+	GPIO_User_Control_On();
+	CLK_Init();  
+	//delay_ms(1000);
+	
+	GPIO_Init();
 	PWMA_Init();
 	PWME_Init();
 
