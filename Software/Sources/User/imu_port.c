@@ -86,7 +86,11 @@ void vIMUProcessTask(void *pvParameters){
         xSemaphoreGive(xStorageReadySignal);
     }
     memset(FIFO_TxBuffer,0xff,sizeof(FIFO_TxBuffer));
+<<<<<<< HEAD
     //PORT4_Init();
+=======
+    
+>>>>>>> 5df3a5ff6ce8a1d7497c20765d295a76287ed8a5
     vTaskDelay(pdMS_TO_TICKS(2));
     
     IMU_Structure_Init();

@@ -399,19 +399,19 @@
 #define UART4_EnableInt()               SET_REG_BIT(IE2, IE2_ES4_MSK)
 #define UART4_DisableInt()              CLR_REG_BIT(IE2, IE2_ES4_MSK)
 
-#define S5INTR_ES5_MSK                  BIT4
+#define S5INTR_ES5_MSK                  BIT7
 #define UART5_EnableInt()               SET_REG_BIT(S5INTR, S5INTR_ES5_MSK)
 #define UART5_DisableInt()              CLR_REG_BIT(S5INTR, S5INTR_ES5_MSK)
 
-#define S6INTR_ES6_MSK                  BIT4
+#define S6INTR_ES6_MSK                  BIT7
 #define UART6_EnableInt()               SET_REG_BIT(S6INTR, S6INTR_ES6_MSK)
 #define UART6_DisableInt()              CLR_REG_BIT(S6INTR, S6INTR_ES6_MSK)
 
-#define S7INTR_ES7_MSK                  BIT4
+#define S7INTR_ES7_MSK                  BIT7
 #define UART7_EnableInt()               SET_REG_BIT(S7INTR, S7INTR_ES7_MSK)
 #define UART7_DisableInt()              CLR_REG_BIT(S7INTR, S7INTR_ES7_MSK)
 
-#define S8INTR_ES8_MSK                  BIT4
+#define S8INTR_ES8_MSK                  BIT7
 #define UART8_EnableInt()               SET_REG_BIT(S8INTR, S8INTR_ES8_MSK)
 #define UART8_DisableInt()              CLR_REG_BIT(S8INTR, S8INTR_ES8_MSK)
 
@@ -2272,10 +2272,10 @@
 #define EnableAccessXFR()               SET_REG_BIT(P_SW2, EAXFR_MSK)
 
 #define AccessCodeSpeed(n)              WRITE_REG(WTST, (n))
-#define AccessCodeFastest()             AccessCodeSpeed((SYSCLK) <=  32000000 ? 0 : \
-                                                        (SYSCLK) <=  64000000 ? 1 : \
-                                                        (SYSCLK) <=  90000000 ? 2 : \
-                                                        (SYSCLK) <= 120000000 ? 3 : 4)
+#define AccessCodeFastest()             AccessCodeSpeed((SYSCLK) <=  32000000UL ? 0 : \
+                                                        (SYSCLK) <=  64000000UL ? 1 : \
+                                                        (SYSCLK) <=  90000000UL ? 2 : \
+                                                        (SYSCLK) <= 120000000UL ? 3 : 4)
 
 #define ACCIXRAM_MSK                    (BIT2 | BIT1 | BIT0)
 #define AccessIXramSpeed(n)             MODIFY_REG(CKCON, ACCIXRAM_MSK, ((n) << 0))
@@ -6601,7 +6601,7 @@
 #define RST_EnableResetPin()            SET_REG_BIT(RSTCFG, RSTCFG_P47RST_MSK)
 #define RST_ResetPinAsGPIO()            CLR_REG_BIT(RSTCFG, RSTCFG_P47RST_MSK)
 
-#define RSTCFG_ENLVR_MSK                BIT7
+#define RSTCFG_ENLVR_MSK                BIT6
 #define LVR_EnableLVR()                 SET_REG_BIT(RSTCFG, RSTCFG_ENLVR_MSK)
 #define LVR_DisableLVR()                CLR_REG_BIT(RSTCFG, RSTCFG_ENLVR_MSK)
 

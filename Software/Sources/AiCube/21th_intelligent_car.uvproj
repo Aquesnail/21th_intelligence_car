@@ -355,6 +355,11 @@
 							<FilePath>.\Sources\uart.c</FilePath>
 						</File>
 						<File>
+							<FileName>adc.c</FileName>
+							<FileType>1</FileType>
+							<FilePath>.\Sources\adc.c</FilePath>
+						</File>
+						<File>
 							<FileName>spi.c</FileName>
 							<FileType>1</FileType>
 							<FilePath>.\Sources\spi.c</FilePath>
