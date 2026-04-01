@@ -2,13 +2,13 @@
 
 #include "config.h"
 #include "application.h"
-#include "port.h"
 #include "clock.h"
 #include "pwm.h"
 #include "timer.h"
 #include "iap_user.h"
 #include "ws2812.h"
 #include "mathlib.h"
+#include "gpio_user.h"
 
 void sys_init(void);
 void main(){
@@ -24,18 +24,8 @@ void main(){
 }
 
 void sys_init(void){
-	PORT0_Init();
-	PORT1_Init();
-	PORT2_Init();
-	PORT3_Init();
-	PORT4_Init();
-	PORT5_Init();
-	PORT6_Init();
-	PORT7_Init();
-	PORT8_Init();
-	PORT9_Init();
-	PORTA_Init();
-	PORTB_Init();
+	GPIO_User_Control_On();
+	GPIO_Init();
 	CLK_Init();    
 	PWMA_Init();
 	PWME_Init();

@@ -725,16 +725,6 @@
           <GroupName>Drivers</GroupName>
           <Files>
             <File>
-              <FileName>port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Drivers\port.c</FilePath>
-            </File>
-            <File>
-              <FileName>port.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\port.h</FilePath>
-            </File>
-            <File>
               <FileName>dma_uart.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Drivers\dma_uart.c</FilePath>
@@ -913,6 +903,16 @@
                   </C251>
                 </File251>
               </FileOption>
+            </File>
+            <File>
+              <FileName>gpio_user.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\gpio_user.c</FilePath>
+            </File>
+            <File>
+              <FileName>gpio_user.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\gpio_user.h</FilePath>
             </File>
           </Files>
         </Group>
