@@ -171,8 +171,8 @@ void IMU_Init(){
     Debug_Register("pitch",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.pitch));
     Debug_Register("roll",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.roll));
     Debug_Register("yaw",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.yaw));
-    Debug_Register("Kp",DBG_FLOAT,&(IMU_Filter_Data.Kp));
-    Debug_Register("Ki",DBG_FLOAT,&(IMU_Filter_Data.Ki));
+    Debug_Register("Kp",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data.Kp));
+    Debug_Register("Ki",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data.Ki));
     
     IMU_Filter_Data.Kp = 1.5;
     IMU_Filter_Data.Ki = 0.002;

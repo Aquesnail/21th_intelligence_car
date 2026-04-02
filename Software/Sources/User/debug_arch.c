@@ -17,11 +17,12 @@
 #define RX_BUF_SIZE     512  // 接收缓冲区
 debug_port_t* debug_init_struct;
 // 协议常量
-#define CMD_HANDSHAKE   0x00
-#define CMD_WRITE       0x55
-#define CMD_REGISTER    0x56
-#define CMD_TEXT        0x57
-#define CMD_BULK_HFREQ  0xFC
+#define CMD_HANDSHAKE       0x00
+#define CMD_WRITE           0x55
+#define CMD_REGISTER        0x56
+#define CMD_TEXT            0x57
+#define CMD_STATIC_REFRESH  0x58
+#define CMD_BULK_HFREQ      0xFC
 
 
 // RTOS 事件位
@@ -147,7 +148,7 @@ static void Debug_SendMetaPacket(uint8_t id) {
 
 // 发送变量值 (ID=0..N)
 static void Debug_SendValuePacket(uint8_t id) {
-    uint8_t len = GetTypeSize(debugTable[id].type);
+    uint8_t len = GetTypeSize(debugTable[id].type & DataType_Msk);
     if(len > 0) {
         if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
             Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
@@ -353,7 +354,20 @@ static void Debug_ProcessIncoming(void) {
                     rxBuf[3+len] = '\0'; // 安全截断
                     Debug_OnTextReceived((char*)&rxBuf[3], len);
                     break;
-                
+
+                // ---> 请求刷新静态变量 (Payload: ID)
+                case CMD_STATIC_REFRESH:
+                    {
+                        id = rxBuf[3];
+                        if(id < debugVarCount) {
+                            // 检查是否为静态变量
+                            if((debugTable[id].type & StaticType_Msk) != 0) {
+                                Debug_SendValuePacket(id);
+                            }
+                        }
+                    }
+                    break;
+
             }
         }
     }
@@ -407,7 +421,9 @@ void vDebugTask(void *pvParameters) {
                // LowFreqTx=0;
 				//Debug_Log("log_test\r\n");
                 for(i = 0; i < debugVarCount; i++) {
-                    if((debugTable[i].type&FreqType_Msk)==0){
+                    // 只发送低频且非静态的变量
+                    if(((debugTable[i].type & FreqType_Msk) == 0) &&
+                       ((debugTable[i].type & StaticType_Msk) == 0)) {
                         Debug_SendValuePacket(i);
                     }
                 }

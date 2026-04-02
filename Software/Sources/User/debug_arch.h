@@ -11,20 +11,45 @@
 
 #define DataType_Msk    0x0F
 #define FreqType_Msk    0x10
+#define StaticType_Msk  0x20
 
 #define HIGH_FREQ_TYPE 0x10
 #define LOW_FREQ_TYPE  0x00
+#define STATIC_TYPE    0x20
 
-typedef void    (*debug_write_t)(uint8_t *pData,uint16_t len);     
-typedef uint16_t    (*debug_read_t)(uint8_t *pData,uint16_t len);     
+/* 静态变量表定义宏 -------------------------------------------------------- */
+#define DEBUG_VAR_TABLE_BEGIN()  \
+    typedef struct { char name[11]; uint8_t type; void* addr; } _DebugVarEntry_t; \
+    static const _DebugVarEntry_t _debugVarTable[] = {
+
+#define DEBUG_VAR(name, type_flags, var_addr)  \
+    { name, type_flags, (void*)var_addr }
+
+#define DEBUG_VAR_TABLE_END()  \
+    }; \
+    extern uint8_t debugVarCount; \
+    extern void* debugVarTablePtr; \
+    static void _Debug_RegisterStaticVars(void) { \
+        extern void Debug_RegisterFromTable(const void* table, uint8_t count); \
+        Debug_RegisterFromTable(_debugVarTable, sizeof(_debugVarTable)/sizeof(_DebugVarEntry_t)); \
+    }
+
+/* 简化静态注册宏（一键完成） */
+#define DEBUG_REGISTER_STATIC_VARS()  _Debug_RegisterStaticVars()
+
+typedef void    (*debug_write_t)(uint8_t *pData,uint16_t len);
+typedef uint16_t    (*debug_read_t)(uint8_t *pData,uint16_t len);
 
 typedef struct{
     debug_read_t debug_read;
     debug_write_t debug_write;
 }debug_port_t;
+
 extern SemaphoreHandle_t xDebugReadySignal;
+
 void vDebugTask(void *pvParameters);
 void Debug_Register(char* name, uint8_t type, void* addr);
+void Debug_RegisterFromTable(const void* table, uint8_t count);
 void Debug_Log(const char* fmt,...);
 void Debug_LogLongString(char *buffer);
 void Debug_Init(debug_port_t* debug_port_init_structure);
