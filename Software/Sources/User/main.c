@@ -34,9 +34,9 @@ void sys_init(void){
 	CLK_Init();    
 
 	CLK_Init();  
-	//delay_ms(1000);
+	delay_ms(100);
 	
-	GPIO_Init();
+	//GPIO_Init();
 
 	PWMA_Init();
 	PWME_Init();
