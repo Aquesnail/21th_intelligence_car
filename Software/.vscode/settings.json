@@ -1,0 +1,16 @@
+{
+    /* 1. 恢复微软官方 C/C++ 插件的智能提示引擎 */
+    "C_Cpp.intelliSenseEngine": "default",
+
+    /* 2. 确保官方插件的其他辅助功能已开启 */
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.errorSquiggles": "enabled",
+
+    /* 3. 禁用 clangd 插件的功能 */
+    // 注意：插件本身无法通过 JSON 完全“卸载”，但可以禁用其核心服务
+    "clangd.enabled": false, 
+    "clangd.path": "", // 清空路径也可以阻止其启动
+    
+    /* 4. 如果你之前禁用了官方的增强着色，也可以重新开启 */
+    "C_Cpp.enhancedColorization": "enabled"
+}

@@ -307,3 +307,39 @@ void Storage_Init(void) {
     flash_t.flash_addr_count = FLASH_ADDR_START;
     flash_t.dirty_num = 0;
 }
+
+// 通过名称查找变量
+StorageErr_t Storage_FindByName(const char* name, void far** addr_out, uint16_t* len_out) {
+    uint16_t i;
+    for (i = 0; i < storageVarPoolAddr; i++) {
+        if (strcmp(storageVarPool[i].name, name) == 0) {
+            if (addr_out) *addr_out = storageVarPool[i].ram_addr;
+            if (len_out)  *len_out  = storageVarPool[i].len;
+            return 0;
+        }
+    }
+    return NOT_REGISTERED;
+}
+
+// 获取已注册变量数量
+uint16_t Storage_GetRegCount(void) {
+    return storageVarPoolAddr;
+}
+
+// 获取指定索引的变量名
+const char* Storage_GetRegName(uint16_t idx) {
+    if (idx < storageVarPoolAddr) return storageVarPool[idx].name;
+    return NULL;
+}
+
+// 获取指定索引的变量RAM地址
+void far* Storage_GetRegAddr(uint16_t idx) {
+    if (idx < storageVarPoolAddr) return storageVarPool[idx].ram_addr;
+    return NULL;
+}
+
+// 获取指定索引的变量长度
+uint16_t Storage_GetRegLen(uint16_t idx) {
+    if (idx < storageVarPoolAddr) return storageVarPool[idx].len;
+    return 0;
+}

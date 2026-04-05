@@ -187,6 +187,24 @@ void Debug_Log(const char* fmt,...) {
     }
    
 }
+
+static uint8_t FindFrameHeader(void) {
+    uint8_t byte;
+    uint16_t max_search = 64; // 最多查找 64 字节，防止无限循环
+
+    while(max_search--) {
+        // 尝试读取 1 字节
+        if(Debug_Arch_Read(&byte, 1) != 1) {
+            return 0; // 没有数据可读
+        }
+        if(byte == 0x55) {
+            return 1; // 找到帧头
+        }
+        // 不是帧头，继续查找（已经消费掉这个字节）
+    }
+    return 0; // 查找超时
+}
+
 // 辅助函数：分片发送长字符串
 // buffer: 待发送的长字符串（例如 CPU 统计信息）
 void Debug_LogLongString(char *buffer) {
@@ -273,105 +291,107 @@ static void Debug_ProcessIncoming(void) {
         volatile uint8_t *ptr;
         //char logbuf[32];
     // 1. 预读头部 [0x55] [CMD] [LEN]
-    if(Debug_Arch_Read(rxBuf, 3) == 3) {
-        if(rxBuf[0] != 0x55) return;
+    if(!FindFrameHeader()) return;
+    if(Debug_Arch_Read(&rxBuf[1], 2) != 2) return;
+
+    rxBuf[0] = 0x55; // 帧头
+    
+    cmd = rxBuf[1];
+    len = rxBuf[2];
+    if(len > RX_BUF_SIZE - 5) return; // 保护
+
+    // 2. 读取 [Payload...] + [CRC(2)]
+    if(Debug_Arch_Read(&rxBuf[3], len + 2) == (len + 2)) {
         
-        cmd = rxBuf[1];
-        len = rxBuf[2];
-        if(len > RX_BUF_SIZE - 5) return; // 保护
+        // 3. 校验 CRC (范围: CMD, LEN, Payload)
+        crc_calc = Debug_Arch_CRC16(&rxBuf[1], len + 2);
+        crc_recv = ((uint16_t)rxBuf[3+len] << 8) | rxBuf[4+len];
 
-        // 2. 读取 [Payload...] + [CRC(2)]
-        if(Debug_Arch_Read(&rxBuf[3], len + 2) == (len + 2)) {
-            
-            // 3. 校验 CRC (范围: CMD, LEN, Payload)
-            crc_calc = Debug_Arch_CRC16(&rxBuf[1], len + 2);
-            crc_recv = ((uint16_t)rxBuf[3+len] << 8) | rxBuf[4+len];
+        if(crc_calc != crc_recv) return;
 
-            if(crc_calc != crc_recv) return;
-
-            // 4. 命令分发
-            switch(cmd) {
-                // ---> 握手请求 (Payload: 4 Bytes Magic)
-                case CMD_HANDSHAKE:
-                    if(len == 4) {
-                        if(xSemaphoreTake(xLogMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-                            Debug_TxCore(0xFD, 0x00, &rxBuf[3], 4);
-                            xSemaphoreGive(xLogMutex);
-                        }
-                        
-                        // RTOS 事件组：标记连接 (确保 vDebugTask 可以开始发送 value 报文)
-                        xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
-                        
-                        // 【修改点】：移除原有的 if 判断，每次握手都强制遍历并发送所有元数据
-                        vTaskDelay(pdMS_TO_TICKS(10)); // 防止突发
-                        for(i=0; i<debugVarCount; i++) {
-                            Debug_SendMetaPacket(i);
-                            vTaskDelay(pdMS_TO_TICKS(5)); // 防止突发，避免填满串口缓冲区
-                        }
+        // 4. 命令分发
+        switch(cmd) {
+            // ---> 握手请求 (Payload: 4 Bytes Magic)
+            case CMD_HANDSHAKE:
+                if(len == 4) {
+                    if(xSemaphoreTake(xLogMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                        Debug_TxCore(0xFD, 0x00, &rxBuf[3], 4);
+                        xSemaphoreGive(xLogMutex);
                     }
-                    break;
-
-                // ---> 写变量 (Payload: ID, Len, Data...)
-                case CMD_WRITE:
-                    {
-                        id = rxBuf[3]; 
-                        vLen = rxBuf[4];
-                        if(id < debugVarCount) {
-                            // 直接内存拷贝修改
-                            taskENTER_CRITICAL();
-                            //memcpy(debugTable[id].addr, &rxBuf[5], vLen);
-							ptr = (uint8_t *)(debugTable[id].addr);
-                            ptr[0] = rxBuf[5];
-                            if(vLen > 1) ptr[1] = rxBuf[6];
-                            if(vLen > 2) ptr[2] = rxBuf[7];
-                            if(vLen > 3) ptr[3] = rxBuf[8];
-                            //sprintf(logbuf, "Wr Addr: %p", debugTable[id].addr); // %p 在 C251 会打印类型和偏移
-						//	Debug_Log("Wr Addr: %p", debugTable[id].addr);
-                            taskEXIT_CRITICAL();
-                        }
+                    
+                    // RTOS 事件组：标记连接 (确保 vDebugTask 可以开始发送 value 报文)
+                    xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
+                    
+                    // 【修改点】：移除原有的 if 判断，每次握手都强制遍历并发送所有元数据
+                    vTaskDelay(pdMS_TO_TICKS(10)); // 防止突发
+                    for(i=0; i<debugVarCount; i++) {
+                        Debug_SendMetaPacket(i);
+                        vTaskDelay(pdMS_TO_TICKS(5)); // 防止突发，避免填满串口缓冲区
                     }
-                    break;
+                }
+                break;
 
-                // ---> 动态注册 (Payload: Type, Addr4, Name10)
-                case CMD_REGISTER:
-                    if(len == 15 && debugVarCount < MAX_DEBUG_VARS) {
-                        debugTable[debugVarCount].type = rxBuf[3];
-                        memcpy(&debugTable[debugVarCount].addr, &rxBuf[4], 4);
-                        memset(debugTable[debugVarCount].name, 0, 11);
-                        strncpy(debugTable[debugVarCount].name, (char*)&rxBuf[8], 10);
-                        
-                        // 注册成功，补发 Meta
-                        //delay_ms(2);
-                        debugVarCount++;//先增加计数器
-                        Debug_SendMetaPacket(debugVarCount-1);
-                        //delay_ms(2);
-                        
+            // ---> 写变量 (Payload: ID, Len, Data...)
+            case CMD_WRITE:
+                {
+                    id = rxBuf[3]; 
+                    vLen = rxBuf[4];
+                    if(id < debugVarCount) {
+                        // 直接内存拷贝修改
+                        taskENTER_CRITICAL();
+                        //memcpy(debugTable[id].addr, &rxBuf[5], vLen);
+                        ptr = (uint8_t *)(debugTable[id].addr);
+                        ptr[0] = rxBuf[5];
+                        if(vLen > 1) ptr[1] = rxBuf[6];
+                        if(vLen > 2) ptr[2] = rxBuf[7];
+                        if(vLen > 3) ptr[3] = rxBuf[8];
+                        //sprintf(logbuf, "Wr Addr: %p", debugTable[id].addr); // %p 在 C251 会打印类型和偏移
+                    //	Debug_Log("Wr Addr: %p", debugTable[id].addr);
+                        taskEXIT_CRITICAL();
                     }
-                    break;
+                }
+                break;
 
-                // ---> 文本传输
-                case CMD_TEXT:
-                    rxBuf[3+len] = '\0'; // 安全截断
-                    Debug_OnTextReceived((char*)&rxBuf[3], len);
-                    break;
+            // ---> 动态注册 (Payload: Type, Addr4, Name10)
+            case CMD_REGISTER:
+                if(len == 15 && debugVarCount < MAX_DEBUG_VARS) {
+                    debugTable[debugVarCount].type = rxBuf[3];
+                    memcpy(&debugTable[debugVarCount].addr, &rxBuf[4], 4);
+                    memset(debugTable[debugVarCount].name, 0, 11);
+                    strncpy(debugTable[debugVarCount].name, (char*)&rxBuf[8], 10);
+                    
+                    // 注册成功，补发 Meta
+                    //delay_ms(2);
+                    debugVarCount++;//先增加计数器
+                    Debug_SendMetaPacket(debugVarCount-1);
+                    //delay_ms(2);
+                    
+                }
+                break;
 
-                // ---> 请求刷新静态变量 (Payload: ID)
-                case CMD_STATIC_REFRESH:
-                    {
-                        id = rxBuf[3];
-                        if(id < debugVarCount) {
-                            // 检查是否为静态变量
-                            if((debugTable[id].type & StaticType_Msk) != 0) {
-                                Debug_SendValuePacket(id);
-                            }
-                        }
+            // ---> 文本传输
+            case CMD_TEXT:
+                rxBuf[3+len] = '\0'; // 安全截断
+                Debug_OnTextReceived((char*)&rxBuf[3], len);
+                break;
+
+            // ---> 请求刷新静态变量 (Payload: ID)
+            case CMD_STATIC_REFRESH:
+                {
+                    id = rxBuf[3];
+                    if(id < debugVarCount) {
+                        // 检查是否为静态变量
+                        if((debugTable[id].type & StaticType_Msk) != 0) {
+                            Debug_SendValuePacket(id);
                     }
-                    break;
-
+                }
             }
+            break;
+
         }
     }
 }
+
 
 /*================== 初始化 =================== */
 

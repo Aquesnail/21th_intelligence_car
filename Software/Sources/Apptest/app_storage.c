@@ -6,6 +6,8 @@
 #include "icm42688.h"
 #include "imu_filter.h"
 #include "simple_queue.h"
+#include <string.h>
+#include <stdlib.h>
 
 #define STORAGE_TEST_TASK_PRIORITY      (tskIDLE_PRIORITY + 0)
 #define STORAGE_TEST_TASK_STACK_SIZE    256
@@ -152,18 +154,129 @@ void Storage_App_Init(void) {
 }
 
 uint8_t Storage_HandleCommand(const char* cmd) {
-    if (strcmp(cmd, "save") == 0) {
-        xEventGroupSetBits(xEventGroup, EVENT_SAVE_ALL);
+    const char* p;
+    char name[12];
+    void far* addr;
+    uint16_t len;
+    uint16_t i;
+    float val;
+    int16_t int_part;
+    int16_t frac_part;
+    char buf[48];
+
+    /* 必须以 "stor " 开头 */
+    if (strncmp(cmd, "stor ", 5) != 0) {
+        return 0;
+    }
+    p = cmd + 5;
+
+    /* stor list / stor ls */
+    if (strcmp(p, "list") == 0 || strcmp(p, "ls") == 0) {
+        Debug_Log("=== Storage Vars ===\r\n");
+        for (i = 0; i < Storage_GetRegCount(); i++) {
+            sprintf(buf, "%s addr=%p len=%u",
+                    Storage_GetRegName(i),
+                    Storage_GetRegAddr(i),
+                    Storage_GetRegLen(i));
+            Debug_Log("%s\r\n", buf);
+        }
+        return 1;
+    }
+
+    /* stor get <name> */
+    if (strncmp(p, "get ", 4) == 0) {
+        if (sscanf(p + 4, "%11s", name) == 1) {
+            if (Storage_FindByName(name, &addr, &len) == 0) {
+                if (len == 4) {
+                    val = *((float far*)addr);
+                    int_part = (int16_t)val;
+                    frac_part = (int16_t)((val >= 0 ? val : -val) * 1000) % 1000;
+                    sprintf(buf, "%s = %d.%03d", name, int_part, frac_part);
+                } else {
+                    sprintf(buf, "%s = ? (len=%u)", name, len);
+                }
+                Debug_Log("%s\r\n", buf);
+            } else {
+                Debug_Log("Err: '%s' not found\r\n", name);
+            }
+        }
+        return 1;
+    }
+
+    /* stor set <name> <value> */
+    if (strncmp(p, "set ", 4) == 0) {
+        if (sscanf(p + 4, "%11s", name) == 1) {
+            const char* vstr = p + 4;
+            while (*vstr && *vstr != ' ') vstr++;
+            while (*vstr == ' ') vstr++;
+            if (*vstr) {
+                val = (float)atof(vstr);
+                if (Storage_FindByName(name, &addr, &len) == 0) {
+                    if (len == 4) {
+                        *((float far*)addr) = val;
+                        int_part = (int16_t)val;
+                        frac_part = (int16_t)((val >= 0 ? val : -val) * 1000) % 1000;
+                        sprintf(buf, "%s = %d.%03d (RAM)", name, int_part, frac_part);
+                        Debug_Log("%s\r\n", buf);
+                    } else {
+                        Debug_Log("Err: '%s' not float-sized\r\n", name);
+                    }
+                } else {
+                    Debug_Log("Err: '%s' not found\r\n", name);
+                }
+            } else {
+                Debug_Log("Err: missing value\r\n");
+            }
+        }
+        return 1;
+    }
+
+    /* stor load <name> */
+    if (strncmp(p, "load ", 5) == 0) {
+        if (sscanf(p + 5, "%11s", name) == 1) {
+            if (Storage_FindByName(name, &addr, &len) == 0) {
+                Storage_Load_Async(addr);
+                Debug_Log("Storage: load '%s' queued\r\n", name);
+            } else {
+                Debug_Log("Err: '%s' not found\r\n", name);
+            }
+        }
+        return 1;
+    }
+
+    /* stor mark <name> */
+    if (strncmp(p, "mark ", 5) == 0) {
+        if (sscanf(p + 5, "%11s", name) == 1) {
+            if (Storage_FindByName(name, &addr, &len) == 0) {
+                Storage_Mark_Async(addr);
+                Debug_Log("Storage: mark '%s' queued\r\n", name);
+            } else {
+                Debug_Log("Err: '%s' not found\r\n", name);
+            }
+        }
+        return 1;
+    }
+
+    /* stor save */
+    if (strcmp(p, "save") == 0) {
+        Storage_Save_Async();
         Debug_Log("Storage: SAVE_ALL triggered\r\n");
         return 1;
-    } else if (strcmp(cmd, "markall") == 0) {
-        xEventGroupSetBits(xEventGroup, EVENT_MARK_ALL);
-        Debug_Log("Storage: MARK_ALL triggered\r\n");
-        return 1;
-    } else if (strcmp(cmd, "loadall") == 0) {
-        xEventGroupSetBits(xEventGroup, EVENT_LOAD_ALL);
+    }
+
+    /* stor loadall */
+    if (strcmp(p, "loadall") == 0) {
+        Storage_Load_All_Async();
         Debug_Log("Storage: LOAD_ALL triggered\r\n");
         return 1;
     }
-    return 0; // 未识别
+
+    /* stor markall */
+    if (strcmp(p, "markall") == 0) {
+        Storage_Mark_All_Async();
+        Debug_Log("Storage: MARK_ALL triggered\r\n");
+        return 1;
+    }
+
+    return 0; /* 未识别 */
 }
