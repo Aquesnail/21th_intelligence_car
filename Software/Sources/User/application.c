@@ -3,7 +3,6 @@
 #include "task.h"
 #include "dma_uart.h"
 #include "debug_arch.h"
-#include "storage.h"
 #include "crc.h"
 #pragma warning disable = 47
 
@@ -11,7 +10,6 @@ extern void App_UartTest_Init(void);
 extern void App_DebugTask_Init(void);
 extern void APP_CLK_TEST_Init(void);
 extern void CPU_STATUS_TASK_Init(void);
-extern void Storage_App_Init(void);
 extern void IMU_Init();
 extern void BeepPort_Init(void);
 extern void BeepTestTask_Init();
@@ -20,13 +18,12 @@ extern void key_port_init(void);
 void app_init(void){
     UART4_Init(); 
     CRC_Init();
-    Storage_Init();
+
    
     //App_UartTest_Init();
 		App_DebugTask_Init();
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
-    Storage_App_Init();
     BeepPort_Init();
     IMU_Init();
     BeepTestTask_Init();

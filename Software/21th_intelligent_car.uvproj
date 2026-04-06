@@ -390,16 +390,6 @@
               <FilePath>.\Sources\User\debug_arch.h</FilePath>
             </File>
             <File>
-              <FileName>storage.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\User\storage.c</FilePath>
-            </File>
-            <File>
-              <FileName>storage.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\User\storage.h</FilePath>
-            </File>
-            <File>
               <FileName>vartype.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\User\vartype.h</FilePath>
@@ -970,19 +960,9 @@
               <FilePath>.\Sources\Apptest\app_debug.c</FilePath>
             </File>
             <File>
-              <FileName>app_storage.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Apptest\app_storage.c</FilePath>
-            </File>
-            <File>
               <FileName>app_beep_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_beep_test.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_storage.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Apptest\app_storage.h</FilePath>
             </File>
             <File>
               <FileName>music.h</FileName>

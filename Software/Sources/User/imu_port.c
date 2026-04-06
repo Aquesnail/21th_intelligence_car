@@ -9,7 +9,7 @@
 #include "imu_filter.h"
 #include "debug_arch.h"
 //#include "port.h"
-#include "app_storage.h"
+
 
 #pragma warning disable = 138
 #pragma warning disable = 151
@@ -81,10 +81,7 @@ void vIMUProcessTask(void *pvParameters){
         xSemaphoreTake(xDebugReadySignal,portMAX_DELAY);
         xSemaphoreGive(xDebugReadySignal);
     }
-    if(xStorageReadySignal != NULL){
-        xSemaphoreTake(xStorageReadySignal,portMAX_DELAY);
-        xSemaphoreGive(xStorageReadySignal);
-    }
+    
     memset(FIFO_TxBuffer,0xff,sizeof(FIFO_TxBuffer));
 
     //PORT4_Init();
