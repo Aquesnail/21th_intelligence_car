@@ -30,4 +30,10 @@ void Storage_Save_Data(void);
 StorageErr_t Storage_Register(void far * addr, uint16_t len, char* name);
 void Storage_Init(void);
 
+StorageErr_t Storage_FindByName(const char* name, void far** addr_out, uint16_t* len_out);
+uint16_t Storage_GetRegCount(void);
+const char* Storage_GetRegName(uint16_t idx);
+void far* Storage_GetRegAddr(uint16_t idx);
+uint16_t Storage_GetRegLen(uint16_t idx);
+
 #endif

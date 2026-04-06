@@ -199,7 +199,8 @@ StorageErr_t Storage_Register(void far* addr, uint16_t len, char* name) {
     }
 
     obj->ram_addr = addr;
-    e = flash_malloc(&obj->flash_addr, len);
+    // 额外分配1字节用于存储有效标记
+    e = flash_malloc(&obj->flash_addr, len + 1);
     if (e) return e;
 
     obj->len = len;
@@ -220,14 +221,19 @@ StorageErr_t Storage_Register(void far* addr, uint16_t len, char* name) {
     return 0;
 }
 
-// 从Flash加载到RAM
+// 从Flash加载到RAM（带有效标记检查）
 StorageErr_t Storage_Load(void far* addr) {
     StorageObj_t far* obj;
     StorageErr_t e;
-    
+
     e = hash_search(addr, &obj);
     if (e) return e;
-    _flash_read(obj->flash_addr, addr, obj->len);
+    // 检查有效标记（第0字节为0x00表示有效）
+    if (IAP_ReadByte(obj->flash_addr) != 0x00) {
+        return NOT_IN_FLASH;  // 数据从未写入或已被擦除
+    }
+    // 跳过标记字节，读取实际数据
+    _flash_read(obj->flash_addr + 1, addr, obj->len);
     return 0;
 }
 
@@ -252,18 +258,16 @@ StorageErr_t Storage_Mark_Data(void far* addr) {
     return NOT_REGISTERED;
 }
 
-// 检查数据是否已在Flash中写入（非全0xFF）
+// 检查数据是否已在Flash中写入（检查有效标记字节）
 StorageErr_t Storage_Data_Writed(void far* addr) {
     StorageObj_t far* obj;
-    uint16_t i;
     StorageErr_t e;
-    
+
     e = hash_search(addr, &obj);
     if (e) return e;
-    for (i = 0; i < obj->len; i++) {
-        if (IAP_ReadByte(obj->flash_addr + i) != 0xFF) {
-            return 0;  // 已写入
-        }
+    // 检查第0字节的标记：0x00表示已写入，0xFF表示未写入/已擦除
+    if (IAP_ReadByte(obj->flash_addr) == 0x00) {
+        return 0;  // 已写入
     }
     return NOT_IN_FLASH;
 }
@@ -274,7 +278,7 @@ void Storage_Save_Data(void) {
     uint16_t idx;
     uint16_t offset;
     StorageObj_t far* obj;
-    
+
     for (i = 0; i < FLASH_SECTOR_NUM; i++) {
         if (storageSectorMark[i] == 1) {
             _flash_read_sector(i);
@@ -283,7 +287,10 @@ void Storage_Save_Data(void) {
                 obj = &storageVarPool[idx];
                 if (obj->dirty_flags) {
                     offset = obj->flash_addr % FLASH_SECTOR_SIZE;
-                    memcpy((void far*)&storageWriteBuffer[offset],
+                    // 第0字节写入标记0x00表示数据有效
+                    storageWriteBuffer[offset] = 0x00;
+                    // 从offset+1开始写入实际数据
+                    memcpy((void far*)&storageWriteBuffer[offset + 1],
                            (void far*)obj->ram_addr,
                            obj->len);
                     obj->dirty_flags = 0;
@@ -306,4 +313,40 @@ void Storage_Init(void) {
     memset(storageSectorMark, 0, sizeof(storageSectorMark));
     flash_t.flash_addr_count = FLASH_ADDR_START;
     flash_t.dirty_num = 0;
+}
+
+// 通过名称查找变量
+StorageErr_t Storage_FindByName(const char* name, void far** addr_out, uint16_t* len_out) {
+    uint16_t i;
+    for (i = 0; i < storageVarPoolAddr; i++) {
+        if (strcmp(storageVarPool[i].name, name) == 0) {
+            if (addr_out) *addr_out = storageVarPool[i].ram_addr;
+            if (len_out)  *len_out  = storageVarPool[i].len;
+            return 0;
+        }
+    }
+    return NOT_REGISTERED;
+}
+
+// 获取已注册变量数量
+uint16_t Storage_GetRegCount(void) {
+    return storageVarPoolAddr;
+}
+
+// 获取指定索引的变量名
+const char* Storage_GetRegName(uint16_t idx) {
+    if (idx < storageVarPoolAddr) return storageVarPool[idx].name;
+    return NULL;
+}
+
+// 获取指定索引的变量RAM地址
+void far* Storage_GetRegAddr(uint16_t idx) {
+    if (idx < storageVarPoolAddr) return storageVarPool[idx].ram_addr;
+    return NULL;
+}
+
+// 获取指定索引的变量长度
+uint16_t Storage_GetRegLen(uint16_t idx) {
+    if (idx < storageVarPoolAddr) return storageVarPool[idx].len;
+    return 0;
 }
