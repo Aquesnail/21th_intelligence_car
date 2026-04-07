@@ -8,6 +8,7 @@
 #include "semphr.h"
 #include "imu_filter.h"
 #include "debug_arch.h"
+#include "storage_port.h"
 //#include "port.h"
 
 
@@ -21,7 +22,7 @@ SemaphoreHandle_t xDmaSemaphore;
 TaskHandle_t   xImuTaskHandle;
 static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1];
 static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1];
-IMU_Filter_t IMU_Filter_Data;
+IMU_Filter_t *IMU_Filter_Data;
 static ICM42688_Pack16_t IMU_Dat;
 
 
@@ -76,7 +77,7 @@ void vIMUProcessTask(void *pvParameters){
     (void)pvParameters;
   
     xImuTaskHandle = xTaskGetCurrentTaskHandle();
-    
+   // IMU_Filter_Data = &(UserParams->imu_filter);
     if(xDebugReadySignal != NULL){
         xSemaphoreTake(xDebugReadySignal,portMAX_DELAY);
         xSemaphoreGive(xDebugReadySignal);
@@ -131,18 +132,18 @@ void vIMUProcessTask(void *pvParameters){
             for(i=0;i<IMU_Init_Structure.FIFO_THS;i++){
                 
                 ICM42688_FIFO_Data_Handle(&IMU_Init_Structure,&IMU_Dat,ptr);
-                IMU_Filter_Data.ax = IMU_Dat.ax;
-                IMU_Filter_Data.ay = IMU_Dat.ay;
-                IMU_Filter_Data.az = IMU_Dat.az;
+                IMU_Filter_Data->ax = IMU_Dat.ax;
+                IMU_Filter_Data->ay = IMU_Dat.ay;
+                IMU_Filter_Data->az = IMU_Dat.az;
 
-                IMU_Filter_Data.gx = IMU_Dat.gx;
-                IMU_Filter_Data.gy = IMU_Dat.gy;
-                IMU_Filter_Data.gz = IMU_Dat.gz;
+                IMU_Filter_Data->gx = IMU_Dat.gx;
+                IMU_Filter_Data->gy = IMU_Dat.gy;
+                IMU_Filter_Data->gz = IMU_Dat.gz;
 
-                IMU_Filter_Data.time_stamp =  IMU_Dat.timestamp;
-                IMU_Filter_Data.sample_time =  IMU_Dat.timestamp / 1000000.0f;//1 / 500.0f;
-                IMU_Filter_Data.temp = IMU_Dat.temp;
-                IMU_Filter_Update(&IMU_Filter_Data);
+                IMU_Filter_Data->time_stamp =  IMU_Dat.timestamp;
+                IMU_Filter_Data->sample_time =  IMU_Dat.timestamp / 1000000.0f;//1 / 500.0f;
+                IMU_Filter_Data->temp = IMU_Dat.temp;
+                IMU_Filter_Update(IMU_Filter_Data);
 
                 ptr+=16;
             }
@@ -161,22 +162,23 @@ static void task_delay_ms(uint32_t t){
 
 void IMU_Init(){
     xDmaSemaphore = xSemaphoreCreateBinary();
-    xTaskCreate(vIMUProcessTask,"IMU",1024,NULL,tskIDLE_PRIORITY+4,NULL);
-     Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
-    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data.gy));
-    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.gz));
-    Debug_Register("pitch",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.pitch));
-    Debug_Register("roll",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.roll));
-    Debug_Register("yaw",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data.yaw));
-    Debug_Register("Kp",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data.Kp));
-    Debug_Register("Ki",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data.Ki));
     
-    IMU_Filter_Data.Kp = 1.5;
-    IMU_Filter_Data.Ki = 0.002;
-    IMU_Filter_Data.bias_gx=0.0f;
-    IMU_Filter_Data.bias_gy=0.0f;
-    IMU_Filter_Data.bias_gz=0.0f;
-    IMU_Filter_Data.is_calibrated = 0;
+    xTaskCreate(vIMUProcessTask,"IMU",1024,NULL,tskIDLE_PRIORITY+4,NULL);
+    Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data->ax));
+    Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data->ay));
+    Debug_Register("az",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data->az));
+    Debug_Register("pitch",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data->pitch));
+    Debug_Register("roll",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data->roll));
+    Debug_Register("yaw",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data->yaw));
+    Debug_Register("Kp",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data->Kp));
+    Debug_Register("Ki",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data->Ki));
+    
+    // IMU_Filter_Data->Kp = 1.5;
+    // IMU_Filter_Data->Ki = 0.002;
+    // IMU_Filter_Data->bias_gx=0.0f;
+    // IMU_Filter_Data->bias_gy=0.0f;
+    // IMU_Filter_Data->bias_gz=0.0f;
+    // IMU_Filter_Data->is_calibrated = 0;
 }
 
 void IMU_Structure_Init(){

@@ -31,7 +31,7 @@
 #define EEPROM_SIZE             (14 * 512)  // 14个扇区，每个512字节
 
 // 自检测试地址（使用最后一个扇区的末尾，避免与用户数据冲突）
-#define IAP_TEST_ADDR           (EEPROM_SIZE - 32)  // 距离末尾32字节
+#define IAP_TEST_ADDR           (0x0800)  // 距离末尾32字节  //不明原因不能写0x0000~0x4000,没具体测，怀疑是我代码体积膨胀到这个区域了？
 
 // IAP 命令定义
 #define IAP_STANDBY()           IAP_CMD = 0
