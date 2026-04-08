@@ -1,6 +1,6 @@
 #include "simple_queue.h"
 #include <string.h>  // for memcpy
-
+#include <stdint.h>  // for uint8_t, uint16_t
 void sQueue_init(sQueue_t *q, void *buffer, uint16_t cap, uint16_t elem_size) {
     // 局部变量声明（本函数无需额外变量）
     q->dat = buffer;

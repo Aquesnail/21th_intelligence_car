@@ -1,8 +1,7 @@
 #ifndef _DMA_UART_RING_H
 #define _DMA_UART_RING_H
 
-#include <stdint.h>
-#include <stddef.h>
+
 #include "config.h"
 /* ==========================================
  * 结构体定义

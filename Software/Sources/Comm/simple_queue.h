@@ -1,7 +1,7 @@
 #ifndef SQUEUE_H
 #define SQUEUE_H
 
-#include <stdint.h>  // for uint8_t, uint16_t
+
 #include "config.h"
 /**
  * 通用循环队列结构体

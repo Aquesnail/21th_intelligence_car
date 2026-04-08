@@ -1,7 +1,7 @@
 #ifndef _BEEP_H
 #define _BEEP_H
 
-#include <stdint.h>          /* uint16_t, uint8_t */
+
 #include "config.h"          /* 假设包含项目配置 */
 #include "simple_queue.h"     /* sQueue_t 等 */
 

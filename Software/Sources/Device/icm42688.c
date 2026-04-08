@@ -1,5 +1,6 @@
 #include "icm42688.h"
-
+#include "stdio.h"
+#include "string.h"
 /* =======================================================
  * 底层硬件包装函数 (包办了 CS 拉低拉高、读命令 | 0x80)
  * ======================================================= */
@@ -290,6 +291,7 @@ void ICM42688_FIFO_Data_Handle(ICM42688_t *dev,ICM42688_Pack16_t *dat,uint8_t* p
     dat->gz = raw_gyro_z * dev->gyro_sensitivity * 0.01745;
 
     dat->timestamp =  raw_timestamp;
+    dat->sample_time = (float)(raw_timestamp) / 1000000.0f;
     dat->temp = (raw_temp / 2.07f) + 25.0f;
 }
 uint8_t xdata raw_data[14];

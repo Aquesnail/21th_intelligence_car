@@ -140,8 +140,7 @@ void vIMUProcessTask(void *pvParameters){
                 IMU_Filter_Data->gy = IMU_Dat.gy;
                 IMU_Filter_Data->gz = IMU_Dat.gz;
 
-                IMU_Filter_Data->time_stamp =  IMU_Dat.timestamp;
-                IMU_Filter_Data->sample_time =  IMU_Dat.timestamp / 1000000.0f;//1 / 500.0f;
+                IMU_Filter_Data->sample_time =  IMU_Dat.sample_time;
                 IMU_Filter_Data->temp = IMU_Dat.temp;
                 IMU_Filter_Update(IMU_Filter_Data);
 
@@ -159,10 +158,9 @@ static void task_delay_ms(uint32_t t){
     vTaskDelay(pdMS_TO_TICKS(t));
     return;
 }
-
+extern UserParams_t *UserParams;
 void IMU_Init(){
     xDmaSemaphore = xSemaphoreCreateBinary();
-    
     xTaskCreate(vIMUProcessTask,"IMU",1024,NULL,tskIDLE_PRIORITY+4,NULL);
     Debug_Register("ax",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data->ax));
     Debug_Register("ay",DBG_FLOAT | HIGH_FREQ_TYPE,&(IMU_Filter_Data->ay));
@@ -172,6 +170,10 @@ void IMU_Init(){
     Debug_Register("yaw",DBG_FLOAT| HIGH_FREQ_TYPE,&(IMU_Filter_Data->yaw));
     Debug_Register("Kp",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data->Kp));
     Debug_Register("Ki",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data->Ki));
+    Debug_Register("bias_gx",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data->bias_gx));
+    Debug_Register("bias_gy",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data->bias_gy));
+    Debug_Register("bias_gz",DBG_FLOAT | STATIC_TYPE,&(IMU_Filter_Data->bias_gz));
+    
     
     // IMU_Filter_Data->Kp = 1.5;
     // IMU_Filter_Data->Ki = 0.002;

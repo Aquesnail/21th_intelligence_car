@@ -2,8 +2,7 @@
 #define __ICM42688_H
 
 #include "Config.h"
-#include "stdio.h"
-#include "string.h"
+
 #include "math.h"
 //#include "port.h"
 #include "icm42688_defs.h"
@@ -45,7 +44,9 @@ typedef struct {
    float ax,ay,az,gx,gy,gz;
    float temp;
    float timestamp;
+   float sample_time;
 } ICM42688_Pack16_t;
+
 
 /* 初始化与配置 */
 uint8_t ICM42688_Init(ICM42688_t *dev);

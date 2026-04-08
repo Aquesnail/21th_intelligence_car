@@ -11,7 +11,6 @@ typedef struct{
     float yaw;
     float roll;
     float gx,gy,gz,ax,ay,az;
-    uint16_t time_stamp;
     float temp;
     float sample_time;
     float Kp,Ki;

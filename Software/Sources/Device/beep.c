@@ -1,6 +1,6 @@
 #include "beep.h"
 #include <stddef.h> /* for NULL */
-
+#include <stdint.h>          /* uint16_t, uint8_t */
 /* 蜂鸣器控制器内部结构体定义 */
 struct BeepController {
     beep_out_t          hw_beep;      /* 硬件输出接口 */

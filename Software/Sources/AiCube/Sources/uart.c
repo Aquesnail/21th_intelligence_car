@@ -34,7 +34,7 @@ void UART4_Init(void)
 #ifdef BAUDRATE
 #undef BAUDRATE
 #endif
-#define BAUDRATE                (115200UL)
+#define BAUDRATE                (115200)
 #define T2_RELOAD               (65536 - (SYSCLK / BAUDRATE + 2) / 4)
 
     UART4_SwitchP5253();                //设置串口数据端口: RxD4 (P5.2), TxD4 (P5.3)

@@ -34,6 +34,7 @@ void sys_init(void){
 	CLK_Init();    
 
 	CLK_Init();  
+	WTST = 0x03;
 	delay_ms(100);
 	
 	//GPIO_Init();

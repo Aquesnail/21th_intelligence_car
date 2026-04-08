@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
+
 #include "config.h"
 
 /* 用户配置: 数据类型定义 */

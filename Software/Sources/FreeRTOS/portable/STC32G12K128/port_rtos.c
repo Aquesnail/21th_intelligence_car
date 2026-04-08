@@ -341,12 +341,7 @@ void P8_ISR(void){
 
     portRETURN_TASK();
 }
-__asm   { CSEG    AT   027BH       }
-#if ( configUSE_ROMHUGE == 0 )
-    __asm   { JMP     DMA_SPI2_ISR?_  }
-#else
-    __asm   { JMP     DMA_SPI2_ISR??  }
-#endif
+
 
     __asm   { CSEG    AT  0BH       }
 #if ( configUSE_ROMHUGE == 0 )
@@ -355,6 +350,12 @@ __asm   { CSEG    AT   027BH       }
     __asm   { JMP     vTimer0ISR??  }
 #endif
 
+__asm   { CSEG    AT   027BH       }
+#if ( configUSE_ROMHUGE == 0 )
+    __asm   { JMP     DMA_SPI2_ISR?_  }
+#else
+    __asm   { JMP     DMA_SPI2_ISR??  }
+#endif
 
  __asm   { CSEG    AT  014BH       }///
 #if ( configUSE_ROMHUGE == 0 )

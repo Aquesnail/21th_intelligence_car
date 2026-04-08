@@ -31,7 +31,7 @@
 #define EEPROM_SIZE             (14 * 512)  // 14个扇区，每个512字节
 
 // 自检测试地址（使用最后一个扇区的末尾，避免与用户数据冲突）
-#define IAP_TEST_ADDR           (0x0800)  // 距离末尾32字节  //不明原因不能写0x0000~0x4000,没具体测，怀疑是我代码体积膨胀到这个区域了？
+#define IAP_TEST_ADDR           (EEPROM_START_ADDR + EEPROM_SIZE)  // 距离末尾32字节  //不明原因不能写0x0000~0x4000,没具体测，怀疑是我代码体积膨胀到这个区域了？
 
 // IAP 命令定义
 #define IAP_STANDBY()           IAP_CMD = 0
@@ -143,37 +143,37 @@ static uint8_t EEPROM_ReadByte(uint32_t addr)
 ////////////////////////////////////////
 void IAP_Init(void)
 {
-    uint8_t test_data[4] = {0x5A, 0xA5, 0x69, 0x96};
-    uint8_t read_back[4];
-    static uint8_t i;
+    // uint8_t test_data[4] = {0x5A, 0xA5, 0x69, 0x96};
+    // uint8_t read_back[4];
+    // static uint8_t i;
 
     // 1. 配置 Flash 等待周期（关键！）
     WTST = IAP_WTST_VALUE;
 
     // 2. 自检流程：擦除 -> 写入 -> 验证 -> 擦除恢复
 
-    // 2.1 擦除测试扇区
-    EEPROM_SectorErase(IAP_TEST_ADDR);
+    // // 2.1 擦除测试扇区
+    // EEPROM_SectorErase(IAP_TEST_ADDR);
 
-    // 2.2 写入测试数据
-    for (i = 0; i < 4; i++) {
-        EEPROM_WriteByte(IAP_TEST_ADDR + i, test_data[i]);
-    }
+    // // 2.2 写入测试数据
+    // for (i = 0; i < 4; i++) {
+    //     EEPROM_WriteByte(IAP_TEST_ADDR + i, test_data[i]);
+    // }
 
-    // 2.3 读取并验证
-    for (i = 0; i < 4; i++) {
-        read_back[i] = EEPROM_ReadByte(IAP_TEST_ADDR + i);
-        if (read_back[i] != test_data[i]) {
-            // 自检失败，进入死循环等待调试
-            // 查看变量：i = 失败的字节索引 (0~3)
-            //          read_back[i] = 实际读取值
-            //          test_data[i] = 期望值
-            while (1);
-        }
-    }
+    // // 2.3 读取并验证
+    // for (i = 0; i < 4; i++) {
+    //     read_back[i] = EEPROM_ReadByte(IAP_TEST_ADDR + i);
+    //     if (read_back[i] != test_data[i]) {
+    //         // 自检失败，进入死循环等待调试
+    //         // 查看变量：i = 失败的字节索引 (0~3)
+    //         //          read_back[i] = 实际读取值
+    //         //          test_data[i] = 期望值
+    //         while (1);
+    //     }
+    // }
 
-    // 2.4 擦除恢复
-    EEPROM_SectorErase(IAP_TEST_ADDR);
+    // // 2.4 擦除恢复
+    // EEPROM_SectorErase(IAP_TEST_ADDR);
 
     // 自检通过
 }

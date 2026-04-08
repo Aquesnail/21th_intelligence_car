@@ -72,11 +72,10 @@ void IAP_ProgramByte(uint32_t dwAddress, uint8_t bData)
 uint8_t IAP_ReadByte(uint32_t dwAddress)
 {
     uint8_t dat;
+    uint32_t addr;
 
-    IAP_SetAddress(dwAddress);          //设置EEPROM目标地址
-    IAP_TriggerRead();                  //触发EEPROM字节读取
-    dat = IAP_ReadData();               //保存EEPROM数据
-    IAP_Idle();                         //恢复EEPROM空闲模式
+    addr = dwAddress + 0xfc00;          //计算EEPROM地址
+    dat = *(uint8_t code *)addr;        //MOVC方式读取EEPROM数据
 
     return dat;                         //返回读取的数据
 }
