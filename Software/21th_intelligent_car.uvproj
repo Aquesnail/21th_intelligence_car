@@ -874,6 +874,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\gpio_user.h</FilePath>
             </File>
+            <File>
+              <FileName>adc_user.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\adc_user.c</FilePath>
+            </File>
+            <File>
+              <FileName>adc_user.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\adc_user.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

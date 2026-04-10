@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "ws2812.h"
+#include "adc_user.h"
 #pragma warning disable = 98
 #pragma warning disable = 91
 extern void PWM_Test_Simple(void);

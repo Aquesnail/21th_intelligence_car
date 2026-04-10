@@ -55,10 +55,10 @@ void CLK_Init(void)
 
     HIRC_48M();                         //选择内部预置的频率
 
-    CLK_MCLK_XTAL();                    //选择外部高速晶振作为主时钟
+    CLK_MCLK_HIRC();                    //选择内部高精度HIRC作为主时钟
 
     CLK_HPLL1_BASECLK();                //选择内部基本时钟BASECLK作为HPLL1输入时钟
-    CLK_HPLL1_PreDivider(4);            //设置HPLL1的输入时钟预分频系数(分频后的频率必须为6MHz左右)
+    CLK_HPLL1_PreDivider(8);            //设置HPLL1的输入时钟预分频系数(分频后的频率必须为6MHz左右)
     CLK_HPLL1_Lock420MHz();             //选择HPLL1的锁频目标频率
     CLK_HPLL1_Enable();                 //启动HPLL1
 
@@ -81,7 +81,6 @@ void CLK_Init(void)
     // 在此添加用户初始化代码  
     //<<AICUBE_USER_CLOCK_INITIAL_END>>
 }
-
 
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_BEGIN>>

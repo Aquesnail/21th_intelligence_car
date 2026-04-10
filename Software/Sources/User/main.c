@@ -13,6 +13,7 @@
 #include "ws2812.h"
 #include "mathlib.h"
 #include "gpio_user.h"
+#include "adc_user.h"
 
 void sys_init(void);
 void main(){
@@ -43,7 +44,8 @@ void sys_init(void){
 	PWME_Init();
 
 	MATHLIB_Init();
-	
+	ADC2_Init();
+	ADC2_DMA_Init();
 	IAP_Init();
 	WS2812_Init();
 }

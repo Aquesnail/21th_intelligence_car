@@ -1044,7 +1044,7 @@
 		<EnableIRC48M>1</EnableIRC48M>
 		<EnableHPLL1>1</EnableHPLL1>
 		<HPLL1ClockSource>0</HPLL1ClockSource>
-		<HPLL1ClockInDivider>4</HPLL1ClockInDivider>
+		<HPLL1ClockInDivider>8</HPLL1ClockInDivider>
 		<HPLL1ClockOutSel>9</HPLL1ClockOutSel>
 		<HPLL1Frequency>420000000</HPLL1Frequency>
 		<EnableHPLL2>1</EnableHPLL2>
@@ -1053,7 +1053,7 @@
 		<HPLL2ClockOutSel>14</HPLL2ClockOutSel>
 		<HPLL2Frequency>480000000</HPLL2Frequency>
 		<MCLKClockSource>5</MCLKClockSource>
-		<BASEClockSource>1</BASEClockSource>
+		<BASEClockSource>0</BASEClockSource>
 		<MCLKDivider>2</MCLKDivider>
 		<SYSCLKFrequency>120000000</SYSCLKFrequency>
 		<EnableMCLKO>1</EnableMCLKO>

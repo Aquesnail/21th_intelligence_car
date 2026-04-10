@@ -56,7 +56,7 @@ void IMU_SPI_Dma_Read(uint8_t* rx_buf, uint16_t len){
 // -------------------------------------------------------------
 
 void IMU_INT1_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken){
-        vTaskNotifyGiveFromISR(xImuTaskHandle,xHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR(xImuTaskHandle,xHigherPriorityTaskWoken);
 }
 
 void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore){
@@ -194,4 +194,10 @@ void IMU_Structure_Init(){
     IMU_Init_Structure.FIFO_THS = FIFO_Packets;
     IMU_Init_Structure.delay(2);
     
+}
+
+void IMU_Get_Angle(float* roll,float* pitch,float* yaw){
+    *roll = (IMU_Filter_Data->roll);
+    *pitch = (IMU_Filter_Data->pitch);
+    *yaw = (IMU_Filter_Data->yaw);
 }

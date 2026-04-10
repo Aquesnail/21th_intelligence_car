@@ -232,7 +232,24 @@ static void prvPortSetupTimerInterrupt( void )
     ET0 = 1;
 }
 //extern SemaphoreHandle_t xDmaSemaphore;
+extern void DMA_ADC2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
+void DMA_ADC2_ISR(void){
+     static BaseType_t xHigherPriorityTaskWoken;
 
+    portNORMALIZE_INTERRUPT_STACK();
+    portSAVE_CONTEXT();
+    xHigherPriorityTaskWoken = pdFALSE;
+    DMA_ADC2_ISR_Handle(&xHigherPriorityTaskWoken);
+
+    if (xHigherPriorityTaskWoken != pdFALSE)
+    {
+        portEND_SWITCHING_ISR();
+    }
+    portRESTORE_CONTEXT();
+    portRELEASE_INTERRUPT();
+
+    portRETURN_TASK();
+}
 extern void DMA_SPI2_ISR_Handle(BaseType_t* xHigherPriorityTaskWOken);
 extern uint8_t spi2_dma_busy; 
 void DMA_SPI2_ISR(void)
@@ -264,7 +281,7 @@ void DMA_SPI2_ISR(void)
     */
     // 6. 【关键】使用 ERET 指令真正跳回任务
     portRETURN_TASK();
-//<<AICUBE_USER_SPI2_ISR_CODE2_END>>
+
 }
 extern void P1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 void P1_ISR(void){
@@ -383,4 +400,11 @@ __asm   { CSEG    AT   027BH       }
     __asm   { JMP     P1_ISR?_  }
 #else
     __asm   { JMP     P1_ISR??  }
+#endif
+                
+ __asm   { CSEG    AT  0263H      }///
+#if ( configUSE_ROMHUGE == 0 )
+    __asm   { JMP     DMA_ADC2_ISR?_  }
+#else
+    __asm   { JMP     DMA_ADC2_ISR??  }
 #endif

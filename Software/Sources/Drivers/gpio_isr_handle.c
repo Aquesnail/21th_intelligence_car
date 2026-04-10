@@ -15,9 +15,9 @@ void P1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     intf = CheckP1nFlag(PIN_ALL);
     if(intf & PIN_5){
         IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
-		}else if(intf & PIN_4){
-				IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
-		}
+	}else if(intf & PIN_4){
+		IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
+	}
     ClearP1nFlag(PIN_ALL);       
 }
 
