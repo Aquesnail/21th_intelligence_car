@@ -168,7 +168,7 @@ uint16_t ADC2_GetAvgValue(uint8_t ch)
 // 返回: none
 // 注意: 在 main.c 中添加中断入口: void DMA_ADC2_IRQHandler(void) interrupt DMA_ADC2_VECTOR { ADC2_DMA_ISR(); }
 //========================================================================
-void DMA_ADC2_ISR_Handle(void) 
+void DMA_ADC2_ISR_Handle(void* none) 
 {
     // 清除 DMA 状态
     DMA_ADC2_STA = 0;

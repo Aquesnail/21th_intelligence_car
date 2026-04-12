@@ -157,4 +157,14 @@ extern uint32_t GetRunTimeCounterValue(void);
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()  ConfigureTimeForRunTimeStats()
 #define portGET_RUN_TIME_COUNTER_VALUE()          GetRunTimeCounterValue()
 
+
+
+/* 中断管理模式开关：1 为 RTOS 接管，0 为裸机模式 */
+#define configUSE_RTOS_DMA_ADC2    1
+#define configUSE_RTOS_DMA_SPI2    1
+#define configUSE_RTOS_P1          1  /* 示例：P1 使用裸机模式 */
+#define configUSE_RTOS_P4          1
+#define configUSE_RTOS_P6          1
+#define configUSE_RTOS_P8          1
+
 #endif /* FREERTOS_CONFIG_H */

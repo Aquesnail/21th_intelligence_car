@@ -29,15 +29,15 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     uint32_t target_calib_count;          /* 目标需要达到的静止采样总次数 */
 
     /* =========================================================
-     * 2. 获取输入物理量
+     * 2. 获取输入物理量 (通过union共享传感器数据)
      * =========================================================*/
-    gx = dat->gx;
-    gy = dat->gy;
-    gz = dat->gz;
-    ax = dat->ax;
-    ay = dat->ay;
-    az = dat->az;
-    dt = (dat->sample_time); 
+    gx = dat->sensor.dat.gx;
+    gy = dat->sensor.dat.gy;
+    gz = dat->sensor.dat.gz;
+    ax = dat->sensor.dat.ax;
+    ay = dat->sensor.dat.ay;
+    az = dat->sensor.dat.az;
+    dt = dat->sensor.dat.sample_time; 
 
     if((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f)) {
         return;

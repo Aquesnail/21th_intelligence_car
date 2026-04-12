@@ -5,14 +5,13 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "icm42688.h"  /* 引入共享的union定义 */
 
 typedef struct{
     float pitch;
     float yaw;
     float roll;
-    float gx,gy,gz,ax,ay,az;
-    float temp;
-    float sample_time;
+    IMU_SensorData_u sensor;  /* 共享union：包含 ax,ay,az,gx,gy,gz,temp,sample_time */
     float Kp,Ki;
     float bias_gx,bias_gy,bias_gz;
     uint8_t is_calibrated;
