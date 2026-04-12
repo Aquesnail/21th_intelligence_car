@@ -6,6 +6,7 @@
 #include "crc.h"
 #include "storage_port.h"
 #include "storage_mgr.h"
+#include "beep.h"
 #pragma warning disable = 47
 
 extern void App_UartTest_Init(void);
@@ -26,9 +27,9 @@ void app_init(void){
 		App_DebugTask_Init();
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
-    BeepPort_Init();
+    Beep_Init();
     IMU_Init();
-    BeepTestTask_Init();
+    
     key_port_init();
    // Task_OLED_Test_Init();
     //Storage_Test_Init();
