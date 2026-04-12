@@ -188,7 +188,7 @@
           <Target251Misc>
             <MemoryModel>3</MemoryModel>
             <RTOS>0</RTOS>
-            <RomSize>4</RomSize>
+            <RomSize>3</RomSize>
             <NearDataHold>0</NearDataHold>
             <XDataHold>0</XDataHold>
             <FarDataHold>0</FarDataHold>
@@ -225,9 +225,9 @@
                 <Size>0x20000</Size>
               </XRAM>
               <Ocm1>
-                <Type>1</Type>
-                <StartAddress>0xfe0000</StartAddress>
-                <Size>0x20000</Size>
+                <Type>0</Type>
+                <StartAddress>0x0</StartAddress>
+                <Size>0x0</Size>
               </Ocm1>
               <Ocm2>
                 <Type>0</Type>
@@ -257,7 +257,7 @@
             </OnChipMemories>
           </Target251Misc>
           <C251>
-            <RegColor>0</RegColor>
+            <RegColor>1</RegColor>
             <uOrder>0</uOrder>
             <uAlias>1</uAlias>
             <uRentF>1</uRentF>
@@ -267,7 +267,7 @@
             <Optim>9</Optim>
             <wLevel>2</wLevel>
             <SizSpd>1</SizSpd>
-            <AcaOpt>0</AcaOpt>
+            <AcaOpt>1</AcaOpt>
             <VariousControls>
               <MiscControls></MiscControls>
               <Define></Define>

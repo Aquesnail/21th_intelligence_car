@@ -16,8 +16,10 @@
 #pragma warning disable = 138
 #pragma warning disable = 151
 
-#define FIFO_Packets 32
+#define FIFO_Packets 2
 
+#define SIGNAL_IMU_DATA_READY  (1 << 0)  // 位 0：外部中断引脚触发
+#define SIGNAL_SPI_DMA_DONE    (1 << 1)  // 位 1：DMA 传输完成 //任务通知比信号量快
 /* =======================================================
  * 外部变量定义（供icm42688.c使用）
  * ======================================================= */
@@ -56,8 +58,13 @@ uint8_t ICM42688_SPI_TxRx(uint8_t dat) {
 
 /* SPI DMA批量读取 */
 void ICM42688_SPI_DmaRead(uint8_t* rx_buf, uint16_t len) {
+    uint32_t ulNotifiedValue;
     SPI2_DMA_WriteReadBytes_IT(FIFO_TxBuffer, rx_buf, len);
-    xSemaphoreTake(xDmaSemaphore, pdMS_TO_TICKS(10));
+    if (xTaskNotifyWait(0, SIGNAL_SPI_DMA_DONE, &ulNotifiedValue, pdMS_TO_TICKS(10)) == pdTRUE) {
+        return;
+    } else {
+        // 异常超时处理
+    }
 }
 
 /* 毫秒延时 */
@@ -77,11 +84,11 @@ void ICM42688_Print(const char* fmt, ...) {
  * 中断回调
  * ======================================================= */
 void IMU_INT1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken) {
-    vTaskNotifyGiveFromISR(xImuTaskHandle, xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(xImuTaskHandle, SIGNAL_IMU_DATA_READY, eSetBits, xHigherPriorityTaskWoken);
 }
 
-void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore) {
-    xSemaphoreGiveFromISR(xDmaSemaphore, xSPI_DmaSemaphore);
+void IMU_DMA_Read_CallBack(BaseType_t*  xHigherPriorityTaskWoken) {
+    xTaskNotifyFromISR(xImuTaskHandle, SIGNAL_SPI_DMA_DONE, eSetBits, xHigherPriorityTaskWoken);
 }
 
 /* =======================================================
@@ -93,10 +100,10 @@ float temp_t;
 
 void vIMUProcessTask(void *pvParameters) {
     uint8_t xdata* ptr;
-    uint16_t i, j;
-
+    uint16_t i;
+    uint32_t ulNotifiedValue;
     ptr = FIFO_RxBuffer;
-    j = 0;
+
     (void)pvParameters;
 
     xImuTaskHandle = xTaskGetCurrentTaskHandle();
@@ -123,20 +130,22 @@ void vIMUProcessTask(void *pvParameters) {
     }
 
     for (;;) {
-        if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY)) {
-            j = ICM42688_ReadFIFO(FIFO_RxBuffer);
-            if (j != ICM_ERROR && j != 0) {
-                Debug_Log("Pcakets: %u \r\n", j);
-            }
+        if (xTaskNotifyWait(0, SIGNAL_IMU_DATA_READY, &ulNotifiedValue, portMAX_DELAY) == pdTRUE) {
+            if (ulNotifiedValue & SIGNAL_IMU_DATA_READY) {
+                ICM42688_ReadFIFO(FIFO_RxBuffer);
+            
 
-            ptr = FIFO_RxBuffer;
-            for (i = 0; i < icm_fifo_ths; i++) {
-                ICM42688_FIFO_Data_Handle(&IMU_Dat, ptr);
-                /* Union共享：直接内存拷贝8个float */
-                IMU_Filter_Data->sensor = IMU_Dat.sensor;
-                IMU_Filter_Update(IMU_Filter_Data);
-                ptr += 16;
+                ptr = FIFO_RxBuffer;
+                for (i = 0; i < icm_fifo_ths; i++) {
+                    ICM42688_FIFO_Data_Handle(&IMU_Dat, ptr);
+                    /* Union共享：直接内存拷贝8个float */
+                    IMU_Filter_Data->sensor = IMU_Dat.sensor;
+                    IMU_Filter_Update(IMU_Filter_Data);
+                    ptr += 16;
+                }
+
             }
+            
 
            // ICM42688_ReadData(acc_t, gyro_t, &temp_t);
         }
@@ -149,7 +158,6 @@ void vIMUProcessTask(void *pvParameters) {
 extern UserParams_t *UserParams;
 
 void IMU_Init() {
-    xDmaSemaphore = xSemaphoreCreateBinary();
     xTaskCreate(vIMUProcessTask, "IMU", 1024, NULL, tskIDLE_PRIORITY + 4, NULL);
 
     Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));

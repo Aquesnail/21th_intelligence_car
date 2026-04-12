@@ -64,7 +64,7 @@
 /***************************************************************************************************************/
 #define configPORT_VERSION_NUMBER               "V1.0.2"                //STC移植代码版本
 
-#define configUSE_ROMHUGE                       1                       //1 ROM使用HUGE模式，0使用LARGE模式
+#define configUSE_ROMHUGE                       0                       //1 ROM使用HUGE模式，0使用LARGE模式
 //#define MAIN_Fosc                               ( 48000000UL )          //系统工作频率
 
 #if ( configUSE_ROMHUGE == 0 )
