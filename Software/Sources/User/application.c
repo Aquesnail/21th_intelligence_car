@@ -18,19 +18,21 @@ extern void BeepPort_Init(void);
 extern void BeepTestTask_Init();
 extern void Task_OLED_Test_Init(void);
 extern void key_port_init(void);
+extern void MainControl_Init(void);
 void app_init(void){
     UART4_Init();
     CRC_Init();
-    Storage_Init();
+   // Storage_Init();
 		//Params_Init_Default(); 
     //App_UartTest_Init();
 		App_DebugTask_Init();
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
    // Beep_Init();
-    IMU_Init();
+    //IMU_Init();
+    MainControl_Init();
     
-    key_port_init();
+    //key_port_init();
    // Task_OLED_Test_Init();
     //Storage_Test_Init();
     vTaskStartScheduler();

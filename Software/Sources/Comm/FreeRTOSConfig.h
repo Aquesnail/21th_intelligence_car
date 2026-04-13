@@ -161,6 +161,7 @@ extern uint32_t GetRunTimeCounterValue(void);
 
 /* 中断管理模式开关：1 为 RTOS 接管，0 为裸机模式 */
 #define configUSE_RTOS_DMA_ADC2    1
+#define configUSE_RTOS_DMA_SPI1    1
 #define configUSE_RTOS_DMA_SPI2    1
 #define configUSE_RTOS_P1          1  /* 示例：P1 使用裸机模式 */
 #define configUSE_RTOS_P4          1

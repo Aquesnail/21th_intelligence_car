@@ -24,7 +24,9 @@
 	<PORT0>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>2</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -35,6 +37,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>2</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -45,6 +48,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>2</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -55,6 +59,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>2</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -65,6 +70,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>2</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -75,6 +81,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>2</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -85,6 +92,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>2</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -95,6 +103,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>2</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -108,7 +117,9 @@
 	<PORT1>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>0</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -119,6 +130,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -129,6 +141,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -139,6 +152,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>2</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -149,6 +163,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>1</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -159,6 +174,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>1</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -169,6 +185,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>2</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -179,6 +196,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>2</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -192,7 +210,9 @@
 	<PORT2>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>1</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -203,6 +223,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>1</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -213,6 +234,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -223,6 +245,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -233,6 +256,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -243,6 +267,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -253,6 +278,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>3</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -263,6 +289,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>3</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -276,7 +303,9 @@
 	<PORT3>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>2</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -287,6 +316,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>2</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -297,6 +327,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -307,6 +338,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -317,6 +349,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -327,6 +360,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -337,6 +371,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -347,6 +382,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -360,7 +396,9 @@
 	<PORT4>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>0</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -371,6 +409,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>1</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -381,6 +420,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -391,6 +431,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -401,6 +442,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -411,6 +453,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>1</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>1</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -421,6 +464,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>1</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -431,6 +475,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -444,7 +489,9 @@
 	<PORT5>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>0</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -455,6 +502,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -465,6 +513,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>2</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -475,6 +524,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>1</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -485,6 +535,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -495,6 +546,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -505,6 +557,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -515,6 +568,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -528,7 +582,9 @@
 	<PORT6>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>2</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -539,6 +595,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>2</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>1</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -549,6 +606,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>2</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -559,6 +617,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -569,6 +628,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>1</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -579,6 +639,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -589,6 +650,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>1</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -599,6 +661,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -612,7 +675,9 @@
 	<PORT7>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>0</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -623,6 +688,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -633,6 +699,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -643,6 +710,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -653,6 +721,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -663,6 +732,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -673,6 +743,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -683,6 +754,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -696,7 +768,9 @@
 	<PORT8>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>1</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -707,6 +781,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>1</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -717,6 +792,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>1</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -727,6 +803,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>1</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -737,6 +814,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -747,6 +825,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -757,6 +836,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -767,6 +847,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -780,7 +861,9 @@
 	<PORT9>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>0</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -791,6 +874,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -801,6 +885,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -811,6 +896,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -821,6 +907,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -831,6 +918,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>1</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -841,6 +929,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -851,6 +940,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -864,7 +954,9 @@
 	<PORTA>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>0</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -875,6 +967,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -885,6 +978,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -895,6 +989,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -905,6 +1000,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -915,6 +1011,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -925,6 +1022,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -935,6 +1033,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -948,7 +1047,9 @@
 	<PORTB>
 		<PeriEnable>1</PeriEnable>
 		<IntPriority>0</IntPriority>
+		<P54P12>0</P54P12>
 		<PortMD_0>0</PortMD_0>
+		<PortBP_0>1</PortBP_0>
 		<PortPU_0>0</PortPU_0>
 		<PortPD_0>0</PortPD_0>
 		<PortNCS_0>0</PortNCS_0>
@@ -959,6 +1060,7 @@
 		<PortWK_0>0</PortWK_0>
 		<PortLevel_0>1</PortLevel_0>
 		<PortMD_1>0</PortMD_1>
+		<PortBP_1>1</PortBP_1>
 		<PortPU_1>0</PortPU_1>
 		<PortPD_1>0</PortPD_1>
 		<PortNCS_1>0</PortNCS_1>
@@ -969,6 +1071,7 @@
 		<PortWK_1>0</PortWK_1>
 		<PortLevel_1>1</PortLevel_1>
 		<PortMD_2>0</PortMD_2>
+		<PortBP_2>1</PortBP_2>
 		<PortPU_2>0</PortPU_2>
 		<PortPD_2>0</PortPD_2>
 		<PortNCS_2>0</PortNCS_2>
@@ -979,6 +1082,7 @@
 		<PortWK_2>0</PortWK_2>
 		<PortLevel_2>1</PortLevel_2>
 		<PortMD_3>0</PortMD_3>
+		<PortBP_3>1</PortBP_3>
 		<PortPU_3>0</PortPU_3>
 		<PortPD_3>0</PortPD_3>
 		<PortNCS_3>0</PortNCS_3>
@@ -989,6 +1093,7 @@
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
+		<PortBP_4>1</PortBP_4>
 		<PortPU_4>0</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
@@ -999,6 +1104,7 @@
 		<PortWK_4>0</PortWK_4>
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
+		<PortBP_5>1</PortBP_5>
 		<PortPU_5>0</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
@@ -1009,6 +1115,7 @@
 		<PortWK_5>0</PortWK_5>
 		<PortLevel_5>1</PortLevel_5>
 		<PortMD_6>0</PortMD_6>
+		<PortBP_6>1</PortBP_6>
 		<PortPU_6>0</PortPU_6>
 		<PortPD_6>0</PortPD_6>
 		<PortNCS_6>0</PortNCS_6>
@@ -1019,6 +1126,7 @@
 		<PortWK_6>0</PortWK_6>
 		<PortLevel_6>1</PortLevel_6>
 		<PortMD_7>0</PortMD_7>
+		<PortBP_7>1</PortBP_7>
 		<PortPU_7>0</PortPU_7>
 		<PortPD_7>0</PortPD_7>
 		<PortNCS_7>0</PortNCS_7>
@@ -1102,7 +1210,7 @@
 		<IAPEraseFunc>1</IAPEraseFunc>
 		<IAPProgramFunc>1</IAPProgramFunc>
 		<IAPReadFunc>2</IAPReadFunc>
-		<IAPOffset>0xfc00</IAPOffset>
+		<IAPOffset>0xfc2800</IAPOffset>
 	</IAP>
 	<TIMER0>
 		<PeriEnable>0</PeriEnable>
@@ -1372,6 +1480,7 @@
 	</TIMER18>
 	<UART1>
 		<PeriEnable>0</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1404,9 +1513,20 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART1RxBuffer</RxBuffer>
+		<RxCount></RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART1>
 	<UART2>
 		<PeriEnable>0</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1439,9 +1559,20 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART2RxBuffer</RxBuffer>
+		<RxCount></RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART2>
 	<UART3>
 		<PeriEnable>0</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1474,9 +1605,20 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART3RxBuffer</RxBuffer>
+		<RxCount></RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART3>
 	<UART4>
 		<PeriEnable>1</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1509,9 +1651,20 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART4RxBuffer</RxBuffer>
+		<RxCount>u8UART4RxCount</RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART4>
 	<UART5>
 		<PeriEnable>0</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>1</EnableTMO>
 		<EnableTMOInt>1</EnableTMOInt>
@@ -1544,9 +1697,20 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART5RxBuffer</RxBuffer>
+		<RxCount></RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART5>
 	<UART6>
 		<PeriEnable>0</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1579,9 +1743,20 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART6RxBuffer</RxBuffer>
+		<RxCount></RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART6>
 	<UART7>
 		<PeriEnable>0</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1614,9 +1789,20 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART7RxBuffer</RxBuffer>
+		<RxCount></RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART7>
 	<UART8>
 		<PeriEnable>0</PeriEnable>
+		<WorkMode>0</WorkMode>
 		<UartREN>1</UartREN>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
@@ -1649,6 +1835,16 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<AutoRecvData>1</AutoRecvData>
+		<RxBufferSize>16</RxBufferSize>
+		<RxBuffer>pu8UART8RxBuffer</RxBuffer>
+		<RxCount></RxCount>
+		<SPISwap>0</SPISwap>
+		<SPIPort>-1</SPIPort>
+		<SPIMode>0</SPIMode>
+		<BitOrder>0</BitOrder>
+		<SPIClockMode>0</SPIClockMode>
+		<SPIClockDivider>1</SPIClockDivider>
 	</UART8>
 	<EXTI0>
 		<PeriEnable>0</PeriEnable>
@@ -1869,12 +2065,14 @@
 	<SPI1>
 		<PeriEnable>0</PeriEnable>
 		<EnableHSSPI>0</EnableHSSPI>
+		<EnableHSSPIFIFO>0</EnableHSSPIFIFO>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
 		<EnableInt>0</EnableInt>
 		<SPIPort>-1</SPIPort>
 		<SPISwap>0</SPISwap>
 		<SPIMode>0</SPIMode>
+		<MOSIIdleLevel>0</MOSIIdleLevel>
 		<BitOrder>0</BitOrder>
 		<SPIClockMode>0</SPIClockMode>
 		<SPIClockDivider>1</SPIClockDivider>
@@ -1904,12 +2102,14 @@
 	<SPI2>
 		<PeriEnable>1</PeriEnable>
 		<EnableHSSPI>0</EnableHSSPI>
+		<EnableHSSPIFIFO>0</EnableHSSPIFIFO>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
 		<EnableInt>0</EnableInt>
 		<SPIPort>2</SPIPort>
 		<SPISwap>0</SPISwap>
 		<SPIMode>0</SPIMode>
+		<MOSIIdleLevel>0</MOSIIdleLevel>
 		<BitOrder>0</BitOrder>
 		<SPIClockMode>0</SPIClockMode>
 		<SPIClockDivider>2</SPIClockDivider>
@@ -1939,12 +2139,14 @@
 	<SPI3>
 		<PeriEnable>0</PeriEnable>
 		<EnableHSSPI>0</EnableHSSPI>
+		<EnableHSSPIFIFO>0</EnableHSSPIFIFO>
 		<EnableTMO>0</EnableTMO>
 		<EnableTMOInt>0</EnableTMOInt>
 		<EnableInt>0</EnableInt>
 		<SPIPort>-1</SPIPort>
 		<SPISwap>0</SPISwap>
 		<SPIMode>0</SPIMode>
+		<MOSIIdleLevel>0</MOSIIdleLevel>
 		<BitOrder>0</BitOrder>
 		<SPIClockMode>0</SPIClockMode>
 		<SPIClockDivider>1</SPIClockDivider>
@@ -2007,6 +2209,7 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<EnableDemo24C02>1</EnableDemo24C02>
 	</I2C1>
 	<I2C2>
 		<PeriEnable>0</PeriEnable>
@@ -2044,6 +2247,7 @@
 		<EnableP2PB>0</EnableP2PB>
 		<P2PSource>0</P2PSource>
 		<P2PDestination>0</P2PDestination>
+		<EnableDemo24C02>1</EnableDemo24C02>
 	</I2C2>
 	<RTC>
 		<PeriEnable>0</PeriEnable>
@@ -2225,8 +2429,18 @@
 		<CANEndian>0</CANEndian>
 		<SBTBaudrate>500</SBTBaudrate>
 		<SBTSJW>0</SBTSJW>
+		<SBTSEG1>0</SBTSEG1>
+		<SBTSEG2>0</SBTSEG2>
+		<SBTPRESC>0</SBTPRESC>
+		<SBTSamplePoint></SBTSamplePoint>
+		<SBTError></SBTError>
 		<FBTBaudrate>500</FBTBaudrate>
 		<FBTSJW>0</FBTSJW>
+		<FBTSEG1>0</FBTSEG1>
+		<FBTSEG2>0</FBTSEG2>
+		<FBTPRESC>0</FBTPRESC>
+		<FBTSamplePoint></FBTSamplePoint>
+		<FBTError></FBTError>
 		<RBStoreSelect>0</RBStoreSelect>
 		<RBOverflowAction>0</RBOverflowAction>
 		<RBAFWLimit>0</RBAFWLimit>
@@ -2346,8 +2560,18 @@
 		<CANEndian>0</CANEndian>
 		<SBTBaudrate>500</SBTBaudrate>
 		<SBTSJW>0</SBTSJW>
+		<SBTSEG1>0</SBTSEG1>
+		<SBTSEG2>0</SBTSEG2>
+		<SBTPRESC>0</SBTPRESC>
+		<SBTSamplePoint></SBTSamplePoint>
+		<SBTError></SBTError>
 		<FBTBaudrate>500</FBTBaudrate>
 		<FBTSJW>0</FBTSJW>
+		<FBTSEG1>0</FBTSEG1>
+		<FBTSEG2>0</FBTSEG2>
+		<FBTPRESC>0</FBTPRESC>
+		<FBTSamplePoint></FBTSamplePoint>
+		<FBTError></FBTError>
 		<RBStoreSelect>0</RBStoreSelect>
 		<RBOverflowAction>0</RBOverflowAction>
 		<RBAFWLimit>0</RBAFWLimit>
@@ -3535,27 +3759,27 @@
 		<Pin05Map>1</Pin05Map>
 		<Pin06Map>1</Pin06Map>
 		<Pin07Map>1</Pin07Map>
-		<Pin17Map>-1</Pin17Map>
+		<Pin17Map>255</Pin17Map>
 		<Pin23Map>4</Pin23Map>
 		<Pin24Map>4</Pin24Map>
-		<Pin25Map>-1</Pin25Map>
-		<Pin26Map>-1</Pin26Map>
-		<Pin28Map>-1</Pin28Map>
-		<Pin29Map>-1</Pin29Map>
-		<Pin30Map>-1</Pin30Map>
+		<Pin25Map>255</Pin25Map>
+		<Pin26Map>255</Pin26Map>
+		<Pin28Map>255</Pin28Map>
+		<Pin29Map>255</Pin29Map>
+		<Pin30Map>255</Pin30Map>
 		<Pin32Map>16</Pin32Map>
 		<Pin33Map>16</Pin33Map>
 		<Pin34Map>16</Pin34Map>
 		<Pin35Map>16</Pin35Map>
 		<Pin41Map>16</Pin41Map>
-		<Pin44Map>-1</Pin44Map>
-		<Pin67Map>-1</Pin67Map>
+		<Pin44Map>255</Pin44Map>
+		<Pin67Map>255</Pin67Map>
 		<Pin73Map>8</Pin73Map>
 		<Pin85Map>8</Pin85Map>
 		<Pin86Map>4</Pin86Map>
 		<Pin87Map>4</Pin87Map>
 		<Pin88Map>4</Pin88Map>
-		<Pin92Map>-1</Pin92Map>
+		<Pin92Map>255</Pin92Map>
 		<Pin95Map>1</Pin95Map>
 		<Pin96Map>1</Pin96Map>
 		<Pin97Map>1</Pin97Map>

@@ -15,8 +15,17 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
-void UART4_Init(void);
+#define UART4_RXSIZE            16      //串口4接收缓冲区大小
 
+
+void UART4_Init(void);
+void UART4_SendByte(uint8_t dat);
+void UART4_SendBuffer(uint8_t *dat, uint8_t size);
+void UART4_SendString(char *str);
+void UART4_RecvPolling(void);
+
+extern uint8_t u8UART4RxCount;
+extern uint8_t xdata pu8UART4RxBuffer[UART4_RXSIZE];
 
 
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>

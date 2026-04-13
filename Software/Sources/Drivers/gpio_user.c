@@ -32,14 +32,20 @@ void GPIO_Init(void) {
     // --- P2口配置 ---
     // P2.7, P2.6开漏(11), P2.1, P2.0推挽(01), 其余准双向(00)
     P2M1 = (PIN_7 | PIN_6);
-    P2M0 = (PIN_7 | PIN_6 | PIN_1 | PIN_0);
+    P2M0 = (PIN_7 | PIN_6 | PIN_1 | PIN_0 | PIN_3 | PIN_5);
+    P2SR = ~(PIN_3 | PIN_5);
+    P2NCS = 0x00;
     P2IE = 0xFF;
 
     // --- P3口配置 ---
     // P3.1, P3.0高阻(10), 其余准双向(00)
     P3M1 = (PIN_1 | PIN_0);
-    P3M0 = 0x00;
+    P3M0 = (PIN_2 | PIN_4 );
     P3IE = 0xFF;
+    P3SR = ~(PIN_4 | PIN_2);
+	P3NCS = 0x00;  
+    //P3DR &= ~(PIN_4 | PIN_2);
+
 
     // --- P4口配置 ---
     // P4.5, P4.1推挽(01), 其余准双向(00)
@@ -78,7 +84,8 @@ void GPIO_Init(void) {
     P8M1 = 0x00;
     P8M0 = (PIN_3 | PIN_1 | PIN_0);
     P8PU = PIN_2;
-    P8DR &= ~(PIN_3 | PIN_2 | PIN_1);   // 增强驱动
+    P8SR = ~(PIN_3 | PIN_2 | PIN_1); 
+    // P8DR = ~(PIN_3 | PIN_2 | PIN_1);   // 增强驱动
 
     // --- P9, PA, PB口配置 ---
     P9M1 = 0x00; P9M0 = PIN_5;          // P9.5推挽
