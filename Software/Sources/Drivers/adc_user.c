@@ -57,7 +57,7 @@ void ADC2_DMA_Init(void)
     DMA_ADC2_CFG = 0x80;
 
     // 3. 设置 DMA 接收地址 (高位和低位)
-    DMA_ADC2_RXAH = (uint8_t)((uint8_t)adc2_dma_buffer >> 8);
+    DMA_ADC2_RXAH = (uint8_t)((uint16_t)adc2_dma_buffer >> 8);
     DMA_ADC2_RXAL = (uint8_t)adc2_dma_buffer;
 
     // 4. 配置每个通道的 ADC 转换次数
