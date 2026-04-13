@@ -3,5 +3,32 @@ Listings/
 Reference/
 Temporary/
 STC32G144K246_Core_Board_backup/
+
 *.jar
 *.pdf
+
+*.o          # 目标文件
+*.obj        # Windows目标文件
+*.elf        # ELF可执行文件
+*.axf        # ARM可执行文件
+*.bin        # 二进制固件
+*.hex        # Intel HEX格式
+*.srec       # Motorola S-record
+*.map        # 链接映射文件
+*.lst        # 列表文件
+*.sym        # 符号表
+*.d          # 依赖文件
+
+build/
+_build/
+Debug/
+Release/
+debug/
+release/
+out/
+dist/
+cmake-build-*/
+[Bb]uild*/
+[Bb]in/
+[Oo]bj/
+[Ll]ib/
