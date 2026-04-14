@@ -69,7 +69,8 @@ void ICM42688_SPI_DmaRead(uint8_t* rx_buf, uint16_t len) {
 
 /* 毫秒延时 */
 void ICM42688_DelayMs(uint32_t ms) {
-    vTaskDelay(pdMS_TO_TICKS(ms));
+    delay_ms(ms);
+    //vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
 /* 调试打印 */
@@ -160,9 +161,9 @@ extern UserParams_t *UserParams;
 void IMU_Init() {
     xTaskCreate(vIMUProcessTask, "IMU", 728, NULL, tskIDLE_PRIORITY + 4, NULL);
 
-    // Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
-    // Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
-    // Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
+    Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
+    Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
+    Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
     Debug_Register("pitch", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->pitch));
     Debug_Register("roll", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->roll));
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->yaw));

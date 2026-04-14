@@ -26,12 +26,12 @@
 // 在此添加用户全局变量定义、用户宏定义以及函数声明
 
 // SPI2 DMA传输完成标志（用于阻塞函数）
-volatile uint8_t dma_spi2_done;
+volatile uint8_t dma_spi2_done = 0;
 
 // 以下变量用于非阻塞DMA传输
-static uint8_t *spi2_rx_buffer;         // 用户接收缓冲区指针
-static uint8_t spi2_transfer_len;        // 传输长度
-uint8_t spi2_dma_busy;   // 非阻塞传输忙标志
+static uint8_t *spi2_rx_buffer = NULL;         // 用户接收缓冲区指针
+static uint8_t spi2_transfer_len = 0;        // 传输长度
+uint8_t spi2_dma_busy = 0;   // 非阻塞传输忙标志
 
 
 static DMA_SPI2_Callback_t spi2_dma_callback = (void code*)NULL;
@@ -39,7 +39,7 @@ static DMA_SPI2_Callback_t spi2_dma_callback = (void code*)NULL;
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8SPI2DMATxBuffer[2048];   //SPI2 DMA发送缓冲区数组
+uint8_t xdata pu8SPI2DMATxBuffer[2048] = {0};   //SPI2 DMA发送缓冲区数组
 
 ////////////////////////////////////////
 // SPI2初始化函数

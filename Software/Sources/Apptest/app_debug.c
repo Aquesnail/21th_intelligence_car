@@ -16,7 +16,7 @@
 #pragma warning disable = 47
 
 /* 全局变量 ---------------------------------------------------------------- */
-debug_port_t        debug_init_structure;
+debug_port_t        debug_init_structure = {0};
 TaskHandle_t        xDebugTaskHandle    = NULL;
 TaskHandle_t        xDebugTaskHandle2   = NULL;
 SemaphoreHandle_t   xRegistrationSemaphore = NULL;
@@ -93,7 +93,7 @@ void vDebugTaskDelayedStart(void *pvParameters)
 
 extern uint8_t CPUStatus_HandleCommand(const char* cmd);
 extern uint8_t Storage_HandleCommand(const char* cmd);
-char xdata echoBuf[70];
+char xdata echoBuf[70] = {0};
 void Debug_OnTextReceived(char* str, uint8_t len)
 {   
     if(Storage_HandleCommand(str)){

@@ -10,7 +10,7 @@
 #define ZONE_B_ADDR         (STORAGE_BASE_ADDR + STORAGE_ZONE_SIZE)
 #define MAGIC_NUM           0x5AA55AA5L
 
-Package_t g_ram_pkg;
+Package_t g_ram_pkg = {0};
 
 void Port_Flash_Init(void) {
    

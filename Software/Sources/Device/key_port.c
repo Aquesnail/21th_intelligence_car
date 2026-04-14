@@ -7,7 +7,7 @@
 #include "debug_arch.h"
 
 /* 全局按键 ID 数组，暴露给外部 ISR 文件使用 (如 gpio_isr_handle.c) */
-uint32_t g_key_ids[5];
+uint32_t g_key_ids[5] = {0};
 
 /* FreeRTOS 定时器句柄 */
 static TimerHandle_t xKeyTimer = NULL;

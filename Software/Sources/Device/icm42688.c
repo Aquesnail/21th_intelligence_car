@@ -284,7 +284,7 @@ void ICM42688_FIFO_Data_Handle(ICM42688_Pack16_t *dat, uint8_t *ptr){
 /* =======================================================
  * 直接读取传感器数据
  * ======================================================= */
-static uint8_t xdata raw_data[14];
+static uint8_t xdata raw_data[14] = {0};
 
 uint8_t ICM42688_ReadData(float *acc, float *gyro, float *temp) {
     int16_t raw_acc[3];

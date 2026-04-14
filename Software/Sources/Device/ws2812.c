@@ -7,7 +7,7 @@
 #define BUFFER_SIZE_PKTS   (WS2812_LED_NUM * 24 + 1)
 
 // 定义DMA缓冲区 (放在 xdata 防止溢出)
-WS2812_DMA_Packet_t xdata ws_buffer[BUFFER_SIZE_PKTS];
+WS2812_DMA_Packet_t xdata ws_buffer[BUFFER_SIZE_PKTS] = {0};
 
 // 忙碌标志位
 volatile bit ws_dma_busy = 0;

@@ -9,9 +9,9 @@ static struct {
     BeepNote_t  notes[QUEUE_SIZE];
     uint8_t     head, tail, count;
     uint8_t     busy;
-} g_beep;
+} g_beep = {0};
 
-static TimerHandle_t g_timer;
+static TimerHandle_t g_timer = NULL;
 
 static void hw_beep(uint16_t freq) {
     uint16_t reload;

@@ -15,7 +15,7 @@ void MOTOR_INT1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 void MOTOR_INT2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 void MOTOR_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore);
 
-float test1,test2,test3;
+float test1 = 0.0f, test2 = 0.0f, test3 = 0.0f;
 
 #define SIGNAL_SPI1_DMA_DONE 1 << 3
 
@@ -29,7 +29,7 @@ uint8_t MOTOR_SPI_TxRx(uint8_t dat) {
 
 /* SPI DMA批量读取 */
 #define SIGNAL_SPI_DMA_DONE    (1 << 1)  // 位 1：DMA 传输完成 //任务通知比信号量快
-uint8_t xdata SPI_DMA_Test[16];
+uint8_t xdata SPI_DMA_Test[16] = {0};
 void MOTOR_SPI_DmaRead(uint8_t* rx_buf, uint16_t len) {
     uint32_t ulNotifiedValue;
     SPI1_DMA_WriteReadBytes_IT(SPI_DMA_Test, rx_buf, len);
@@ -46,7 +46,9 @@ void vMainControlTask(void* params){
     (void)params;
     test2=0;
     for(;;){
+        P32=~P32;
         vTaskDelay(2);
+    
         num+=0.01;
         test1 = sin(num);
         test2 += 0.02;

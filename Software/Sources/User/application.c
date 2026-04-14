@@ -29,7 +29,7 @@ void app_init(void){
 		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
    // Beep_Init();
-    //IMU_Init();
+    IMU_Init();
     MainControl_Init();
     
     //key_port_init();

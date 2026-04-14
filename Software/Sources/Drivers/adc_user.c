@@ -1,10 +1,10 @@
 #include "adc_user.h"
 
 // DMA 缓冲区定义 (必须位于 xdata 区域)
-uint8_t xdata adc2_dma_buffer[ADC2_CH_NUM][ADC2_BUF_SIZE];
+uint8_t * adc2_dma_buffer = NULL;
 
 // DMA 完成标志
-volatile bit adc2_dma_done;
+bit adc2_dma_done=0;
 
 //========================================================================
 // 函数: void ADC2_Init(void)
@@ -47,7 +47,7 @@ void ADC2_Init(void)
 // 参数: none
 // 返回: none
 //========================================================================
-void ADC2_DMA_Init(void)
+void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
 {
     // 1. 清除状态寄存器
     DMA_ADC2_STA = 0x00;
@@ -55,7 +55,7 @@ void ADC2_DMA_Init(void)
     // 2. 配置 DMA 中断使能
     // bit7: 1=使能 DMA 完成中断
     DMA_ADC2_CFG = 0x80;
-
+    adc2_dma_buffer = adc2_dma_buf;
     // 3. 设置 DMA 接收地址 (高位和低位)
     DMA_ADC2_RXAH = (uint8_t)((uint16_t)adc2_dma_buffer >> 8);
     DMA_ADC2_RXAL = (uint8_t)adc2_dma_buffer;
@@ -122,7 +122,7 @@ uint16_t ADC2_GetRawValue(uint8_t ch)
 {
     uint16_t adc_val;
     uint8_t idx;
-
+    uint16_t offset;
     if (ch >= ADC2_CH_NUM) return 0;
 
     // 取最后一次采样值
@@ -130,8 +130,9 @@ uint16_t ADC2_GetRawValue(uint8_t ch)
 
     // 右对齐格式: 高8位在 RES，低8位在 RESL
     // DMA 缓冲区存储格式: 低字节在前，高字节在后
-    adc_val = adc2_dma_buffer[ch][idx * 2];         // 低字节
-    adc_val |= (uint16_t)adc2_dma_buffer[ch][idx * 2 + 1] << 8;  // 高字节
+    offset = ch * ADC2_BUF_SIZE * 2 + idx * 2;
+    adc_val = adc2_dma_buffer[offset];         // 低字节
+    adc_val |= (uint16_t)adc2_dma_buffer[offset + 1] << 8;  // 高字节
 
     return adc_val & 0x0FFF;  // 只保留12位
 }
@@ -153,8 +154,9 @@ uint16_t ADC2_GetAvgValue(uint8_t ch)
     // 计算所有采样值的平均
     for (i = 0; i < ADC2_BUF_SIZE; i++)
     {
-        adc_val = adc2_dma_buffer[ch][i * 2];
-        adc_val |= (uint16_t)adc2_dma_buffer[ch][i * 2 + 1] << 8;
+        uint16_t offset = ch * ADC2_BUF_SIZE * 2 + i * 2;
+        adc_val = adc2_dma_buffer[offset];
+        adc_val |= (uint16_t)adc2_dma_buffer[offset + 1] << 8;
         sum += (adc_val & 0x0FFF);
     }
 

@@ -14,7 +14,7 @@
 
 // ADC2 初始化
 void ADC2_Init(void);
-void ADC2_DMA_Init(void);
+void ADC2_DMA_Init(uint8_t* adc2_dma_buffer);
 
 // ADC2 启动 DMA 采样
 void ADC2_DMA_Start(void);

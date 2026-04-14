@@ -17,7 +17,7 @@
 
 void sys_init(void);
 void main(){
-	EnableAccessXFR();                  //??????XFR
+		EnableAccessXFR();                  //??????XFR
     AccessCodeFastest();                //????????????
     AccessIXramFastest();               //??????????XDATA
     IAP_SetTimeBase();                  //??IAP????,??1us??
@@ -45,7 +45,7 @@ void sys_init(void){
 
 	MATHLIB_Init();
 	ADC2_Init();
-	ADC2_DMA_Init();
+	//ADC2_DMA_Init();
 	IAP_Init();
 	WS2812_Init();
 }

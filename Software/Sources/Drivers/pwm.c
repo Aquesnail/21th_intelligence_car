@@ -23,7 +23,7 @@
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8PWMEDMATxBuffer[12];   //PWMEDMA发送缓冲区数组
+uint8_t xdata pu8PWMEDMATxBuffer[12] = {0};   //PWMEDMA发送缓冲区数组
 
 ////////////////////////////////////////
 // PWMA初始化函数
@@ -594,7 +594,7 @@ typedef struct {
 
 // 定义缓冲区：发送3个数据 (0码, 1码, 结束码)
 // 3个数据点 * 4字节 = 12字节
-DMA_Burst4_Packet xdata TestBuffer[3]; 
+DMA_Burst4_Packet xdata TestBuffer[3] = {0}; 
 
 void PWM_Test_Simple(void)
 {
