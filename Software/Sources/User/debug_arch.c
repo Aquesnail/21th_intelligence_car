@@ -15,7 +15,7 @@
 #define MAX_DEBUG_VARS  16
 #define TX_BUF_SIZE     255  // 统一发送缓冲区
 #define RX_BUF_SIZE     512  // 接收缓冲区
-debug_port_t* debug_init_struct;
+debug_port_t* debug_init_struct = NULL;
 // 协议常量
 #define CMD_HANDSHAKE       0x00
 #define CMD_WRITE           0x55
@@ -37,10 +37,10 @@ typedef struct {
 } DebugObj_t;
 
 /* ================= 静态变量 ================= */
-static DebugObj_t debugTable[MAX_DEBUG_VARS];
+static DebugObj_t debugTable[MAX_DEBUG_VARS] = {0};
 static uint8_t debugVarCount = 0;
-static uint8_t xdata txPkt[TX_BUF_SIZE]; // 统一发送缓冲
-static char xdata print_buf[512];
+static uint8_t xdata txPkt[TX_BUF_SIZE] = {0}; // 统一发送缓冲
+static char xdata print_buf[512] = {0};
 
 /*================== 互斥锁   ================= */
 
@@ -279,7 +279,7 @@ static void Debug_SendBulkHighFreqPacket(void) {
 }
 
 // [核心精简] 统一接收处理
-static uint8_t xdata rxBuf[RX_BUF_SIZE];
+static uint8_t xdata rxBuf[RX_BUF_SIZE] = {0};
 static void Debug_ProcessIncoming(void) {
     
     uint16_t crc_calc, crc_recv;

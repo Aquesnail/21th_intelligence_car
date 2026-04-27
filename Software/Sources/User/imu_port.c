@@ -23,17 +23,17 @@
 /* =======================================================
  * 外部变量定义（供icm42688.c使用）
  * ======================================================= */
-float   icm_acc_sensitivity;      /* 加速度灵敏度 */
-float   icm_gyro_sensitivity;     /* 陀螺仪灵敏度 */
-uint8_t icm_current_bank;         /* 当前寄存器bank */
-uint16_t icm_fifo_ths;            /* FIFO阈值 */
+float   icm_acc_sensitivity = 0.0f;      /* 加速度灵敏度 */
+float   icm_gyro_sensitivity = 0.0f;     /* 陀螺仪灵敏度 */
+uint8_t icm_current_bank = 0;         /* 当前寄存器bank */
+uint16_t icm_fifo_ths = 0;            /* FIFO阈值 */
 
-SemaphoreHandle_t xDmaSemaphore;
-TaskHandle_t   xImuTaskHandle;
-static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1];
-static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1];
-IMU_Filter_t *IMU_Filter_Data;
-static ICM42688_Pack16_t IMU_Dat;
+SemaphoreHandle_t xDmaSemaphore = NULL;
+TaskHandle_t   xImuTaskHandle = NULL;
+static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1] = {0};
+static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1] = {0};
+IMU_Filter_t *IMU_Filter_Data = NULL;
+static ICM42688_Pack16_t IMU_Dat = {0};
 
 extern SemaphoreHandle_t xDebugReadySignal;
 
@@ -95,9 +95,9 @@ void IMU_DMA_Read_CallBack(BaseType_t*  xHigherPriorityTaskWoken) {
 /* =======================================================
  * IMU任务
  * ======================================================= */
-float acc_t[3];
-float gyro_t[3];
-float temp_t;
+float acc_t[3] = {0.0f};
+float gyro_t[3] = {0.0f};
+float temp_t = 0.0f;
 
 void vIMUProcessTask(void *pvParameters) {
     uint8_t xdata* ptr;
@@ -161,9 +161,9 @@ extern UserParams_t *UserParams;
 void IMU_Init() {
     xTaskCreate(vIMUProcessTask, "IMU", 728, NULL, tskIDLE_PRIORITY + 4, NULL);
 
-    Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
-    Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
-    Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
+		//Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
+    //Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
+    //Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
     Debug_Register("pitch", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->pitch));
     Debug_Register("roll", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->roll));
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->yaw));

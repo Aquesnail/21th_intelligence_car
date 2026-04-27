@@ -22,7 +22,7 @@ extern void MainControl_Init(void);
 void app_init(void){
     UART4_Init();
     CRC_Init();
-   // Storage_Init();
+    Storage_Init();
 		//Params_Init_Default(); 
     //App_UartTest_Init();
 		App_DebugTask_Init();

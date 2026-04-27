@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-UserParams_t *UserParams;
+UserParams_t *UserParams = NULL;
 extern Package_t g_ram_pkg;
 extern IMU_Filter_t *IMU_Filter_Data;
 

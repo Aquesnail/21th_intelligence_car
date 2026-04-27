@@ -1,6 +1,6 @@
 # 全局变量初始化记录
 
-本文档记录了对 `Sources/Drivers/`、`Sources/Apptest/` 与 `Sources/Device/` 下用户代码全局变量的显式初始化修改，避免未定义行为。
+本文档记录了对 `Sources/Drivers/`、`Sources/Apptest/`、`Sources/Device/` 与 `Sources/User/` 下用户代码全局变量的显式初始化修改，避免未定义行为。
 
 ## Drivers
 
@@ -97,3 +97,46 @@
 | 变量 | 类型 | 初始化值 |
 |------|------|----------|
 | `g_ram_pkg` | `Package_t` | `= {0}` |
+
+## User
+
+### cpu_status.c
+
+| 变量 | 类型 | 初始化值 |
+|------|------|----------|
+| `vTaskMonitor_Handle` | `TaskHandle_t` | `= NULL` |
+| `taskname` | `char *` | `= NULL` |
+
+### debug_arch.c
+
+| 变量 | 类型 | 初始化值 |
+|------|------|----------|
+| `debug_init_struct` | `debug_port_t *` | `= NULL` |
+| `debugTable` | `static DebugObj_t [MAX_DEBUG_VARS]` | `= {0}` |
+| `txPkt` | `static uint8_t xdata [TX_BUF_SIZE]` | `= {0}` |
+| `print_buf` | `static char xdata [512]` | `= {0}` |
+| `rxBuf` | `static uint8_t xdata [RX_BUF_SIZE]` | `= {0}` |
+
+### storage_port.c
+
+| 变量 | 类型 | 初始化值 |
+|------|------|----------|
+| `UserParams` | `UserParams_t *` | `= NULL` |
+
+### imu_port.c
+
+| 变量 | 类型 | 初始化值 |
+|------|------|----------|
+| `icm_acc_sensitivity` | `float` | `= 0.0f` |
+| `icm_gyro_sensitivity` | `float` | `= 0.0f` |
+| `icm_current_bank` | `uint8_t` | `= 0` |
+| `icm_fifo_ths` | `uint16_t` | `= 0` |
+| `xDmaSemaphore` | `SemaphoreHandle_t` | `= NULL` |
+| `xImuTaskHandle` | `TaskHandle_t` | `= NULL` |
+| `FIFO_RxBuffer` | `static uint8_t xdata [FIFO_Packets*16 +1]` | `= {0}` |
+| `FIFO_TxBuffer` | `static uint8_t xdata [FIFO_Packets*16 +1]` | `= {0}` |
+| `IMU_Filter_Data` | `IMU_Filter_t *` | `= NULL` |
+| `IMU_Dat` | `static ICM42688_Pack16_t` | `= {0}` |
+| `acc_t` | `float [3]` | `= {0.0f}` |
+| `gyro_t` | `float [3]` | `= {0.0f}` |
+| `temp_t` | `float` | `= 0.0f` |

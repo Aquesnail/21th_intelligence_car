@@ -9,7 +9,7 @@
 
 volatile uint32_t ulHighFrequencyTimerTicks = 0;
 extern uint16_t g_u16OverflowCount ;
-TaskHandle_t vTaskMonitor_Handle;
+TaskHandle_t vTaskMonitor_Handle = NULL;
 // 初始化定时器 (这只是伪代码，请使用 HAL 库或寄存器配置实际硬件)
 void ConfigureTimeForRunTimeStats(void)
 {
@@ -135,7 +135,7 @@ void CPU_STATUS_TASK_Init(void){
         &vTaskMonitor_Handle
     );
 }
-char *taskname;
+char *taskname = NULL;
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     // 此时不要调用 Debug_Log (会死循环)，直接闪灯或断点 
 		taskname = pcTaskName;
