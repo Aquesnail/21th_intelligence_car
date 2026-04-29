@@ -31,7 +31,7 @@
 ////////////////////////////////////////
 void CLK_Init(void)
 {
-    CLK_I2S1CLK_Divider(1);             //设置I2S1时钟预分频系数
+   CLK_I2S1CLK_Divider(1);             //设置I2S1时钟预分频系数
     CLK_I2S2CLK_Divider(1);             //设置I2S2时钟预分频系数
     CLK_SPI1CLK_Divider(1);             //设置SPI1时钟预分频系数
     CLK_SPI2CLK_Divider(1);             //设置SPI2时钟预分频系数
@@ -55,15 +55,15 @@ void CLK_Init(void)
 
     HIRC_48M();                         //选择内部预置的频率
 
-    CLK_MCLK_HIRC();                    //选择内部高精度HIRC作为主时钟
+    CLK_MCLK_XTAL();                    //选择外部高速晶振作为主时钟
 
     CLK_HPLL1_BASECLK();                //选择内部基本时钟BASECLK作为HPLL1输入时钟
-    CLK_HPLL1_PreDivider(8);            //设置HPLL1的输入时钟预分频系数(分频后的频率必须为6MHz左右)
+    CLK_HPLL1_PreDivider(4);            //设置HPLL1的输入时钟预分频系数(分频后的频率必须为6MHz左右)
     CLK_HPLL1_Lock420MHz();             //选择HPLL1的锁频目标频率
     CLK_HPLL1_Enable();                 //启动HPLL1
 
-    CLK_HPLL2_IRC48M();                 //选择内部48M高速IRC作为HPLL2输入时钟
-    CLK_HPLL2_PreDivider(8);            //设置HPLL2的输入时钟预分频系数(分频后的频率必须为6MHz左右)
+    CLK_HPLL2_BASECLK();                //选择内部基本时钟BASECLK作为HPLL2输入时钟
+    CLK_HPLL2_PreDivider(4);            //设置HPLL2的输入时钟预分频系数(分频后的频率必须为6MHz左右)
     CLK_HPLL2_Lock480MHz();             //选择HPLL2的锁频目标频率
     CLK_HPLL2_Enable();                 //启动HPLL2
     delay_ms(1);                        //等待PLL锁频
@@ -76,10 +76,6 @@ void CLK_Init(void)
 
     CLK_HSI2SCK_HPLL1D2();              //选择HPLL1的输出2分频时钟作为高速I2S时钟源
     CLK_HSIOCK_HPLL1D2();               //选择HPLL1的输出2分频时钟作为高速外设时钟源
-
-    //<<AICUBE_USER_CLOCK_INITIAL_BEGIN>>
-    // 在此添加用户初始化代码  
-    //<<AICUBE_USER_CLOCK_INITIAL_END>>
 }
 
 
