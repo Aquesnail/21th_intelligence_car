@@ -145,7 +145,7 @@ uint8_t ICM42688_Init(void) {
         ICM42688_DelayMs(3);
         ret = icm_read_reg(0, ICM42688_WHO_AM_I, &chip_id);
     }
-    ICM42688_Print("WHO_I_AM %d \r\n", chip_id);
+    ICM42688_Print("WHO_I_AM %d \r\n", chip_id&0xFF);
     if (chip_id != 0x47) return ICM_ERROR;
 
     pwr_mgmt = PWR_MGMT0_TEMP_ENABLED | PWR_MGMT0_GYRO_LN | PWR_MGMT0_ACCEL_LN;

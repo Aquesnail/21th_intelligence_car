@@ -69,7 +69,7 @@ void ICM42688_SPI_DmaRead(uint8_t* rx_buf, uint16_t len) {
 
 /* 毫秒延时 */
 void ICM42688_DelayMs(uint32_t ms) {
-    delay_ms(ms);
+    vTaskDelay(pdMS_TO_TICKS(ms));
     //vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
