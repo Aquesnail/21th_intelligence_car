@@ -142,18 +142,18 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>4</LineNumber>
+          <LineNumber>140</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>-36218</Address>
+          <Address>-29127</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>Sources\Drivers\delay.c</Filename>
+          <Filename>Sources\User\imu_port.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\21th_intelligent_car\delay\4</Expression>
+          <Expression>\\21th_intelligent_car\imu_port\140</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>

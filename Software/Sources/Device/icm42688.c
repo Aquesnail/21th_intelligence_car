@@ -114,7 +114,7 @@ static uint8_t configure_aaf(uint8_t is_accel, uint8_t delt, uint16_t deltsqr, u
  * 初始化
  * ======================================================= */
 uint8_t ICM42688_Init(void) {
-    uint8_t chip_id = 0;
+    uint16_t chip_id = 0;
     uint8_t gyro_cfg;
     uint8_t accel_cfg;
     uint8_t fifo_cfg1;
@@ -144,8 +144,9 @@ uint8_t ICM42688_Init(void) {
     while(chip_id != 0x47){
         ICM42688_DelayMs(3);
         ret = icm_read_reg(0, ICM42688_WHO_AM_I, &chip_id);
+				ICM42688_Print("WHO_I_AM %d \r\n", (chip_id&0xFF));
     }
-    ICM42688_Print("WHO_I_AM %d \r\n", chip_id&0xFF);
+    ICM42688_Print("WHO_I_AM %d \r\n", (chip_id&0xFF));
     if (chip_id != 0x47) return ICM_ERROR;
 
     pwr_mgmt = PWR_MGMT0_TEMP_ENABLED | PWR_MGMT0_GYRO_LN | PWR_MGMT0_ACCEL_LN;
