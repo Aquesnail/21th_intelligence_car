@@ -16,7 +16,6 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
-
 #define PWMA_CH1                0x11
 #define PWMA_CH2                0x12
 #define PWMA_CH3                0x13
@@ -79,7 +78,7 @@ void HSPWMD_WriteReg(uint8_t addr, uint8_t dat);
 void HSPWME_WriteReg(uint8_t addr, uint8_t dat);
 void HSPWMF_WriteReg(uint8_t addr, uint8_t dat);
 
-extern uint8_t xdata pu8PWMEDMATxBuffer[PWME_DMATXSIZE];
+extern uint8_t xdata pu8PWMEDMATxBuffer[12];
 
 
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>

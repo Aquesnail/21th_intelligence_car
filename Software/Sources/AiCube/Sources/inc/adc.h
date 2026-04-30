@@ -15,11 +15,6 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
-#define ADC1_STPCYC             0       //ADC1通道选择建立时间
-#define ADC1_HLDCYC             1       //ADC1通道选择保持时间
-#define ADC1_SMPCYC             9       //ADC1通道采样时间
-
-
 void ADC1_Init(void);
 uint16_t ADC1_Convert(uint8_t ch);
 

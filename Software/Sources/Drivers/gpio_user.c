@@ -20,14 +20,14 @@ void GPIO_Init(void) {
     // --- P1口配置 ---
     // P1.7, P1.6, P1.3 高阻(10), 其余准双向(00)
     P1M1 = (PIN_7 | PIN_6 | PIN_3); 
-    P1M0 = 0x00;
+    P1M0 = PIN_4;
     P1PU = (PIN_5 | PIN_4);             // P1.5, P1.4上拉
     P1IE = ~(PIN_7 | PIN_6 | PIN_3);    // 模拟输入位关闭数字使能
     // P1中断配置: P1.5, P1.4 上升沿(001)
-    P1IM2 &= ~(PIN_5 | PIN_4); 
-    P1IM1 &= ~(PIN_5 | PIN_4); 
-    P1IM0 |= (PIN_5 | PIN_4); 
-    P1INTE |= (PIN_5 | PIN_4);          // 中断使能
+    P1IM2 &= ~(PIN_5 ); 
+    P1IM1 &= ~(PIN_5); 
+    P1IM0 |= (PIN_5 ); 
+    P1INTE |= (PIN_5);          // 中断使能
 
     // --- P2口配置 ---
     // P2.7, P2.6开漏(11), P2.1, P2.0推挽(01), 其余准双向(00)
@@ -68,16 +68,17 @@ void GPIO_Init(void) {
     // --- P6口配置 ---
     // P6.6, P6.4推挽(01), 其余准双向(00)
     P6M1 = 0x00;
-    P6M0 = (PIN_6 | PIN_4);
-    P6PU = PIN_1;
+    P6M0 = (PIN_6 | PIN_4 | PIN_1);
+    P6PU = 0;
     // P6中断配置: P6.1, P6.5, P6.7 下降沿(000)
-    P6IM2 &= ~(PIN_1 | PIN_5 | PIN_7);
-    P6IM1 &= ~(PIN_1 | PIN_5 | PIN_7);
-    P6IM0 &= ~(PIN_1 | PIN_5 | PIN_7);
-    P6INTE |= (PIN_1 | PIN_5 | PIN_7);
+    P6IM2 &= ~( PIN_5 | PIN_7);
+    P6IM1 &= ~( PIN_5 | PIN_7);
+    P6IM0 &= ~( PIN_5 | PIN_7);
+    P6INTE |= ( PIN_5 | PIN_7);
 
     // --- P7口配置 ---
     P7M1 = 0x00; P7M0 = 0x00;           // 全准双向
+    P7SR = ~(PIN_1);
 
     // --- P8口配置 ---
     // P8.3, P8.1, P8.0推挽(01), 其余准双向(00)
@@ -97,3 +98,4 @@ void GPIO_Init(void) {
     PIN2IPL = 0x00; PIN2IPH = 0x00;     // P8-PB中断优先级
 
 }
+

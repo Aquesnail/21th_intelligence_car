@@ -31,7 +31,7 @@
 ////////////////////////////////////////
 void CLK_Init(void)
 {
-   CLK_I2S1CLK_Divider(1);             //设置I2S1时钟预分频系数
+    CLK_I2S1CLK_Divider(1);             //设置I2S1时钟预分频系数
     CLK_I2S2CLK_Divider(1);             //设置I2S2时钟预分频系数
     CLK_SPI1CLK_Divider(1);             //设置SPI1时钟预分频系数
     CLK_SPI2CLK_Divider(1);             //设置SPI2时钟预分频系数
@@ -76,6 +76,10 @@ void CLK_Init(void)
 
     CLK_HSI2SCK_HPLL1D2();              //选择HPLL1的输出2分频时钟作为高速I2S时钟源
     CLK_HSIOCK_HPLL1D2();               //选择HPLL1的输出2分频时钟作为高速外设时钟源
+
+    //<<AICUBE_USER_CLOCK_INITIAL_BEGIN>>
+    // 在此添加用户初始化代码  
+    //<<AICUBE_USER_CLOCK_INITIAL_END>>
 }
 
 

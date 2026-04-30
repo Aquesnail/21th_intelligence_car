@@ -92,6 +92,18 @@ void IMU_DMA_Read_CallBack(BaseType_t*  xHigherPriorityTaskWoken) {
     xTaskNotifyFromISR(xImuTaskHandle, SIGNAL_SPI_DMA_DONE, eSetBits, xHigherPriorityTaskWoken);
 }
 
+void TIMER9_TIMER10_ISR(void) interrupt TMR9_TMR10_VECTOR
+{
+    //<<AICUBE_USER_TIMER10_ISR_CODE1_BEGIN>>
+    // 在此添加中断函数用户代码  
+    if (TIMER10_CheckFlag())            //判断定时器10中断
+    {
+        P14=~P14; 
+        TIMER10_ClearFlag();            //清除定时器10中断标志
+    }
+    //<<AICUBE_USER_TIMER10_ISR_CODE1_END>>
+}
+
 /* =======================================================
  * IMU任务
  * ======================================================= */

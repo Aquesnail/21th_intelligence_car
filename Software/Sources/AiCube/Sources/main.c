@@ -79,6 +79,9 @@ void SYS_Init(void)
     PORTB_Init();                       //PB口初始化
     CLK_Init();                         //时钟模块初始化
     IAP_Init();                         //EEPROM初始化
+    TIMER0_Init();                      //定时器0初始化
+    TIMER8_Init();                      //定时器8初始化
+    TIMER10_Init();                     //定时器10初始化
     TIMER11_Init();                     //定时器11初始化
     UART4_Init();                       //串口4初始化
     ADC1_Init();                        //ADC1初始化

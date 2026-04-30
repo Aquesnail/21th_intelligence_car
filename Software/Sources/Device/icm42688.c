@@ -226,7 +226,7 @@ uint8_t ICM42688_Init(void) {
 
     int_cfg = INT1_MODE_PULSED | INT2_MODE_PULSED |
               INT1_DRIVE_CIRCUIT_OPEN_DRAIN | INT2_DRIVE_CIRCUIT_OPEN_DRAIN |
-              INT1_POLARITY_ACTIVE_HIGH | INT2_POLARITY_ACTIVE_HIGH;
+              INT1_POLARITY_ACTIVE_HIGH | INT2_POLARITY_ACTIVE_LOW;
     ret = icm_write_reg(0, ICM42688_INT_CONFIG, int_cfg);
     if (ret != ICM_OK) return ret;
 

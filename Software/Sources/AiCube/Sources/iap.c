@@ -74,8 +74,8 @@ uint8_t IAP_ReadByte(uint32_t dwAddress)
     uint8_t dat;
     uint32_t addr;
 
-    addr = dwAddress + IAP_OFFSET;      //计算EEPROM地址
-    dat = *(uint8_t ecode *)addr;       //MOV方式读取EEPROM数据
+    addr = dwAddress + 0xfc2800;        //计算EEPROM地址
+    dat = *(uint8_t code *)addr;        //MOVC方式读取EEPROM数据
 
     return dat;                         //返回读取的数据
 }

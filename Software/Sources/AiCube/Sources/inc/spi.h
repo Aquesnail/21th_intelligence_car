@@ -15,16 +15,12 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
-#define SPI2_DMASIZE            16      //SPI2 DMA发送缓冲区大小
-#define SPI2_DMAITV             0       //SPI2 DMA发送/接收字节间隔时间（系统时钟）
-
-
 void SPI2_Init(void);
 uint8_t SPI2_ReadByte(void);
 void SPI2_WriteByte(uint8_t dat);
 
-extern uint8_t xdata pu8SPI2DMATxBuffer[SPI2_DMASIZE];
-extern uint8_t xdata pu8SPI2DMARxBuffer[SPI2_DMASIZE];
+extern uint8_t xdata pu8SPI2DMATxBuffer[16];
+extern uint8_t xdata pu8SPI2DMARxBuffer[16];
 
 
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>

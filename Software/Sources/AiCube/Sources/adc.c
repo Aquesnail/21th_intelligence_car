@@ -37,9 +37,9 @@ void ADC1_Init(void)
     ADC1_ADC2_IndependMode();           //两组ADC为独立模式
     ADC1_DisableRepeatConv();           //关闭ADC自动重复转换功能
 
-    ADC1_SetCSSetupCycles(ADC1_STPCYC); //设置ADC通道选择建立时间
-    ADC1_SetCSHoldCycles(ADC1_HLDCYC);  //设置ADC通道选择保持时间
-    ADC1_SetSampleDutyCycles(ADC1_SMPCYC); //设置ADC通道采样时间
+    ADC1_SetCSSetupCycles(0);           //设置ADC通道选择建立时间
+    ADC1_SetCSHoldCycles(1);            //设置ADC通道选择保持时间
+    ADC1_SetSampleDutyCycles(9);        //设置ADC通道采样时间
 
     ADC1_DisableETR();                  //禁止ADC外部触发功能
 

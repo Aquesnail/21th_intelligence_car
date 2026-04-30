@@ -15,7 +15,6 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
-
 void CRC_Init(void);
 uint32_t CRC_Calculate(uint8_t *dat, int len);
 

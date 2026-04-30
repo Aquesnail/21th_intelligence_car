@@ -47,7 +47,46 @@ void TIMER11_Init(void)
     // 在此添加用户初始化代码  
     //<<AICUBE_USER_TIMER11_INITIAL_END>>
 }
+void TIMER9_Init(void)
+{
+#define T9_PSCR                 (9)
+#define T9_RELOAD               (65536) //定时周期1微秒
 
+    TIMER9_TimerMode();                 //设置定时器9为定时模式
+    TIMER9_12TMode();                   //设置定时器9为12T模式
+    TIMER9_EnableCLKO();                //使能定时器9时钟输出功能
+    TIMER9_SetPrescale(T9_PSCR);        //设置定时器9的8位预分频
+    TIMER9_SetReload16(T9_RELOAD);      //设置定时器9的16位重载值
+    TIMER9_Run();                       //定时器9开始运行
+
+    //<<AICUBE_USER_TIMER9_INITIAL_BEGIN>>
+    // 在此添加用户初始化代码  
+    //<<AICUBE_USER_TIMER9_INITIAL_END>>
+}
+
+void TIMER10_Init(void)
+{
+#define T10_PSCR                (200)
+#define T10_RELOAD              (65536 - 50000) //定时周期1000微秒
+
+    TIMER10_TimerMode();                //设置定时器10为定时模式
+    TIMER10_12TMode();                  //设置定时器10为12T模式
+    TIMER10_SetIntPriority(0);          //设置中断为最低优先级
+    TIMER10_EnableInt();                //使能定时器10中断
+    //TIMER10_EnableCLKO();
+    TIMER10_SetPrescale(T10_PSCR);      //设置定时器10的8位预分频
+    TIMER10_SetReload16(T10_RELOAD);    //设置定时器10的16位重载值
+    TIMER10_Run();                      //定时器10开始运行
+
+    //<<AICUBE_USER_TIMER10_INITIAL_BEGIN>>
+    // 在此添加用户初始化代码  
+    //<<AICUBE_USER_TIMER10_INITIAL_END>>
+}
+
+
+uint16_t Get_Tim9(){
+    return ((uint16_t)T9H << 8)+T9L;
+}
 
 ////////////////////////////////////////
 // 定时器11中断服务程序
