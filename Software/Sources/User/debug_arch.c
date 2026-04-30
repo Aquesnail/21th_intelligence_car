@@ -167,25 +167,32 @@ static void Debug_SendHighFreqValuePacket(uint8_t id){
         
     }
 }
-// 发送日志 (ID=0xFF)
-void Debug_Log(const char* fmt,...) {
-    va_list args;
-    if(xLogMutex != NULL){
-        if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(100)) == pdTRUE){
-            memset(print_buf,0x00,sizeof(print_buf));
+// 1. 底层核心函数：直接接收 va_list
+void vDebug_Log(const char* fmt, va_list args) {
+    if (xLogMutex != NULL) {
+        if (xSemaphoreTake(xLogMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            // 注意：没有 vsnprintf 时，确保 print_buf 足够大以防溢出
+            memset(print_buf, 0x00, sizeof(print_buf));
 
-            va_start(args,fmt);
-            vsprintf(print_buf,fmt,args);
-            va_end(args);
+            // 使用 vsprintf 解析 va_list
+            vsprintf(print_buf, fmt, args); 
+            
             Debug_TxCore(0xFF, DBG_STRING, (uint8_t*)print_buf, strlen(print_buf));
 
             xSemaphoreGive(xLogMutex);
-        }else{
-					while(1);
-				}
-        
+        } else {
+            // 信号量获取失败处理
+            while(1); 
+        }
     }
-   
+}
+
+// 2. 对外的通用日志接口
+void Debug_Log(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vDebug_Log(fmt, args); // 转发给底层函数
+    va_end(args);
 }
 
 static uint8_t FindFrameHeader(void) {

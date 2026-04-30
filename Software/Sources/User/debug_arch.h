@@ -8,7 +8,9 @@
 #include "semphr.h"
 
 #include "vartype.h"
-
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 #define DataType_Msk    0x0F
 #define FreqType_Msk    0x10
 #define StaticType_Msk  0x20
@@ -51,6 +53,7 @@ void vDebugTask(void *pvParameters);
 void Debug_Register(char* name, uint8_t type, void* addr);
 void Debug_RegisterFromTable(const void* table, uint8_t count);
 void Debug_Log(const char* fmt,...);
+void vDebug_Log(const char* fmt, va_list args);
 void Debug_LogLongString(char *buffer);
 void Debug_Init(debug_port_t* debug_port_init_structure);
 #endif

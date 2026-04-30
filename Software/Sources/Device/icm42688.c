@@ -139,11 +139,11 @@ uint8_t ICM42688_Init(void) {
     hw_write_reg(ICM42688_DEVICE_CONFIG, 0x01);
     ICM42688_DelayMs(2);
 
-    ret = icm_read_reg(0, ICM42688_WHO_AM_I, &chip_id);
+    ret = icm_read_reg(0, ICM42688_WHO_AM_I, (uint8_t*)(&chip_id));
     if (ret != ICM_OK) return ret;
     while(chip_id != 0x47){
         ICM42688_DelayMs(3);
-        ret = icm_read_reg(0, ICM42688_WHO_AM_I, &chip_id);
+        ret = icm_read_reg(0, ICM42688_WHO_AM_I, (uint8_t*)(&chip_id));
 				ICM42688_Print("WHO_I_AM %d \r\n", (chip_id&0xFF));
     }
     ICM42688_Print("WHO_I_AM %d \r\n", (chip_id&0xFF));

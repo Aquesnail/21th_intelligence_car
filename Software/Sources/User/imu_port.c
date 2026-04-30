@@ -77,10 +77,9 @@ void ICM42688_DelayMs(uint32_t ms) {
 void ICM42688_Print(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    Debug_Log(fmt, args);
+    vDebug_Log(fmt, args); // 直接转发给底层函数，避免二次包装
     va_end(args);
 }
-
 /* =======================================================
  * 中断回调
  * ======================================================= */
