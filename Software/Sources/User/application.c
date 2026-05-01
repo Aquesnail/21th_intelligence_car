@@ -19,6 +19,7 @@ extern void BeepTestTask_Init();
 extern void Task_OLED_Test_Init(void);
 extern void key_port_init(void);
 extern void MainControl_Init(void);
+extern void Main_Control_Task_Init();
 void app_init(void){
     UART4_Init();
     CRC_Init();
@@ -30,6 +31,7 @@ void app_init(void){
     CPU_STATUS_TASK_Init();
    // Beep_Init();
     IMU_Init();
+    Main_Control_Task_Init();
    // MainControl_Init();
     
     //key_port_init();

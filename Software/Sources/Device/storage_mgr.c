@@ -4,7 +4,7 @@
 #include "iap_user.h"
 #include "debug_arch.h"
 
-#define STORAGE_BASE_ADDR   0x0800L
+#define STORAGE_BASE_ADDR   64*1024
 #define STORAGE_ZONE_SIZE   2048
 #define ZONE_A_ADDR         STORAGE_BASE_ADDR
 #define ZONE_B_ADDR         (STORAGE_BASE_ADDR + STORAGE_ZONE_SIZE)
