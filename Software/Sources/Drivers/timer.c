@@ -54,7 +54,9 @@ void TIMER9_Init(void)
 
     TIMER9_TimerMode();                 //设置定时器9为定时模式
     TIMER9_12TMode();                   //设置定时器9为12T模式
-    TIMER9_EnableCLKO();                //使能定时器9时钟输出功能
+   // TIMER9_EnableCLKO();                //使能定时器9时钟输出功能
+    TIMER9_EnableInt();
+    TIMER9_SetIntPriority(1);
     TIMER9_SetPrescale(T9_PSCR);        //设置定时器9的8位预分频
     TIMER9_SetReload16(T9_RELOAD);      //设置定时器9的16位重载值
     TIMER9_Run();                       //定时器9开始运行
@@ -83,9 +85,28 @@ void TIMER10_Init(void)
     //<<AICUBE_USER_TIMER10_INITIAL_END>>
 }
 
+uint16_t tim9_high_word=0;
+uint32_t Get_Tim9(){
+    uint16_t low;
+    uint32_t high;
+    
+    // 防止读取时刚好发生溢出的原子操作
+    do {
+        high = tim9_high_word;
+        low = ((uint16_t)T9H << 8)+T9L;
+    } while (high != tim9_high_word);
+    
+    return (high << 16) | low;
+    
+}
 
-uint16_t Get_Tim9(){
-    return ((uint16_t)T9H << 8)+T9L;
+void TIMER9_ISR(void) interrupt TMR9_TMR10_VECTOR
+{
+    if(TIMER9_CheckFlag()){
+        tim9_high_word++;
+        TIMER9_ClearFlag();
+    }
+
 }
 
 ////////////////////////////////////////

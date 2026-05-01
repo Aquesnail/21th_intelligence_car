@@ -10,6 +10,8 @@ extern float   icm_gyro_sensitivity;
 extern uint8_t icm_current_bank;
 extern uint16_t icm_fifo_ths;
 
+//#define DELTA_TIME_STAMP
+
 /* =======================================================
  * 底层硬件包装函数
  * ======================================================= */
@@ -193,7 +195,12 @@ uint8_t ICM42688_Init(void) {
 
     tmst_cfg = TMST_EN_ENABLE
              | TMST_RES_1US
-             | TMST_DELTA_EN_DISABLE
+#ifdef DELTA_TIME_STAMP
+        | TMST_DELTA_EN_ENABLE
+#else
+        | TMST_DELTA_EN_DISABLE
+#endif
+             
              | TMST_FSYNC_EN_ENABLE
              | TMST_TO_REGS_EN_DISABLE
              | 0x20;
@@ -287,9 +294,15 @@ void ICM42688_FIFO_Data_Handle(ICM42688_Pack16_t *dat, uint8_t *ptr){
     dat->sensor.dat.gz = raw_gyro_z * icm_gyro_sensitivity * 0.01745f;
 
     dat->timestamp = raw_timestamp;
+#ifdef DELTA_TIME_STAMP
+    dat->sensor.dat.sample_time = (float)(raw_timestamp) / 1000000.0f;
+#else
     dat->sensor.dat.sample_time = (float)(raw_timestamp-raw_timestamp_last) / 1000000.0f;
-    dat->sensor.dat.temp = (raw_temp / 2.07f) + 25.0f;
     raw_timestamp_last=raw_timestamp;
+#endif
+    
+    dat->sensor.dat.temp = (raw_temp / 2.07f) + 25.0f;
+    
 }
 
 /* =======================================================

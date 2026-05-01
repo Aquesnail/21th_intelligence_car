@@ -116,7 +116,7 @@ uint8_t fsync_sent=0;
 uint32_t imu_sample_time=0;
 uint32_t imu_accurate_sample_time=0;
 
-#define FSYNC_MCU_INTERVAL_US  5000.0f     // MCU 200Hz 发送频率对应的理想微秒数
+#define FSYNC_MCU_INTERVAL_US  10000.0f     // MCU 200Hz 发送频率对应的理想微秒数
 #define SLOPE_ALPHA            0.02f       // 滤波系数：越小越平滑，抵御抖动能力越强
 #define TICK_EXPECTED          4687        // 理想情况下 5ms 对应的 IMU tick (假设 32/30 比例)
 #define TICK_ERROR_MARGIN      500         // 允许的偏差范围，超过则认为是噪声并跳过
@@ -129,6 +129,7 @@ static uint8_t sync_initialized = 0;       // 标志位：是否完成了首次�
 /* =======================================================
  * IMU 处理任务：基于 FSYNC 标记的斜率补偿与时间戳对齐
  * ======================================================= */
+uint16_t delta_tick;
 void vIMUProcessTask(void *pvParameters) {
     /* -----------------------------------------------------------
      * 1. 局部变量声明 (严格遵循 C89 标准，定义在函数开头)
@@ -139,7 +140,8 @@ void vIMUProcessTask(void *pvParameters) {
     uint8_t tt = 0;
     
     uint16_t current_imu_tick;
-    uint16_t delta_tick;
+    static uint32_t imu_total_ticks = 0;   // 软件维护的 32位 IMU 总滴答数
+	static uint16_t last_raw_ticks = 0;    // 上一次普通包的 16位原始值
     uint16_t ticks_since_sync;
     float k_instant;
     float dt_calculated; /* 计算出的单帧采样间隔 */
@@ -189,7 +191,7 @@ void vIMUProcessTask(void *pvParameters) {
                 /* 从 FIFO 中读取数据包 */
                 ICM42688_ReadFIFO(FIFO_RxBuffer);
                 ptr = FIFO_RxBuffer;
-                
+                P14 = 1;
                 for (i = 0; i < icm_fifo_ths; i++) {
                     /* 解析数据包：计算物理加速度、角速度并提取原始 16bit Timestamp */
                     ICM42688_FIFO_Data_Handle(&IMU_Dat, ptr);
@@ -204,7 +206,7 @@ void vIMUProcessTask(void *pvParameters) {
                             delta_tick = current_imu_tick - last_fsync_imu_tick;
 
                             /* 合理性校验：200Hz 下 delta_tick 理想值应在 4687 左右 (32k RC) */
-                            if (delta_tick > 4000 && delta_tick < 5500) {
+                            if (delta_tick > 9000 && delta_tick < 11000) {
                                 k_instant = fsync_mcu_interval_us / (float)delta_tick;
                                 
                                 /* 一阶低通滤波：平滑 IMU 与 MCU 的时钟比例系数 */
@@ -264,10 +266,10 @@ void vIMUProcessTask(void *pvParameters) {
                 /* -----------------------------------------------------------
                  * 4. FSYNC 信号发生器 (由任务模拟 200Hz 频率)
                  * ----------------------------------------------------------- */
-                if(++tt >= 2.5f) { /* 注意：需根据你的任务调用频率计算此处阈值 */
+                if(++tt >= 5) { /* 注意：需根据你的任务调用频率计算此处阈值 */
                     tt = 0;
                     taskENTER_CRITICAL();
-                    P14 = !P14;             /* 翻转引脚发出边沿信号给 FSYNC 引脚 */
+                    P14 = 0;             /* 翻转引脚发出边沿信号给 FSYNC 引脚 */
                     fsync_time = Get_Tim9(); /* 记录 MCU 本地精密时间戳 */
                     taskEXIT_CRITICAL();
                 }
@@ -288,6 +290,7 @@ void IMU_Init() {
     //Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
     //Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
     Debug_Register("imu_k",DBG_FLOAT | STATIC_TYPE,&imu_slope_k);
+    Debug_Register("delta", DBG_UINT16 | HIGH_FREQ_TYPE, &(delta_tick));
     Debug_Register("pitch", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->pitch));
     Debug_Register("roll", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->roll));
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->yaw));
