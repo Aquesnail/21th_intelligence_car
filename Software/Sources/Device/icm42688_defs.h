@@ -889,4 +889,8 @@ UI_FILT
 #define ACCEL_TRANSITION_DELAY_US 200    // 加速度计模式切换时的延迟 (200?s)
 #define GYRO_MIN_ON_TIME_MS      45      // 陀螺仪最小开启时间 (45ms)
 
+#define PIN9_FUNCTION_INT2  0x00 << 1 //pin9作为int2
+#define PIN9_FUNCTION_FSYNC 0x01 << 1
+#define PIN9_FUNCTION_CLKIN 0x02 << 1
+
 #endif

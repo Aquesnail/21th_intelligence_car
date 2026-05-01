@@ -119,6 +119,7 @@ uint8_t ICM42688_Init(void) {
     uint8_t accel_cfg;
     uint8_t fifo_cfg1;
     uint8_t intf_cfg0;
+    uint8_t intf_cfg5;
     uint8_t int_cfg;
     uint8_t pwr_mgmt;
     uint8_t reg_val;
@@ -192,8 +193,8 @@ uint8_t ICM42688_Init(void) {
 
     tmst_cfg = TMST_EN_ENABLE
              | TMST_RES_1US
-             | TMST_DELTA_EN_ENABLE
-             | TMST_FSYNC_EN_DISABLE
+             | TMST_DELTA_EN_DISABLE
+             | TMST_FSYNC_EN_ENABLE
              | TMST_TO_REGS_EN_DISABLE
              | 0x20;
     icm_write_reg(0, ICM42688_TMST_CONFIG, tmst_cfg);
@@ -230,6 +231,14 @@ uint8_t ICM42688_Init(void) {
     ret = icm_write_reg(0, ICM42688_INT_CONFIG, int_cfg);
     if (ret != ICM_OK) return ret;
 
+    intf_cfg5 = PIN9_FUNCTION_FSYNC;
+    ret = icm_write_reg(1, ICM42688_INTF_CONFIG5, intf_cfg5);
+    if (ret != ICM_OK) return ret;
+
+    intf_cfg5 = 1;
+    ret = icm_write_reg(0, ICM42688_FSYNC_CONFIG, intf_cfg5);
+    if (ret != ICM_OK) return ret;
+
     ret = icm_write_reg(0, ICM42688_INT_CONFIG1, 0x00);
     if (ret != ICM_OK) return ret;
 
@@ -256,7 +265,8 @@ void ICM42688_FIFO_Data_Handle(ICM42688_Pack16_t *dat, uint8_t *ptr){
     int16_t raw_acc_x, raw_acc_y, raw_acc_z;
     int16_t raw_gyro_x, raw_gyro_y, raw_gyro_z;
     uint8_t raw_temp;
-    uint16_t raw_timestamp;
+    static uint16_t raw_timestamp;
+    static uint16_t raw_timestamp_last;
 
     raw_acc_x = (int16_t)((ptr[1] << 8) | ptr[2]);
     raw_acc_y = (int16_t)((ptr[3] << 8) | ptr[4]);
@@ -277,8 +287,9 @@ void ICM42688_FIFO_Data_Handle(ICM42688_Pack16_t *dat, uint8_t *ptr){
     dat->sensor.dat.gz = raw_gyro_z * icm_gyro_sensitivity * 0.01745f;
 
     dat->timestamp = raw_timestamp;
-    dat->sensor.dat.sample_time = (float)(raw_timestamp) / 1000000.0f;
+    dat->sensor.dat.sample_time = (float)(raw_timestamp-raw_timestamp_last) / 1000000.0f;
     dat->sensor.dat.temp = (raw_temp / 2.07f) + 25.0f;
+    raw_timestamp_last=raw_timestamp;
 }
 
 /* =======================================================

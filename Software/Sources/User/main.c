@@ -49,7 +49,7 @@ void sys_init(void){
 	PWMA_Init();
 	PWME_Init();
 
-	TIMER10_Init();
+	//TIMER10_Init();
 	TIMER9_Init();
 	MATHLIB_Init();
 	ADC2_Init();
