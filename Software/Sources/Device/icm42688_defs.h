@@ -862,8 +862,8 @@ UI_FILT
 // Bits 7:6 - Reserved
 #define PWR_MGMT0_TEMP_DIS_BIT   5       // 温度传感器使能位
 #define PWR_MGMT0_IDLE_BIT       4       // IDLE 位
-#define PWR_MGMT0_GYRO_MODE_BITS 3       // Gyro 模式控制位 (Bit 3:2)
-#define PWR_MGMT0_ACCEL_MODE_BITS 1      // Accel 模式控制位 (Bit 1:0)
+#define PWR_MGMT0_GYRO_MODE_BITS 2       // Gyro 模式控制位 (Bit 3:2)
+#define PWR_MGMT0_ACCEL_MODE_BITS 0      // Accel 模式控制位 (Bit 1:0)
 
 // TEMP_DIS 宏定义
 #define PWR_MGMT0_TEMP_ENABLED   0x00    // 温度传感器启用
