@@ -261,6 +261,39 @@ uint8_t ICM42688_Init(void) {
 /* =======================================================
  * FIFO读取与数据处理
  * ======================================================= */
+
+/* 阻塞式读取FIFO - 等待指定数据包可用 */
+uint16_t ICM42688_ReadFIFO_Blocking(uint8_t *buffer, uint16_t pack_count, uint32_t timeout_ms) {
+    uint8_t fifo_count_reg[2];
+    uint16_t fifo_count;
+    uint32_t tick_start = ICM42688_GetTick();
+    uint16_t read_len;
+
+    /* 等待FIFO中有足够数据 */
+    while (1) {
+        if (icm_read_regs(0, ICM42688_FIFO_COUNTH, fifo_count_reg, 2) != ICM_OK) {
+            return 0;
+        }
+        fifo_count = (uint16_t)(fifo_count_reg[0] << 8) | fifo_count_reg[1];
+        /* fifo_count是记录数（每条记录16字节） */
+        if (fifo_count >= pack_count) {
+            break;
+        }
+        /* 超时检查 */
+        if ((ICM42688_GetTick() - tick_start) >= timeout_ms) {
+            return 0;
+        }
+        /* 避免空转 */
+        ICM42688_DelayMs(1);
+    }
+
+    read_len = pack_count * 16;
+    if (icm_read_regs(0, ICM42688_FIFO_DATA, buffer, read_len) != ICM_OK) {
+        return 0;
+    }
+    return read_len;
+}
+
 uint16_t ICM42688_ReadFIFO(uint8_t *buffer) {
     if (icm_read_regs(0, ICM42688_FIFO_DATA, buffer, icm_fifo_ths * 16) != ICM_OK) {
         return 0;

@@ -24,6 +24,7 @@ extern uint8_t imu_ready;
 extern uint8_t ICM42688_SPI_TxRx(uint8_t dat);           /* SPI单字节收发 */
 extern void    ICM42688_SPI_DmaRead(uint8_t *rx_buf, uint16_t len);  /* SPI DMA读取 */
 extern void    ICM42688_DelayMs(uint32_t ms);            /* 毫秒延时 */
+extern uint32_t ICM42688_GetTick(void);                   /* 获取系统 tick */
 extern void    ICM42688_Print(const char* fmt, ...);     /* 调试打印 */
 
 /* =========================================================
@@ -57,6 +58,7 @@ typedef struct {
 uint8_t  ICM42688_Init(void);
 uint8_t  ICM42688_ReadData(float *acc, float *gyro, float *temp);
 uint16_t ICM42688_ReadFIFO(uint8_t *buffer);
+uint16_t ICM42688_ReadFIFO_Blocking(uint8_t *buffer, uint16_t pack_count, uint32_t timeout_ms);
 void     ICM42688_FIFO_Data_Handle(ICM42688_Pack16_t *dat, uint8_t *ptr);
 
 #endif

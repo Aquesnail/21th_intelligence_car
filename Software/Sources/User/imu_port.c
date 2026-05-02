@@ -71,7 +71,11 @@ void ICM42688_SPI_DmaRead(uint8_t* rx_buf, uint16_t len) {
 /* 毫秒延时 */
 void ICM42688_DelayMs(uint32_t ms) {
     vTaskDelay(pdMS_TO_TICKS(ms));
-    //vTaskDelay(pdMS_TO_TICKS(ms));
+}
+
+/* 获取系统 tick */
+uint32_t ICM42688_GetTick(void) {
+    return xTaskGetTickCount();
 }
 
 /* 调试打印 */
@@ -251,7 +255,12 @@ void IMU_Init() {
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->yaw));
     Debug_Register("Kp", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Kp));
     Debug_Register("Ki", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Ki));
-    Debug_Register("bias_gx", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gx));
+    Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
+    Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
+    Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
+    Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
+    Debug_Register("gx", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gx));
+    Debug_Register("gy", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gy));
     Debug_Register("bias_gy", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gy));
     Debug_Register("bias_gz", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gz));
 }

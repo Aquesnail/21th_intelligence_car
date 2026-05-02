@@ -32,7 +32,8 @@ void GPIO_Init(void) {
     // --- P2口配置 ---
     // P2.7, P2.6开漏(11), P2.1, P2.0推挽(01), 其余准双向(00)
     P2M1 = (PIN_7 | PIN_6);
-    P2M0 = (PIN_7 | PIN_6 | PIN_1 | PIN_0);
+    P2M0 = (PIN_7 | PIN_6 | PIN_1 | PIN_0 | PIN_3 | PIN_5);
+    P2SR = ~(PIN_3 | PIN_5);
     P2IE = 0xFF;
 
     // --- P3口配置 ---
