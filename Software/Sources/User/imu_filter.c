@@ -28,6 +28,7 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
 
     uint32_t target_calib_count;          /* 目标需要达到的静止采样总次数 */
     float sin_pitch; 
+    float asin_val;
     /* =========================================================
      * 2. 获取输入物理量 (通过union共享传感器数据)
      * =========================================================*/
@@ -156,7 +157,11 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     q3 *= norm;
 
     /* 四元数转欧拉角 */
+    asin_val = 2.0f * (q0 * q2 - q3 * q1);
+    if (asin_val > 0.9995f) asin_val = 0.9995f;  /* 限制在88度左右，避开90度死锁 */
+    if (asin_val < -0.9995f) asin_val = -0.9995f;
+    dat->pitch = (float)asin(asin_val) * 57.29578f;
     dat->roll  = (float)atan2(2.0f * (q0 * q1 + q2 * q3), 1.0f - 2.0f * (q1 * q1 + q2 * q2)) * 57.29578f;
-    dat->pitch = (float)asin(2.0f * (q0 * q2 - q3 * q1)) * 57.29578f;
+   // dat->pitch = (float)asin(2.0f * (q0 * q2 - q3 * q1)) * 57.29578f;
     dat->yaw   = (float)atan2(2.0f * (q0 * q3 + q1 * q2), 1.0f - 2.0f * (q2 * q2 + q3 * q3)) * 57.29578f;
 }
