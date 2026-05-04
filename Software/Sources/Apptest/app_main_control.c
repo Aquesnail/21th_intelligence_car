@@ -1,7 +1,11 @@
 #include "config.h"
 #include "spi1_user.h"
+#include "motor.h"
 #include <stdio.h>
 
+/* P2.2 作为电机 SPI 片选 (CS) */
+#define MOTOR_CS_SET()   (P22 = 1)
+#define MOTOR_CS_RESET() (P22 = 0)
 
 void SPI1_Callback(void *pvParameters){
 
@@ -88,36 +92,53 @@ float Speed_Outer_Loop(uint8_t id, float target_v, float measure_v) {
 }
 
 
+void Motor_Test_SendCmd(void)
+{
+    uint32_t frame;
+    uint32_t value;
+    uint8_t i;
+
+    /* 构造 write_one 命令帧: cmd=1, addr=0x10 */
+    frame = motor_pack_head(1, 0x10, 0x00);
+    value = 0x12345678;
+
+    MOTOR_CS_RESET();
+
+    /* 发送 32bit 帧头 (低字节在前) */
+    for (i = 0; i < 4; i++) {
+        SPI1_WriteByte((uint8_t)(frame & 0xFFu));
+        frame >>= 8;
+    }
+
+    /* 发送 32bit 数据 (低字节在前) */
+    for (i = 0; i < 4; i++) {
+        SPI1_WriteByte((uint8_t)(value & 0xFFu));
+        value >>= 8;
+    }
+
+    MOTOR_CS_SET();
+}
+
 void Main_Control_Task(void *pvParameters){
-    uint8_t counter=0;
-    uint8_t i=0;
-    uint8_t tx_buf[4] = {0xDE, 0xAD, 0xBE, 0xEF};
-    uint8_t rx_buf[4] = {0};
+    uint8_t counter = 0;
+
+    /* 初始化 P2.2 为推挽输出 */
+    // P2M1 &= ~0x04;
+    // P2M0 |= 0x04;
+    MOTOR_CS_SET();
+
     SPI1_Init(SPI1_Callback);
+
     for(;;){
         vTaskDelay(pdMS_TO_TICKS(2));
         Get_Motor_Data();
-        //SPI_Write_Test
-        
-    
-        
+
         counter++;
-        if (counter % 10 == 0) {
-            for(i=0; i<4; i++){
-                rx_buf[i] = SPI1_WriteReadByte(tx_buf[i]);
-            }
-            
-            if (rx_buf[0] == 0xDE && rx_buf[1] == 0xAD && rx_buf[2] == 0xBE && rx_buf[3] == 0xEF) {
-            // 通信正常，继续进行其他操作
-            } else {
-            // 通信异常，执行错误处理逻辑
-            }
+        if (counter % 50 == 0) {
+            Motor_Test_SendCmd();
             counter = 0;
         }
-            // 每隔1秒执行一次的代码块
     }
-
-
 }
 
 void Main_Control_Task_Init(){

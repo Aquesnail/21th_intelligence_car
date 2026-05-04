@@ -33,7 +33,8 @@ void GPIO_Init(void) {
     // P2.7, P2.6开漏(11), P2.1, P2.0推挽(01), 其余准双向(00)
     P2M1 = (PIN_7 | PIN_6);
     P2M0 = (PIN_7 | PIN_6 | PIN_1 | PIN_0 | PIN_3 | PIN_5);
-    P2SR = ~(PIN_3 | PIN_5);
+    P2SR = ~(PIN_3 | PIN_5 | PIN_2);             // P2.3, P2.5, P2.2 下降沿触发
+    P2DR &= ~(PIN_3 | PIN_5 | PIN_2);             // 增强驱动
     P2IE = 0xFF;
 
     // --- P3口配置 ---
