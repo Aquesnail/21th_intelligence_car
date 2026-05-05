@@ -1,7 +1,13 @@
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "config.h"
 #include "spi1_user.h"
 #include "motor.h"
 #include <stdio.h>
+#include "debug_arch.h"
+
+
 
 /* P2.2 作为电机 SPI 片选 (CS) */
 #define MOTOR_CS_SET()   (P22 = 1)
@@ -142,5 +148,7 @@ void Main_Control_Task(void *pvParameters){
 }
 
 void Main_Control_Task_Init(){
-     xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 4, NULL);
+    Debug_Register("Speed_Kp", DBG_FLOAT | STATIC_TYPE, &(SPEED_KP));
+    Debug_Register("Speed_Ki", DBG_FLOAT | STATIC_TYPE, &(SPEED_KI));
+    xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 4, NULL);
 }
