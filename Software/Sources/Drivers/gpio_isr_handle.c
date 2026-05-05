@@ -13,11 +13,11 @@ void P1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     uint8_t intf;
 
     intf = CheckP1nFlag(PIN_ALL);
-    if(intf & PIN_5){
-        IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
-	}else if(intf & PIN_4){
-		IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
-	}
+    // if(intf & PIN_5){
+    //     IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
+	// }else if(intf & PIN_4){
+	// 	IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
+	// }
     ClearP1nFlag(PIN_ALL);       
 }
 
@@ -30,6 +30,16 @@ void P4_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     }
     ClearP4nFlag(PIN_ALL);       
 }
+void P5_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
+    uint8_t intf;
+
+    intf = CheckP5nFlag(PIN_ALL);       //读取中断请求标志
+    if(intf & PIN_1){
+        IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
+    }
+    ClearP5nFlag(PIN_ALL);       
+}
+
 
 
 void P6_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){

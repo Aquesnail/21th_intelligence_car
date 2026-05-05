@@ -30,12 +30,12 @@ void vTestLoopTask(void *pvParameters);
 /* 私有函数实现 ------------------------------------------------------------ */
 static void Debug_Write(uint8_t* pData, uint16_t len)
 {
-    DMA_UART_Write(&uart4_mgr, pData, len);
+    DMA_UART_Write(&uart2_mgr, pData, len);
 }
 
 static uint16_t Debug_Read(uint8_t* pData, uint16_t len)
 {
-    return DMA_UART_Read(&uart4_mgr, pData, len);
+    return DMA_UART_Read(&uart2_mgr, pData, len);
 }
 
 /* 公共函数 ---------------------------------------------------------------- */

@@ -1,6 +1,6 @@
 #include "icm42688.h"
 #include "icm42688_defs.h"
-#include "spi2_user.h"
+#include "spi1_user.h"
 #include "delay.h"
 
 #include "FreeRTOS.h"
@@ -18,9 +18,8 @@
 #pragma warning disable = 151
 
 #define FIFO_Packets 2
-
-#define SIGNAL_IMU_DATA_READY  (1 << 0)  // 位 0：外部中断引脚触发
-#define SIGNAL_SPI_DMA_DONE    (1 << 1)  // 位 1：DMA 传输完成 //任务通知比信号量快
+#define SIGNAL_SPI_DMA_DONE    (1 << 1) /* 位 1：SPI DMA传输完成 */
+#define SIGNAL_IMU_DATA_READY  (1 << 0)  /* 位 0：外部中断引脚触发 */
 /* =======================================================
  * 外部变量定义（供icm42688.c使用）
  * ======================================================= */
@@ -42,7 +41,6 @@ extern SemaphoreHandle_t xDebugReadySignal;
  * 回调函数声明
  * ======================================================= */
 void IMU_INT1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
-void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore);
 
 /* =======================================================
  * icm42688.h 要求的外部函数实现
@@ -52,7 +50,7 @@ void IMU_DMA_Read_CallBack(BaseType_t* xSPI_DmaSemaphore);
 uint8_t ICM42688_SPI_TxRx(uint8_t dat) {
     uint8_t rx_dat;
     taskENTER_CRITICAL();
-    rx_dat = SPI2_WriteReadByte(dat);
+    rx_dat = SPI1_WriteReadByte(dat);
     taskEXIT_CRITICAL();
     return rx_dat;
 }
@@ -60,7 +58,7 @@ uint8_t ICM42688_SPI_TxRx(uint8_t dat) {
 /* SPI DMA批量读取 */
 void ICM42688_SPI_DmaRead(uint8_t* rx_buf, uint16_t len) {
     uint32_t ulNotifiedValue;
-    SPI2_DMA_WriteReadBytes_IT(FIFO_TxBuffer, rx_buf, len);
+    SPI1_DMA_WriteReadBytes_IT(FIFO_TxBuffer, rx_buf, len);
     if (xTaskNotifyWait(0, SIGNAL_SPI_DMA_DONE, &ulNotifiedValue, pdMS_TO_TICKS(10)) == pdTRUE) {
         return;
     } else {
@@ -157,7 +155,7 @@ void vIMUProcessTask(void *pvParameters) {
     memset(FIFO_TxBuffer, 0xff, sizeof(FIFO_TxBuffer));
     vTaskDelay(pdMS_TO_TICKS(2));
 
-    SPI2_Init(IMU_DMA_Read_CallBack);
+    SPI1_Init(IMU_DMA_Read_CallBack);
     icm_fifo_ths = FIFO_Packets; /* 每次读取 2 个包 */
 
     i = ICM42688_Init();

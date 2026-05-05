@@ -899,6 +899,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\spi1_user.h</FilePath>
             </File>
+            <File>
+              <FileName>spi3_user.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\spi3_user.c</FilePath>
+            </File>
+            <File>
+              <FileName>spi3_user.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\spi3_user.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -913,11 +923,6 @@
               <FileName>app_debug.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_debug.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_uart_test.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Apptest\app_uart_test.c</FilePath>
             </File>
             <File>
               <FileName>app_main_control.c</FileName>

@@ -48,7 +48,7 @@ uint8_t xdata pu8SPI1DMATxBuffer[1024] = {0};   //SPI1 DMA发送缓冲区数组
 ////////////////////////////////////////
 void SPI1_Init(DMA_SPI1_Callback_t callback)
 {
-    SPI1_SwitchP2n();                  
+    SPI1_SwitchP3n();                  
 
     SPI1_MasterMode();                  //设置SPI1为主机模式
     SPI1_IgnoreSS();                    //忽略SS脚

@@ -163,9 +163,11 @@ extern uint32_t GetRunTimeCounterValue(void);
 #define configUSE_RTOS_DMA_ADC2    1
 #define configUSE_RTOS_DMA_SPI1    1
 #define configUSE_RTOS_DMA_SPI2    1
+#define configUSE_RTOS_DMA_SPI3    1
 #define configUSE_RTOS_P1          1  /* 示例：P1 使用裸机模式 */
 #define configUSE_RTOS_P4          1
 #define configUSE_RTOS_P6          1
 #define configUSE_RTOS_P8          1
+#define configUSE_RTOS_P5          1
 
 #endif /* FREERTOS_CONFIG_H */

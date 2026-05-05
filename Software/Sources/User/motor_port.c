@@ -1,5 +1,5 @@
 #include "motor.h"
-#include "spi1_user.h"
+#include "spi3_user.h"
 #include "delay.h"
 
 #include "FreeRTOS.h"
@@ -21,20 +21,20 @@ TaskHandle_t xMotorTaskHandle = NULL;
  * motor.h 要求的外部函数实现
  * ======================================================= */
 
-/* SPI 单字节收发 (使用 SPI1) */
+/* SPI 单字节收发 (使用 SPI3) */
 uint8_t MOTOR_SPI_TxRx(uint8_t dat) {
     uint8_t rx_dat;
     taskENTER_CRITICAL();
-    rx_dat = SPI1_WriteReadByte(dat);
+    rx_dat = SPI3_WriteReadByte(dat);
     taskEXIT_CRITICAL();
     return rx_dat;
 }
 
-/* SPI DMA 批量读取 (使用 SPI1) */
+/* SPI DMA 批量读取 (使用 SPI3) */
 void MOTOR_SPI_DmaRead(uint8_t *rx_buf, uint16_t len) {
     uint32_t ulNotifiedValue;
     memset(MOTOR_DMA_TxBuf, 0xFF, len);
-    SPI1_DMA_WriteReadBytes_IT(MOTOR_DMA_TxBuf, rx_buf, len);
+    SPI3_DMA_WriteReadBytes_IT(MOTOR_DMA_TxBuf, rx_buf, len);
     if (xTaskNotifyWait(0, SIGNAL_MOTOR_SPI_DMA_DONE, &ulNotifiedValue, pdMS_TO_TICKS(10)) == pdTRUE) {
         return;
     }
