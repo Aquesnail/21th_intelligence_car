@@ -15,6 +15,9 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
+#define IAP_OFFSET              0xfc2800 //定义EEPROM起始地址
+
+
 void IAP_Init(void);
 void IAP_EraseSector(uint32_t dwAddress);
 void IAP_ProgramByte(uint32_t dwAddress, uint8_t bData);

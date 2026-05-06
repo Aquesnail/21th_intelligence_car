@@ -929,6 +929,11 @@
               <FileType>1</FileType>
               <FilePath>.\Sources\Apptest\app_main_control.c</FilePath>
             </File>
+            <File>
+              <FileName>app_uart_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Apptest\app_uart_test.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

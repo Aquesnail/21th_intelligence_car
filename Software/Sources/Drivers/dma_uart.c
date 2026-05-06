@@ -52,44 +52,28 @@ static void OS_Delay(uint32_t ms)  { vTaskDelay(pdMS_TO_TICKS(ms)); }
 // 硬件配置函数
 // ==========================================
 
-void UART2_Timer2_Config(uint16_t dat) {
-    T2R = 0;    // Timer stop
-    T2_CT = 0;  // Timer2 set As Timer
-    T2x12 = 1;  // Timer2 set as 1T mode
-    T2H = dat / 256;
-    T2L = dat % 256;
-    ET2 = 0;    // 禁止中断
-    T2R = 1;    // Timer run enable
-}
-
-void UART2_Config(uint8_t brt) {
-    if(brt == 2) {
-        S2CFG &= ~0x01; // 串口2选择定时器2为波特率发生器
-        UART2_Timer2_Config((uint16_t)(65536UL - (MAIN_Fosc / 4) / Baudrate));
-        S4CON = 0x50;   // 8位数据, 允许接收
-    } else {
-        S2CFG |= 0x01;  // 串口2选择定时器4为波特率发生器
-        S2CON = 0x50;   // 8位数据, 允许接收
-        // 定时器4配置逻辑参照原代码中对定时器5的处理
-        T4H = (65536UL - (MAIN_Fosc / 4) / Baudrate) / 256;
-        T4L = (65536UL - (MAIN_Fosc / 4) / Baudrate) % 256;
-        T3T4M &= ~0xf0; // 清除 T4 相关位
-        T3T4M |= 0xa0;  // 1T 模式, 开始运行
-    }
-
-    UART2_SwitchP1011(); // 切换至 P5.2 RXD4, P5.3 TXD4
-
-    // 串口接收超时配置
-    UR2TOCR = 0xc0;     // bit7:使能超时接收, bit6:使能超时中断, bit5:时钟源选择
-    UR2TOTL = 0xA0;
-    UR2TOTH = 0x00;
-    UR2TOTE = 0x00;     // 触发生效
-
-    ES4 = 1;
-}
-
 void UART2_DMA_Config(void) {
-    // TX DMA 配置 (初始不启动)
+
+//     UART2_TimeoutScale_BRT();           //设置串口波特率为接收超时时间基准
+//     //UART2_SetTimeoutInterval(0x00000a); //设置接收超时时间长度
+//     UART2_EnableTimeout();              //使能串口接收超时功能
+
+//     DMA_UART2_ClearTxFlag();            //清除串口发送DMA中断标志
+//     DMA_UART2_SetTxBusPriority(0);      //设置总线访问为最低优先级
+//     DMA_UART2_SetTxIntPriority(0);      //设置中断为最低优先级
+//     DMA_UART2_EnableTxInt();            //使能串口2DMA发送中断
+//     DMA_UART2_EnableTx();               //使能串口2DMA发送功能
+// //  DMA_UART2_TriggerTx();              //触发串口2DMA发送
+//     DMA_UART2_ClearFIFO();              //清空串口DMA接收FIFO缓冲区
+//     DMA_UART2_ClearRxFlag();            //清除串口接收DMA中断标志
+//     DMA_UART2_SetRxBusPriority(0);      //设置总线访问为最低优先级
+//     DMA_UART2_SetRxIntPriority(0);      //设置中断为最低优先级
+//     DMA_UART2_EnableRxInt();            //使能串口2DMA接收中断
+//     DMA_UART2_EnableRx();               //使能串口2DMA接收功能
+// //  DMA_UART2_TriggerRx();              //触发串口2DMA接收
+
+//     UART2_SetTxFlag();                  //设置发送标志以提高发送效率
+//     // // TX DMA 配置 (初始不启动)
     DMA_UR2T_CFG = 0x80;        // Enable Interrupt
     DMA_UR2T_STA = 0x00;
     
@@ -110,10 +94,39 @@ void UART2_DMA_Config(void) {
 
     // 启动 RX DMA
     DMA_UR2R_CR = 0xa1; // Enable DMA, Start Rx, Clear FIFO
+
+}
+void SetTimer2Baudraye(u16 dat)  // 选择波特率, 2: 使用Timer2做波特率, 其它值: 使用Timer1做波特率.
+{
+    T2R = 0;    //Timer stop
+    T2_CT = 0;  //Timer2 set As Timer
+    T2x12 = 1;  //Timer2 set as 1T mode
+    T2H = dat / 256;
+    T2L = dat % 256;
+    ET2 = 0;    //禁止中断
+    T2R = 1;    //Timer run enable
 }
 
 void UART2_Init(void) {
-    UART2_Config(2); // 默认使用 Timer2
+    #ifdef BAUDRATE
+#undef BAUDRATE
+#endif
+#define BAUDRATE                (115200)
+#define T2_RELOAD               (65536 - (SYSCLK / BAUDRATE + 2) / 4)
+
+    UART2_SwitchP1011();                //设置串口数据端口: RxD2 (P1.0), TxD2 (P1.1)
+
+    SetTimer2Baudraye((u16)T2_RELOAD);
+
+        S2CON = (S2CON & 0x3f) | 0x40;  //UART2模式, 0x00: 同步移位输出, 0x40: 8位数据,可变波特率, 0x80: 9位数据,固定波特率, 0xc0: 9位数据,可变波特率
+//        ES2   = 1;       //允许中断
+        S2REN = 1;         //允许接收
+       // UART2_SW(UART2_SW_P10_P11);     //UART2_SW_P10_P11,UART2_SW_P46_P47,UART2_SW_P84_P85,UART2_SW_PA0_PA1
+
+        UR2TOCR = 0xc0; //bit7:使能超时接收，bit6:使能超时中断，bit5:超时时钟选择 1:系统时钟  0:串口数据位率(波特率)
+        UR2TOTL = 0x20;
+        UR2TOTH = 0x00;
+        UR2TOTE = 0x00; //需要写 UR2TOTE 后，新的TO值才会生效
     UART2_DMA_Config();
     
 

@@ -23,8 +23,8 @@
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8SPI2DMATxBuffer[16];   //SPI2 DMA发送缓冲区数组
-uint8_t xdata pu8SPI2DMARxBuffer[16];   //SPI2 DMA接收缓冲区数组
+uint8_t xdata pu8SPI2DMATxBuffer[SPI2_DMASIZE]; //SPI2 DMA发送缓冲区数组
+uint8_t xdata pu8SPI2DMARxBuffer[SPI2_DMASIZE]; //SPI2 DMA接收缓冲区数组
 
 ////////////////////////////////////////
 // SPI2初始化函数
@@ -34,6 +34,7 @@ uint8_t xdata pu8SPI2DMARxBuffer[16];   //SPI2 DMA接收缓冲区数组
 void SPI2_Init(void)
 {
     SPI2_SwitchPBn();                   //选择SPI数据口: SS(PB.1), MOSI(PB.2), MISO(PB.3), SCLK(PB.4)
+    SPI2_MOSIIdleLow();                 //空闲状态时MOSI脚维持低电平
 
     SPI2_MasterMode();                  //设置SPI2为主机模式
     SPI2_IgnoreSS();                    //忽略SS脚
@@ -46,10 +47,10 @@ void SPI2_Init(void)
     SPI2_Enable();                      //使能SPI2功能
 
     DMA_SPI2_ManualSS();                //关闭SPI2 DMA自动控制SS功能
-    DMA_SPI2_SetAmount(15);             //设置SPI2 DMA发送/接收字节数
+    DMA_SPI2_SetAmount(SPI2_DMASIZE - 1); //设置SPI2 DMA发送/接收字节数
     DMA_SPI2_SetTxAddress(pu8SPI2DMATxBuffer); //设置SPI2 DMA发送缓冲区地址
     DMA_SPI2_SetRxAddress(pu8SPI2DMARxBuffer); //设置SPI2 DMA接收缓冲区地址
-    DMA_SPI2_SetInterval(0);            //设置SPI2 DMA发送/接收字节间隔时间（系统时钟）
+    DMA_SPI2_SetInterval(SPI2_DMAITV);  //设置SPI2 DMA发送/接收字节间隔时间（系统时钟）
     DMA_SPI2_ClearFIFO();               //清空SPI2 DMA FIFO缓冲区
     DMA_SPI2_ClearFlag();               //清除SPI2 DMA中断标志
     DMA_SPI2_EnableTx();                //使能发送数据

@@ -32,8 +32,8 @@ static void run_ring_buffer_stress_test(void)
     msg_len = (uint16_t)strlen(stress_msg);
 
     /* 连续写入两次，触发环形缓冲区跨越边界逻辑 */
-    DMA_UART_Write(&uart4_mgr, (const uint8_t *)stress_msg, msg_len);
-    DMA_UART_Write(&uart4_mgr, (const uint8_t *)stress_msg, msg_len);
+    DMA_UART_Write(&uart2_mgr, (const uint8_t *)stress_msg, msg_len);
+    DMA_UART_Write(&uart2_mgr, (const uint8_t *)stress_msg, msg_len);
 }
 
 /* UART测试任务主函数 */
@@ -53,22 +53,22 @@ void vUartTestTask(void *pvParameters)
     (void)pvParameters;
     
     /* 1. 初始化外设 */
-    UART4_Init();
+    UART2_Init();
     
     /* 初始化IO (P5.2 RXD4, P5.3 TXD4) */
-    P5M1 &= ~0x0C; 
-    P5M0 |= 0x08;   /* P5.3 (TX4) 推挽输出 */
-    P5PU |= 0x04;   /* P5.2 (RX4) 内部上拉 */
+    // P5M1 &= ~0x0C; 
+    // P5M0 |= 0x08;   /* P5.3 (TX4) 推挽输出 */
+    // P5PU |= 0x04;   /* P5.2 (RX4) 内部上拉 */
     
     /* 2. 发送测试启动信息 */
-    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"\r\n======================================\r\n", 42);
-    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"  UART4 Ring Buffer Loopback Test   \r\n", 40);
-    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"======================================\r\n", 42);
+    DMA_UART_Write(&uart2_mgr, (const uint8_t *)"\r\n======================================\r\n", 42);
+    DMA_UART_Write(&uart2_mgr, (const uint8_t *)"  UART4 Ring Buffer Loopback Test   \r\n", 40);
+    DMA_UART_Write(&uart2_mgr, (const uint8_t *)"======================================\r\n", 42);
     
     /* 执行一次简单的压力输出测试 */
     run_ring_buffer_stress_test();
     
-    DMA_UART_Write(&uart4_mgr, (const uint8_t *)"\r\nSystem ready. Waiting for data echo...\r\n", 42);
+    DMA_UART_Write(&uart2_mgr, (const uint8_t *)"\r\nSystem ready. Waiting for data echo...\r\n", 42);
     
     /* 获取当前Tick作为基准 */
     xLastWakeTime = xTaskGetTickCount();
@@ -78,7 +78,7 @@ void vUartTestTask(void *pvParameters)
     {
         /* --- 核心回环测试逻辑 --- */
         /* 检查环形缓冲区中是否有待处理数据 */
-        rx_available = DMA_UART_Available(&uart4_mgr);
+        rx_available = DMA_UART_Available(&uart2_mgr);
         
         if (rx_available > 0)
         {
@@ -89,12 +89,12 @@ void vUartTestTask(void *pvParameters)
             }
             
             /* 从 RingBuffer 读取数据 (DMA接收的内容已由中断存入此处) */
-            read_count = DMA_UART_Read(&uart4_mgr, loop_buffer, rx_available);
+            read_count = DMA_UART_Read(&uart2_mgr, loop_buffer, rx_available);
             
             if (read_count > 0)
             {
                 /* 将读取到的数据原样写回发送缓冲区 (将触发 DMA 发送) */
-                DMA_UART_Write(&uart4_mgr, loop_buffer, read_count);
+                DMA_UART_Write(&uart2_mgr, loop_buffer, read_count);
             }
         }
         
@@ -109,9 +109,9 @@ void vUartTestTask(void *pvParameters)
             /* 格式化并发送心跳包，监控任务存活状态 */
             sprintf(tx_buffer, "[Alive:%lu] Ring-Free-TX:%u\r\n", 
                     (unsigned long)loop_count,
-                    (unsigned int)(uart4_mgr.ring_tx_buf_size - uart4_mgr.tx_count));
+                    (unsigned int)(uart2_mgr.ring_tx_buf_size - uart2_mgr.tx_count));
             
-            DMA_UART_Write(&uart4_mgr, (const uint8_t *)tx_buffer, (uint16_t)strlen(tx_buffer));
+            DMA_UART_Write(&uart2_mgr, (const uint8_t *)tx_buffer, (uint16_t)strlen(tx_buffer));
         }
         
         /* 让出 CPU，给 DMA 中断留出处理时间 */

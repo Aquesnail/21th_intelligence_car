@@ -399,19 +399,19 @@
 #define UART4_EnableInt()               SET_REG_BIT(IE2, IE2_ES4_MSK)
 #define UART4_DisableInt()              CLR_REG_BIT(IE2, IE2_ES4_MSK)
 
-#define S5INTR_ES5_MSK                  BIT4
+#define S5INTR_ES5_MSK                  BIT7
 #define UART5_EnableInt()               SET_REG_BIT(S5INTR, S5INTR_ES5_MSK)
 #define UART5_DisableInt()              CLR_REG_BIT(S5INTR, S5INTR_ES5_MSK)
 
-#define S6INTR_ES6_MSK                  BIT4
+#define S6INTR_ES6_MSK                  BIT7
 #define UART6_EnableInt()               SET_REG_BIT(S6INTR, S6INTR_ES6_MSK)
 #define UART6_DisableInt()              CLR_REG_BIT(S6INTR, S6INTR_ES6_MSK)
 
-#define S7INTR_ES7_MSK                  BIT4
+#define S7INTR_ES7_MSK                  BIT7
 #define UART7_EnableInt()               SET_REG_BIT(S7INTR, S7INTR_ES7_MSK)
 #define UART7_DisableInt()              CLR_REG_BIT(S7INTR, S7INTR_ES7_MSK)
 
-#define S8INTR_ES8_MSK                  BIT4
+#define S8INTR_ES8_MSK                  BIT7
 #define UART8_EnableInt()               SET_REG_BIT(S8INTR, S8INTR_ES8_MSK)
 #define UART8_DisableInt()              CLR_REG_BIT(S8INTR, S8INTR_ES8_MSK)
 
@@ -2272,10 +2272,10 @@
 #define EnableAccessXFR()               SET_REG_BIT(P_SW2, EAXFR_MSK)
 
 #define AccessCodeSpeed(n)              WRITE_REG(WTST, (n))
-#define AccessCodeFastest()             AccessCodeSpeed((SYSCLK) <=  32000000 ? 0 : \
-                                                        (SYSCLK) <=  64000000 ? 1 : \
-                                                        (SYSCLK) <=  90000000 ? 2 : \
-                                                        (SYSCLK) <= 120000000 ? 3 : 4)
+#define AccessCodeFastest()             AccessCodeSpeed((SYSCLK) <=  32000000UL ? 0 : \
+                                                        (SYSCLK) <=  64000000UL ? 1 : \
+                                                        (SYSCLK) <=  90000000UL ? 2 : \
+                                                        (SYSCLK) <= 120000000UL ? 3 : 4)
 
 #define ACCIXRAM_MSK                    (BIT2 | BIT1 | BIT0)
 #define AccessIXramSpeed(n)             MODIFY_REG(CKCON, ACCIXRAM_MSK, ((n) << 0))
@@ -2284,6 +2284,10 @@
 #define ACCEXRAM_MSK                    (BIT2 | BIT1 | BIT0)
 #define AccessEXramSpeed(n)             MODIFY_REG(BUS_SPEED, ACCEXRAM_MSK, ((n) << 0))
 #define AccessEXramFastest()            AccessEXramSpeed(0)
+
+#define PSWX1_P54P12_MSK                BIT0
+#define Port54DigitalToPin54()          CLR_REG_BIT(P_SW1, PSWX1_P54P12_MSK)
+#define Port12DigitalToPin54()          SET_REG_BIT(P_SW1, PSWX1_P54P12_MSK)
 
 #define UART1_PS_MSK                    (BIT7 | BIT6)
 #define UART1_SwitchP3031()             MODIFY_REG(P_SW1, UART1_PS_MSK, ((0) << 6))
@@ -2367,51 +2371,52 @@
 #define SPI3_SwitchP9n()                MODIFY_REG(P_SWX4, SPI3_PS_MSK, ((3) << 2))
 
 #define USART1_PS_MSK                   (BIT3 | BIT2)
-#define USART1_SwitchP1n()              MODIFY_REG(P_SW3, USART1_PS_MSK, ((0) << 2))
-#define USART1_SwitchP2n()              MODIFY_REG(P_SW3, USART1_PS_MSK, ((1) << 2))
-#define USART1_SwitchP4n()              MODIFY_REG(P_SW3, USART1_PS_MSK, ((2) << 2))
-#define USART1_SwitchP6n()              MODIFY_REG(P_SW3, USART1_PS_MSK, ((3) << 2))
+#define USART1_SPI_SwitchP1n()          MODIFY_REG(P_SW3, USART1_PS_MSK, ((0) << 2))
+#define USART1_SPI_SwitchP2n()          MODIFY_REG(P_SW3, USART1_PS_MSK, ((1) << 2))
+#define USART1_SPI_SwitchP4n()          MODIFY_REG(P_SW3, USART1_PS_MSK, ((2) << 2))
+#define USART1_SPI_SwitchP6n()          MODIFY_REG(P_SW3, USART1_PS_MSK, ((3) << 2))
 
 #define USART2_PS_MSK                   (BIT5 | BIT4)
-#define USART2_SwitchP1n()              MODIFY_REG(P_SW3, USART2_PS_MSK, ((0) << 4))
-#define USART2_SwitchP2n()              MODIFY_REG(P_SW3, USART2_PS_MSK, ((1) << 4))
-#define USART2_SwitchP4n()              MODIFY_REG(P_SW3, USART2_PS_MSK, ((2) << 4))
-#define USART2_SwitchP7n()              MODIFY_REG(P_SW3, USART2_PS_MSK, ((3) << 4))
+#define USART2_SPI_SwitchP1n()          MODIFY_REG(P_SW3, USART2_PS_MSK, ((0) << 4))
+#define USART2_SPI_SwitchP2n()          MODIFY_REG(P_SW3, USART2_PS_MSK, ((1) << 4))
+#define USART2_SPI_SwitchP4n()          MODIFY_REG(P_SW3, USART2_PS_MSK, ((2) << 4))
+#define USART2_SPI_SwitchP7n()          MODIFY_REG(P_SW3, USART2_PS_MSK, ((3) << 4))
 
 #define USART3_PS_MSK                   (BIT1 | BIT0)
-#define USART3_SwitchP6n()              MODIFY_REG(P_SWX3, USART3_PS_MSK, ((0) << 0))
-#define USART3_SwitchP0n()              MODIFY_REG(P_SWX3, USART3_PS_MSK, ((1) << 0))
-#define USART3_SwitchPBn()              MODIFY_REG(P_SWX3, USART3_PS_MSK, ((2) << 0))
-#define USART3_SwitchP9n()              MODIFY_REG(P_SWX3, USART3_PS_MSK, ((3) << 0))
+#define USART3_SPI_SwitchP6n()          MODIFY_REG(P_SWX3, USART3_PS_MSK, ((0) << 0))
+#define USART3_SPI_SwitchP0n()          MODIFY_REG(P_SWX3, USART3_PS_MSK, ((1) << 0))
+#define USART3_SPI_SwitchPBn()          MODIFY_REG(P_SWX3, USART3_PS_MSK, ((2) << 0))
+#define USART3_SPI_SwitchP9n()          MODIFY_REG(P_SWX3, USART3_PS_MSK, ((3) << 0))
 
 #define USART4_PS_MSK                   (BIT3 | BIT2)
-#define USART4_SwitchP6n()              MODIFY_REG(P_SWX3, USART4_PS_MSK, ((0) << 2))
-#define USART4_SwitchP0n()              MODIFY_REG(P_SWX3, USART4_PS_MSK, ((1) << 2))
-#define USART4_SwitchPBn()              MODIFY_REG(P_SWX3, USART4_PS_MSK, ((2) << 2))
-#define USART4_SwitchP7n()              MODIFY_REG(P_SWX3, USART4_PS_MSK, ((3) << 2))
+#define USART4_SPI_SwitchP6n()          MODIFY_REG(P_SWX3, USART4_PS_MSK, ((0) << 2))
+#define USART4_SPI_SwitchP0n()          MODIFY_REG(P_SWX3, USART4_PS_MSK, ((1) << 2))
+#define USART4_SPI_SwitchPBn()          MODIFY_REG(P_SWX3, USART4_PS_MSK, ((2) << 2))
+#define USART4_SPI_SwitchP7n()          MODIFY_REG(P_SWX3, USART4_PS_MSK, ((3) << 2))
 
 #define USART5_PS_MSK                   (BIT5 | BIT4)
-#define USART5_SwitchP2n()              MODIFY_REG(P_SWX3, USART5_PS_MSK, ((0) << 4))
-#define USART5_SwitchP7n()              MODIFY_REG(P_SWX3, USART5_PS_MSK, ((1) << 4))
-#define USART5_SwitchP8n()              MODIFY_REG(P_SWX3, USART5_PS_MSK, ((2) << 4))
-#define USART5_SwitchP9n()              MODIFY_REG(P_SWX3, USART5_PS_MSK, ((3) << 4))
+#define USART5_SPI_SwitchP2n()          MODIFY_REG(P_SWX3, USART5_PS_MSK, ((0) << 4))
+#define USART5_SPI_SwitchP7n()          MODIFY_REG(P_SWX3, USART5_PS_MSK, ((1) << 4))
+#define USART5_SPI_SwitchP8n()          MODIFY_REG(P_SWX3, USART5_PS_MSK, ((2) << 4))
+#define USART5_SPI_SwitchP9n()          MODIFY_REG(P_SWX3, USART5_PS_MSK, ((3) << 4))
 
 #define USART6_PS_MSK                   (BIT7 | BIT6)
-#define USART6_SwitchP2n()              MODIFY_REG(P_SWX3, USART6_PS_MSK, ((0) << 6))
-#define USART6_SwitchP7n()              MODIFY_REG(P_SWX3, USART6_PS_MSK, ((1) << 6))
-#define USART6_SwitchP8n()              MODIFY_REG(P_SWX3, USART6_PS_MSK, ((2) << 6))
-#define USART6_SwitchP9n()              MODIFY_REG(P_SWX3, USART6_PS_MSK, ((3) << 6))
+#define USART6_SPI_SwitchP2n()          MODIFY_REG(P_SWX3, USART6_PS_MSK, ((0) << 6))
+#define USART6_SPI_SwitchP7n()          MODIFY_REG(P_SWX3, USART6_PS_MSK, ((1) << 6))
+#define USART6_SPI_SwitchP8n()          MODIFY_REG(P_SWX3, USART6_PS_MSK, ((2) << 6))
+#define USART6_SPI_SwitchP9n()          MODIFY_REG(P_SWX3, USART6_PS_MSK, ((3) << 6))
 
 #define USART7_PS_MSK                   (BIT1 | BIT0)
-#define USART7_SwitchP5n()              MODIFY_REG(P_SWX6, USART7_PS_MSK, ((0) << 0))
-#define USART7_SwitchPAn()              MODIFY_REG(P_SWX6, USART7_PS_MSK, ((1) << 0))
-#define USART7_SwitchP7n()              MODIFY_REG(P_SWX6, USART7_PS_MSK, ((2) << 0))
+#define USART7_SPI_SwitchP5n()          MODIFY_REG(P_SWX6, USART7_PS_MSK, ((0) << 0))
+#define USART7_SPI_SwitchPAn()          MODIFY_REG(P_SWX6, USART7_PS_MSK, ((1) << 0))
+#define USART7_SPI_SwitchP7n()          MODIFY_REG(P_SWX6, USART7_PS_MSK, ((2) << 0))
+#define USART7_SPI_SwitchPCn()          MODIFY_REG(P_SWX6, USART7_PS_MSK, ((3) << 0))
 
 #define USART8_PS_MSK                   (BIT3 | BIT2)
-#define USART8_SwitchP5n()              MODIFY_REG(P_SWX6, USART8_PS_MSK, ((0) << 2))
-#define USART8_SwitchPAn()              MODIFY_REG(P_SWX6, USART8_PS_MSK, ((1) << 2))
-#define USART8_SwitchP7n()              MODIFY_REG(P_SWX6, USART8_PS_MSK, ((2) << 2))
-#define USART8_SwitchP6n()              MODIFY_REG(P_SWX6, USART8_PS_MSK, ((3) << 2))
+#define USART8_SPI_SwitchP5n()          MODIFY_REG(P_SWX6, USART8_PS_MSK, ((0) << 2))
+#define USART8_SPI_SwitchPAn()          MODIFY_REG(P_SWX6, USART8_PS_MSK, ((1) << 2))
+#define USART8_SPI_SwitchP7n()          MODIFY_REG(P_SWX6, USART8_PS_MSK, ((2) << 2))
+#define USART8_SPI_SwitchP6n()          MODIFY_REG(P_SWX6, USART8_PS_MSK, ((3) << 2))
 
 #define I2S_PS_MSK                      (BIT7 | BIT6)
 #define I2S1_SwitchP3n()                MODIFY_REG(P_SW3, I2S_PS_MSK, ((0) << 6))
@@ -3789,7 +3794,7 @@
 #define TIMER10_Stop()                  CLR_REG_BIT(T10T9M, T10T9M_T10R_MSK)
 
 #define TIMER10_SetReload16(n)          (T10H = HIBYTE(n), T10L = LOBYTE(n))
-#define TIMER10_SetPrescale(n)          (TM8PS = (n))
+#define TIMER10_SetPrescale(n)          (TM10PS = (n))
 
 #define T10T9M_T10X12_MSK               BIT5
 #define TIMER10_1TMode()                SET_REG_BIT(T10T9M, T10T9M_T10X12_MSK)
@@ -3933,6 +3938,120 @@
 #define UART1_Timer1BRT()               CLR_REG_BIT(AUXR, AUXR_S1BRT_MSK)
 #define UART1_Timer2BRT()               SET_REG_BIT(AUXR, AUXR_S1BRT_MSK)
 
+#define USARTCR1_LINEN_MSK              BIT7
+#define USART1_LIN_ModeEnable()         SET_REG_BIT(USARTCR1, USARTCR1_LINEN_MSK)
+#define USART1_LIN_ModeDisable()        CLR_REG_BIT(USARTCR1, USARTCR1_LINEN_MSK)
+
+#define USARTCR1_DORD_MSK               BIT6
+#define USART1_SPI_DataLSB()            SET_REG_BIT(USARTCR1, USARTCR1_DORD_MSK)
+#define USART1_SPI_DataMSB()            CLR_REG_BIT(USARTCR1, USARTCR1_DORD_MSK)
+
+#define USARTCR1_CLKEN_MSK              BIT5
+#define USART1_SMC_ClockEnable()        SET_REG_BIT(USARTCR1, USARTCR1_CLKEN_MSK)
+#define USART1_SMC_ClockDisable()       CLR_REG_BIT(USARTCR1, USARTCR1_CLKEN_MSK)
+
+#define USARTCR1_SPMOD_MSK              BIT4
+#define USART1_SPI_ModeEnable()         SET_REG_BIT(USARTCR1, USARTCR1_SPMOD_MSK)
+#define USART1_SPI_ModeDisable()        CLR_REG_BIT(USARTCR1, USARTCR1_SPMOD_MSK)
+
+#define USARTCR1_SPIEN_MSK              BIT3
+#define USART1_SPI_Enable()             SET_REG_BIT(USARTCR1, USARTCR1_SPIEN_MSK)
+#define USART1_SPI_Disable()            CLR_REG_BIT(USARTCR1, USARTCR1_SPIEN_MSK)
+
+#define USARTCR1_SPSLV_MSK              BIT2
+#define USART1_SPI_MasterMode()         CLR_REG_BIT(USARTCR1, USARTCR1_SPSLV_MSK)
+#define USART1_SPI_SlaveMode()          SET_REG_BIT(USARTCR1, USARTCR1_SPSLV_MSK)
+
+#define USARTCR1_CPOL_MSK               BIT1
+#define USARTCR1_CPHA_MSK               BIT0
+#define USART1_SPIMODE                  (USARTCR1_CPOL_MSK | USARTCR1_CPHA_MSK)
+#define USART1_SPI_SetMode0()           MODIFY_REG(USARTCR1, USART1_SPIMODE, ((0) << 0))
+#define USART1_SPI_SetMode1()           MODIFY_REG(USARTCR1, USART1_SPIMODE, ((1) << 0))
+#define USART1_SPI_SetMode2()           MODIFY_REG(USARTCR1, USART1_SPIMODE, ((2) << 0))
+#define USART1_SPI_SetMode3()           MODIFY_REG(USARTCR1, USART1_SPIMODE, ((3) << 0))
+
+#define USARTCR2_IREN_MSK               BIT7
+#define USART1_IrDA_ModeEnable()        SET_REG_BIT(USARTCR2, USARTCR2_IREN_MSK)
+#define USART1_IrDA_ModeDisable()       CLR_REG_BIT(USARTCR2, USARTCR2_IREN_MSK)
+
+#define USARTCR2_IRLP_MSK               BIT6
+#define USART1_IrDA_NormalMode()        CLR_REG_BIT(USARTCR2, USARTCR2_IRLP_MSK)
+#define USART1_IrDA_LowPowerMode()      SET_REG_BIT(USARTCR2, USARTCR2_IRLP_MSK)
+
+#define USARTCR2_SCEN_MSK               BIT5
+#define USART1_SMC_ModeEnable()         SET_REG_BIT(USARTCR2, USARTCR2_SCEN_MSK)
+#define USART1_SMC_ModeDisable()        CLR_REG_BIT(USARTCR2, USARTCR2_SCEN_MSK)
+
+#define USARTCR2_NACK_MSK               BIT4
+#define USART1_SMC_EnableNACK()         SET_REG_BIT(USARTCR2, USARTCR2_NACK_MSK)
+#define USART1_SMC_DisableNACK()        CLR_REG_BIT(USARTCR2, USARTCR2_NACK_MSK)
+
+#define USARTCR2_HDSEL_MSK              BIT3
+#define USART1_EnableHalfDuplex()       SET_REG_BIT(USARTCR2, USARTCR2_HDSEL_MSK)
+#define USART1_DisableHalfDuplex()      CLR_REG_BIT(USARTCR2, USARTCR2_HDSEL_MSK)
+
+#define USARTCR2_PE_MSK                 BIT0
+#define UART1_CheckParityError()        READ_REG_BIT(USARTCR2, USARTCR2_PE_MSK)
+#define UART1_ClearParityError()        CLR_REG_BIT(USARTCR2, USARTCR2_PE_MSK)
+
+#define USART1_IrDA_SetLowPowerBaudrate(d) (USARTCR3 = (d))
+
+#define USARTCR4_IOSW_MSK               BIT4
+#define USART1_SPI_SwapMosiMiso()       SET_REG_BIT(USARTCR4, USARTCR4_IOSW_MSK)
+
+#define USARTCR4_SCCKS_MSK              (BIT3 | BIT2)
+#define USART1_SMC_SetClockDivider(n)   MODIFY_REG(USARTCR4, USARTCR4_SCCKS_MSK, ((n) << 2))
+#define USART1_SMC_SetClockDivider8()   USART1_SMC_SetClockDivider(3)
+#define USART1_SMC_SetClockDivider16()  USART1_SMC_SetClockDivider(2)
+#define USART1_SMC_SetClockDivider32()  USART1_SMC_SetClockDivider(1)
+#define USART1_SMC_SetClockDivider64()  USART1_SMC_SetClockDivider(0)
+
+#define USARTCR4_SPICKS_MSK             (BIT1 | BIT0)
+#define USART1_SPI_SetClockDivider(n)   MODIFY_REG(USARTCR4, USARTCR4_SPICKS_MSK, ((n) << 0))
+#define USART1_SPI_SetClockDivider2()   USART1_SPI_SetClockDivider(3)
+#define USART1_SPI_SetClockDivider4()   USART1_SPI_SetClockDivider(0)
+#define USART1_SPI_SetClockDivider8()   USART1_SPI_SetClockDivider(1)
+#define USART1_SPI_SetClockDivider16()  USART1_SPI_SetClockDivider(2)
+
+#define USARTCR5_BRKDET_MSK             BIT7
+#define USART1_LIN_CheckBreak()         READ_REG_BIT(USARTCR5, USARTCR5_BRKDET_MSK)
+#define USART1_LIN_ClearBreak()         CLR_REG_BIT(USARTCR5, USARTCR5_BRKDET_MSK)
+
+#define USARTCR5_HDRER_MSK              BIT6
+#define USART1_LIN_CheckHeaderError()   READ_REG_BIT(USARTCR5, USARTCR5_HDRER_MSK)
+#define USART1_LIN_ClearHeaderError()   CLR_REG_BIT(USARTCR5, USARTCR5_HDRER_MSK)
+
+#define USARTCR5_SLVEN_MSK              BIT5
+#define USART1_LIN_MasterMode()         CLR_REG_BIT(USARTCR5, USARTCR5_SLVEN_MSK)
+#define USART1_LIN_SlaveMode()          SET_REG_BIT(USARTCR5, USARTCR5_SLVEN_MSK)
+
+#define USARTCR5_ASYNC_MSK              BIT4
+#define USART1_LIN_EnableAutoSYNC()     SET_REG_BIT(USARTCR5, USARTCR5_ASYNC_MSK)
+#define USART1_LIN_DisableAutoSYNC()    CLR_REG_BIT(USARTCR5, USARTCR5_ASYNC_MSK)
+
+#define USARTCR5_TXCF_MSK               BIT3
+#define USART1_LIN_CheckTxContlict()    READ_REG_BIT(USARTCR5, USARTCR5_TXCF_MSK)
+#define USART1_LIN_ClearTxContlict()    CLR_REG_BIT(USARTCR5, USARTCR5_TXCF_MSK)
+
+#define USARTCR5_SENDBK_MSK             BIT2
+#define USART1_LIN_SendBreak()          SET_REG_BIT(USARTCR5, USARTCR5_SENDBK_MSK)
+
+#define USARTCR5_HDRDET_MSK             BIT1
+#define USART1_LIN_CheckHeader()        READ_REG_BIT(USARTCR5, USARTCR5_HDRDET_MSK)
+#define USART1_LIN_ClearHeader()        CLR_REG_BIT(USARTCR5, USARTCR5_HDRDET_MSK)
+
+#define USARTCR5_SYNC_MSK               BIT0
+#define USART1_LIN_CheckSYNC()          READ_REG_BIT(USARTCR5, USARTCR5_SYNC_MSK)
+#define USART1_LIN_ClearSYNC()          CLR_REG_BIT(USARTCR5, USARTCR5_SYNC_MSK)
+
+#define USART1_SMC_SetGuardTime(d)      (USARTGTR = (d))
+
+#define USART1_SetBaudrate(n)           USARTBRL = BYTE0(n); \
+                                        USARTBRH = BYTE1(n)
+
+#define PCON_SMOD_MSK                   BIT7
+#define USART1_BaudrateX2()             SET_REG_BIT(PCON, PCON_SMOD_MSK)
+
 ////////////////////////
 
 #define S2CON_S2SM_MSK                  (BIT7 | BIT6)
@@ -3984,6 +4103,120 @@
 #define UART2_SetTimeoutInterval(n)     UR2TOTL = BYTE0(n); \
                                         UR2TOTH = BYTE1(n); \
                                         UR2TOTE = BYTE2(n)
+
+#define USART2CR1_LINEN_MSK             BIT7
+#define USART2_LIN_ModeEnable()         SET_REG_BIT(USART2CR1, USART2CR1_LINEN_MSK)
+#define USART2_LIN_ModeDisable()        CLR_REG_BIT(USART2CR1, USART2CR1_LINEN_MSK)
+
+#define USART2CR1_DORD_MSK              BIT6
+#define USART2_SPI_DataLSB()            SET_REG_BIT(USART2CR1, USART2CR1_DORD_MSK)
+#define USART2_SPI_DataMSB()            CLR_REG_BIT(USART2CR1, USART2CR1_DORD_MSK)
+
+#define USART2CR1_CLKEN_MSK             BIT5
+#define USART2_SMC_ClockEnable()        SET_REG_BIT(USART2CR1, USART2CR1_CLKEN_MSK)
+#define USART2_SMC_ClockDisable()       CLR_REG_BIT(USART2CR1, USART2CR1_CLKEN_MSK)
+
+#define USART2CR1_SPMOD_MSK             BIT4
+#define USART2_SPI_ModeEnable()         SET_REG_BIT(USART2CR1, USART2CR1_SPMOD_MSK)
+#define USART2_SPI_ModeDisable()        CLR_REG_BIT(USART2CR1, USART2CR1_SPMOD_MSK)
+
+#define USART2CR1_SPIEN_MSK             BIT3
+#define USART2_SPI_Enable()             SET_REG_BIT(USART2CR1, USART2CR1_SPIEN_MSK)
+#define USART2_SPI_Disable()            CLR_REG_BIT(USART2CR1, USART2CR1_SPIEN_MSK)
+
+#define USART2CR1_SPSLV_MSK             BIT2
+#define USART2_SPI_MasterMode()         CLR_REG_BIT(USART2CR1, USART2CR1_SPSLV_MSK)
+#define USART2_SPI_SlaveMode()          SET_REG_BIT(USART2CR1, USART2CR1_SPSLV_MSK)
+
+#define USART2CR1_CPOL_MSK              BIT1
+#define USART2CR1_CPHA_MSK              BIT0
+#define USART2_SPIMODE                  (USART2CR1_CPOL_MSK | USART2CR1_CPHA_MSK)
+#define USART2_SPI_SetMode0()           MODIFY_REG(USART2CR1, USART2_SPIMODE, ((0) << 0))
+#define USART2_SPI_SetMode1()           MODIFY_REG(USART2CR1, USART2_SPIMODE, ((1) << 0))
+#define USART2_SPI_SetMode2()           MODIFY_REG(USART2CR1, USART2_SPIMODE, ((2) << 0))
+#define USART2_SPI_SetMode3()           MODIFY_REG(USART2CR1, USART2_SPIMODE, ((3) << 0))
+
+#define USART2CR2_IREN_MSK              BIT7
+#define USART2_IrDA_ModeEnable()        SET_REG_BIT(USART2CR2, USART2CR2_IREN_MSK)
+#define USART2_IrDA_ModeDisable()       CLR_REG_BIT(USART2CR2, USART2CR2_IREN_MSK)
+
+#define USART2CR2_IRLP_MSK              BIT6
+#define USART2_IrDA_NormalMode()        CLR_REG_BIT(USART2CR2, USART2CR2_IRLP_MSK)
+#define USART2_IrDA_LowPowerMode()      SET_REG_BIT(USART2CR2, USART2CR2_IRLP_MSK)
+
+#define USART2CR2_SCEN_MSK              BIT5
+#define USART2_SMC_ModeEnable()         SET_REG_BIT(USART2CR2, USART2CR2_SCEN_MSK)
+#define USART2_SMC_ModeDisable()        CLR_REG_BIT(USART2CR2, USART2CR2_SCEN_MSK)
+
+#define USART2CR2_NACK_MSK              BIT4
+#define USART2_SMC_EnableNACK()         SET_REG_BIT(USART2CR2, USART2CR2_NACK_MSK)
+#define USART2_SMC_DisableNACK()        CLR_REG_BIT(USART2CR2, USART2CR2_NACK_MSK)
+
+#define USART2CR2_HDSEL_MSK             BIT3
+#define USART2_EnableHalfDuplex()       SET_REG_BIT(USART2CR2, USART2CR2_HDSEL_MSK)
+#define USART2_DisableHalfDuplex()      CLR_REG_BIT(USART2CR2, USART2CR2_HDSEL_MSK)
+
+#define USART2CR2_PE_MSK                BIT0
+#define UART2_CheckParityError()        READ_REG_BIT(USART2CR2, USART2CR2_PE_MSK)
+#define UART2_ClearParityError()        CLR_REG_BIT(USART2CR2, USART2CR2_PE_MSK)
+
+#define USART2_IrDA_SetLowPowerBaudrate(d) (USART2CR3 = (d))
+
+#define USART2CR4_IOSW_MSK              BIT4
+#define USART2_SPI_SwapMosiMiso()       SET_REG_BIT(USART2CR4, USART2CR4_IOSW_MSK)
+
+#define USART2CR4_SCCKS_MSK             (BIT3 | BIT2)
+#define USART2_SMC_SetClockDivider(n)   MODIFY_REG(USART2CR4, USART2CR4_SCCKS_MSK, ((n) << 2))
+#define USART2_SMC_SetClockDivider8()   USART2_SMC_SetClockDivider(3)
+#define USART2_SMC_SetClockDivider16()  USART2_SMC_SetClockDivider(2)
+#define USART2_SMC_SetClockDivider32()  USART2_SMC_SetClockDivider(1)
+#define USART2_SMC_SetClockDivider64()  USART2_SMC_SetClockDivider(0)
+
+#define USART2CR4_SPICKS_MSK            (BIT1 | BIT0)
+#define USART2_SPI_SetClockDivider(n)   MODIFY_REG(USART2CR4, USART2CR4_SPICKS_MSK, ((n) << 0))
+#define USART2_SPI_SetClockDivider2()   USART2_SPI_SetClockDivider(3)
+#define USART2_SPI_SetClockDivider4()   USART2_SPI_SetClockDivider(0)
+#define USART2_SPI_SetClockDivider8()   USART2_SPI_SetClockDivider(1)
+#define USART2_SPI_SetClockDivider16()  USART2_SPI_SetClockDivider(2)
+
+#define USART2CR5_BRKDET_MSK            BIT7
+#define USART2_LIN_CheckBreak()         READ_REG_BIT(USART2CR5, USART2CR5_BRKDET_MSK)
+#define USART2_LIN_ClearBreak()         CLR_REG_BIT(USART2CR5, USART2CR5_BRKDET_MSK)
+
+#define USART2CR5_HDRER_MSK             BIT6
+#define USART2_LIN_CheckHeaderError()   READ_REG_BIT(USART2CR5, USART2CR5_HDRER_MSK)
+#define USART2_LIN_ClearHeaderError()   CLR_REG_BIT(USART2CR5, USART2CR5_HDRER_MSK)
+
+#define USART2CR5_SLVEN_MSK             BIT5
+#define USART2_LIN_MasterMode()         CLR_REG_BIT(USART2CR5, USART2CR5_SLVEN_MSK)
+#define USART2_LIN_SlaveMode()          SET_REG_BIT(USART2CR5, USART2CR5_SLVEN_MSK)
+
+#define USART2CR5_ASYNC_MSK             BIT4
+#define USART2_LIN_EnableAutoSYNC()     SET_REG_BIT(USART2CR5, USART2CR5_ASYNC_MSK)
+#define USART2_LIN_DisableAutoSYNC()    CLR_REG_BIT(USART2CR5, USART2CR5_ASYNC_MSK)
+
+#define USART2CR5_TXCF_MSK              BIT3
+#define USART2_LIN_CheckTxContlict()    READ_REG_BIT(USART2CR5, USART2CR5_TXCF_MSK)
+#define USART2_LIN_ClearTxContlict()    CLR_REG_BIT(USART2CR5, USART2CR5_TXCF_MSK)
+
+#define USART2CR5_SENDBK_MSK            BIT2
+#define USART2_LIN_SendBreak()          SET_REG_BIT(USART2CR5, USART2CR5_SENDBK_MSK)
+
+#define USART2CR5_HDRDET_MSK            BIT1
+#define USART2_LIN_CheckHeader()        READ_REG_BIT(USART2CR5, USART2CR5_HDRDET_MSK)
+#define USART2_LIN_ClearHeader()        CLR_REG_BIT(USART2CR5, USART2CR5_HDRDET_MSK)
+
+#define USART2CR5_SYNC_MSK              BIT0
+#define USART2_LIN_CheckSYNC()          READ_REG_BIT(USART2CR5, USART2CR5_SYNC_MSK)
+#define USART2_LIN_ClearSYNC()          CLR_REG_BIT(USART2CR5, USART2CR5_SYNC_MSK)
+
+#define USART2_SMC_SetGuardTime(d)      (USART2GTR = (d))
+
+#define USART2_SetBaudrate(n)           USART2BRL = BYTE0(n); \
+                                        USART2BRH = BYTE1(n)
+
+#define S2CFG_SMOD_MSK                  BIT7
+#define USART2_BaudrateX2()             SET_REG_BIT(S2CFG, S2CFG_SMOD_MSK)
 
 ////////////////////////
 
@@ -4038,6 +4271,120 @@
 #define UART3_Timer2BRT()               CLR_REG_BIT(S3CFG, S3CFG_S3BRT_MSK)
 #define UART3_Timer3BRT()               SET_REG_BIT(S3CFG, S3CFG_S3BRT_MSK)
 
+#define USART3CR1_LINEN_MSK             BIT7
+#define USART3_LIN_ModeEnable()         SET_REG_BIT(USART3CR1, USART3CR1_LINEN_MSK)
+#define USART3_LIN_ModeDisable()        CLR_REG_BIT(USART3CR1, USART3CR1_LINEN_MSK)
+
+#define USART3CR1_DORD_MSK              BIT6
+#define USART3_SPI_DataLSB()            SET_REG_BIT(USART3CR1, USART3CR1_DORD_MSK)
+#define USART3_SPI_DataMSB()            CLR_REG_BIT(USART3CR1, USART3CR1_DORD_MSK)
+
+#define USART3CR1_CLKEN_MSK             BIT5
+#define USART3_SMC_ClockEnable()        SET_REG_BIT(USART3CR1, USART3CR1_CLKEN_MSK)
+#define USART3_SMC_ClockDisable()       CLR_REG_BIT(USART3CR1, USART3CR1_CLKEN_MSK)
+
+#define USART3CR1_SPMOD_MSK             BIT4
+#define USART3_SPI_ModeEnable()         SET_REG_BIT(USART3CR1, USART3CR1_SPMOD_MSK)
+#define USART3_SPI_ModeDisable()        CLR_REG_BIT(USART3CR1, USART3CR1_SPMOD_MSK)
+
+#define USART3CR1_SPIEN_MSK             BIT3
+#define USART3_SPI_Enable()             SET_REG_BIT(USART3CR1, USART3CR1_SPIEN_MSK)
+#define USART3_SPI_Disable()            CLR_REG_BIT(USART3CR1, USART3CR1_SPIEN_MSK)
+
+#define USART3CR1_SPSLV_MSK             BIT2
+#define USART3_SPI_MasterMode()         CLR_REG_BIT(USART3CR1, USART3CR1_SPSLV_MSK)
+#define USART3_SPI_SlaveMode()          SET_REG_BIT(USART3CR1, USART3CR1_SPSLV_MSK)
+
+#define USART3CR1_CPOL_MSK              BIT1
+#define USART3CR1_CPHA_MSK              BIT0
+#define USART3_SPIMODE                  (USART3CR1_CPOL_MSK | USART3CR1_CPHA_MSK)
+#define USART3_SPI_SetMode0()           MODIFY_REG(USART3CR1, USART3_SPIMODE, ((0) << 0))
+#define USART3_SPI_SetMode1()           MODIFY_REG(USART3CR1, USART3_SPIMODE, ((1) << 0))
+#define USART3_SPI_SetMode2()           MODIFY_REG(USART3CR1, USART3_SPIMODE, ((2) << 0))
+#define USART3_SPI_SetMode3()           MODIFY_REG(USART3CR1, USART3_SPIMODE, ((3) << 0))
+
+#define USART3CR2_IREN_MSK              BIT7
+#define USART3_IrDA_ModeEnable()        SET_REG_BIT(USART3CR2, USART3CR2_IREN_MSK)
+#define USART3_IrDA_ModeDisable()       CLR_REG_BIT(USART3CR2, USART3CR2_IREN_MSK)
+
+#define USART3CR2_IRLP_MSK              BIT6
+#define USART3_IrDA_NormalMode()        CLR_REG_BIT(USART3CR2, USART3CR2_IRLP_MSK)
+#define USART3_IrDA_LowPowerMode()      SET_REG_BIT(USART3CR2, USART3CR2_IRLP_MSK)
+
+#define USART3CR2_SCEN_MSK              BIT5
+#define USART3_SMC_ModeEnable()         SET_REG_BIT(USART3CR2, USART3CR2_SCEN_MSK)
+#define USART3_SMC_ModeDisable()        CLR_REG_BIT(USART3CR2, USART3CR2_SCEN_MSK)
+
+#define USART3CR2_NACK_MSK              BIT4
+#define USART3_SMC_EnableNACK()         SET_REG_BIT(USART3CR2, USART3CR2_NACK_MSK)
+#define USART3_SMC_DisableNACK()        CLR_REG_BIT(USART3CR2, USART3CR2_NACK_MSK)
+
+#define USART3CR2_HDSEL_MSK             BIT3
+#define USART3_EnableHalfDuplex()       SET_REG_BIT(USART3CR2, USART3CR2_HDSEL_MSK)
+#define USART3_DisableHalfDuplex()      CLR_REG_BIT(USART3CR2, USART3CR2_HDSEL_MSK)
+
+#define USART3CR2_PE_MSK                BIT0
+#define UART3_CheckParityError()        READ_REG_BIT(USART3CR2, USART3CR2_PE_MSK)
+#define UART3_ClearParityError()        CLR_REG_BIT(USART3CR2, USART3CR2_PE_MSK)
+
+#define USART3_IrDA_SetLowPowerBaudrate(d) (USART3CR3 = (d))
+
+#define USART3CR4_IOSW_MSK              BIT4
+#define USART3_SPI_SwapMosiMiso()       SET_REG_BIT(USART3CR4, USART3CR4_IOSW_MSK)
+
+#define USART3CR4_SCCKS_MSK             (BIT3 | BIT2)
+#define USART3_SMC_SetClockDivider(n)   MODIFY_REG(USART3CR4, USART3CR4_SCCKS_MSK, ((n) << 2))
+#define USART3_SMC_SetClockDivider8()   USART3_SMC_SetClockDivider(3)
+#define USART3_SMC_SetClockDivider16()  USART3_SMC_SetClockDivider(2)
+#define USART3_SMC_SetClockDivider32()  USART3_SMC_SetClockDivider(1)
+#define USART3_SMC_SetClockDivider64()  USART3_SMC_SetClockDivider(0)
+
+#define USART3CR4_SPICKS_MSK            (BIT1 | BIT0)
+#define USART3_SPI_SetClockDivider(n)   MODIFY_REG(USART3CR4, USART3CR4_SPICKS_MSK, ((n) << 0))
+#define USART3_SPI_SetClockDivider2()   USART3_SPI_SetClockDivider(3)
+#define USART3_SPI_SetClockDivider4()   USART3_SPI_SetClockDivider(0)
+#define USART3_SPI_SetClockDivider8()   USART3_SPI_SetClockDivider(1)
+#define USART3_SPI_SetClockDivider16()  USART3_SPI_SetClockDivider(2)
+
+#define USART3CR5_BRKDET_MSK            BIT7
+#define USART3_LIN_CheckBreak()         READ_REG_BIT(USART3CR5, USART3CR5_BRKDET_MSK)
+#define USART3_LIN_ClearBreak()         CLR_REG_BIT(USART3CR5, USART3CR5_BRKDET_MSK)
+
+#define USART3CR5_HDRER_MSK             BIT6
+#define USART3_LIN_CheckHeaderError()   READ_REG_BIT(USART3CR5, USART3CR5_HDRER_MSK)
+#define USART3_LIN_ClearHeaderError()   CLR_REG_BIT(USART3CR5, USART3CR5_HDRER_MSK)
+
+#define USART3CR5_SLVEN_MSK             BIT5
+#define USART3_LIN_MasterMode()         CLR_REG_BIT(USART3CR5, USART3CR5_SLVEN_MSK)
+#define USART3_LIN_SlaveMode()          SET_REG_BIT(USART3CR5, USART3CR5_SLVEN_MSK)
+
+#define USART3CR5_ASYNC_MSK             BIT4
+#define USART3_LIN_EnableAutoSYNC()     SET_REG_BIT(USART3CR5, USART3CR5_ASYNC_MSK)
+#define USART3_LIN_DisableAutoSYNC()    CLR_REG_BIT(USART3CR5, USART3CR5_ASYNC_MSK)
+
+#define USART3CR5_TXCF_MSK              BIT3
+#define USART3_LIN_CheckTxContlict()    READ_REG_BIT(USART3CR5, USART3CR5_TXCF_MSK)
+#define USART3_LIN_ClearTxContlict()    CLR_REG_BIT(USART3CR5, USART3CR5_TXCF_MSK)
+
+#define USART3CR5_SENDBK_MSK            BIT2
+#define USART3_LIN_SendBreak()          SET_REG_BIT(USART3CR5, USART3CR5_SENDBK_MSK)
+
+#define USART3CR5_HDRDET_MSK            BIT1
+#define USART3_LIN_CheckHeader()        READ_REG_BIT(USART3CR5, USART3CR5_HDRDET_MSK)
+#define USART3_LIN_ClearHeader()        CLR_REG_BIT(USART3CR5, USART3CR5_HDRDET_MSK)
+
+#define USART3CR5_SYNC_MSK              BIT0
+#define USART3_LIN_CheckSYNC()          READ_REG_BIT(USART3CR5, USART3CR5_SYNC_MSK)
+#define USART3_LIN_ClearSYNC()          CLR_REG_BIT(USART3CR5, USART3CR5_SYNC_MSK)
+
+#define USART3_SMC_SetGuardTime(d)      (USART3GTR = (d))
+
+#define USART3_SetBaudrate(n)           USART3BRL = BYTE0(n); \
+                                        USART3BRH = BYTE1(n)
+
+#define S3CFG_SMOD_MSK                  BIT7
+#define USART3_BaudrateX2()             SET_REG_BIT(S3CFG, S3CFG_SMOD_MSK)
+
 ////////////////////////
 
 #define S4CON_S4SM_MSK                  (BIT7 | BIT6)
@@ -4090,6 +4437,120 @@
 #define S4CFG_S4BRT_MSK                 BIT0
 #define UART4_Timer2BRT()               CLR_REG_BIT(S4CFG, S4CFG_S4BRT_MSK)
 #define UART4_Timer4BRT()               SET_REG_BIT(S4CFG, S4CFG_S4BRT_MSK)
+
+#define USART4CR1_LINEN_MSK             BIT7
+#define USART4_LIN_ModeEnable()         SET_REG_BIT(USART4CR1, USART4CR1_LINEN_MSK)
+#define USART4_LIN_ModeDisable()        CLR_REG_BIT(USART4CR1, USART4CR1_LINEN_MSK)
+
+#define USART4CR1_DORD_MSK              BIT6
+#define USART4_SPI_DataLSB()            SET_REG_BIT(USART4CR1, USART4CR1_DORD_MSK)
+#define USART4_SPI_DataMSB()            CLR_REG_BIT(USART4CR1, USART4CR1_DORD_MSK)
+
+#define USART4CR1_CLKEN_MSK             BIT5
+#define USART4_SMC_ClockEnable()        SET_REG_BIT(USART4CR1, USART4CR1_CLKEN_MSK)
+#define USART4_SMC_ClockDisable()       CLR_REG_BIT(USART4CR1, USART4CR1_CLKEN_MSK)
+
+#define USART4CR1_SPMOD_MSK             BIT4
+#define USART4_SPI_ModeEnable()         SET_REG_BIT(USART4CR1, USART4CR1_SPMOD_MSK)
+#define USART4_SPI_ModeDisable()        CLR_REG_BIT(USART4CR1, USART4CR1_SPMOD_MSK)
+
+#define USART4CR1_SPIEN_MSK             BIT3
+#define USART4_SPI_Enable()             SET_REG_BIT(USART4CR1, USART4CR1_SPIEN_MSK)
+#define USART4_SPI_Disable()            CLR_REG_BIT(USART4CR1, USART4CR1_SPIEN_MSK)
+
+#define USART4CR1_SPSLV_MSK             BIT2
+#define USART4_SPI_MasterMode()         CLR_REG_BIT(USART4CR1, USART4CR1_SPSLV_MSK)
+#define USART4_SPI_SlaveMode()          SET_REG_BIT(USART4CR1, USART4CR1_SPSLV_MSK)
+
+#define USART4CR1_CPOL_MSK              BIT1
+#define USART4CR1_CPHA_MSK              BIT0
+#define USART4_SPIMODE                  (USART4CR1_CPOL_MSK | USART4CR1_CPHA_MSK)
+#define USART4_SPI_SetMode0()           MODIFY_REG(USART4CR1, USART4_SPIMODE, ((0) << 0))
+#define USART4_SPI_SetMode1()           MODIFY_REG(USART4CR1, USART4_SPIMODE, ((1) << 0))
+#define USART4_SPI_SetMode2()           MODIFY_REG(USART4CR1, USART4_SPIMODE, ((2) << 0))
+#define USART4_SPI_SetMode3()           MODIFY_REG(USART4CR1, USART4_SPIMODE, ((3) << 0))
+
+#define USART4CR2_IREN_MSK              BIT7
+#define USART4_IrDA_ModeEnable()        SET_REG_BIT(USART4CR2, USART4CR2_IREN_MSK)
+#define USART4_IrDA_ModeDisable()       CLR_REG_BIT(USART4CR2, USART4CR2_IREN_MSK)
+
+#define USART4CR2_IRLP_MSK              BIT6
+#define USART4_IrDA_NormalMode()        CLR_REG_BIT(USART4CR2, USART4CR2_IRLP_MSK)
+#define USART4_IrDA_LowPowerMode()      SET_REG_BIT(USART4CR2, USART4CR2_IRLP_MSK)
+
+#define USART4CR2_SCEN_MSK              BIT5
+#define USART4_SMC_ModeEnable()         SET_REG_BIT(USART4CR2, USART4CR2_SCEN_MSK)
+#define USART4_SMC_ModeDisable()        CLR_REG_BIT(USART4CR2, USART4CR2_SCEN_MSK)
+
+#define USART4CR2_NACK_MSK              BIT4
+#define USART4_SMC_EnableNACK()         SET_REG_BIT(USART4CR2, USART4CR2_NACK_MSK)
+#define USART4_SMC_DisableNACK()        CLR_REG_BIT(USART4CR2, USART4CR2_NACK_MSK)
+
+#define USART4CR2_HDSEL_MSK             BIT3
+#define USART4_EnableHalfDuplex()       SET_REG_BIT(USART4CR2, USART4CR2_HDSEL_MSK)
+#define USART4_DisableHalfDuplex()      CLR_REG_BIT(USART4CR2, USART4CR2_HDSEL_MSK)
+
+#define USART4CR2_PE_MSK                BIT0
+#define UART4_CheckParityError()        READ_REG_BIT(USART4CR2, USART4CR2_PE_MSK)
+#define UART4_ClearParityError()        CLR_REG_BIT(USART4CR2, USART4CR2_PE_MSK)
+
+#define USART4_IrDA_SetLowPowerBaudrate(d) (USART4CR3 = (d))
+
+#define USART4CR4_IOSW_MSK              BIT4
+#define USART4_SPI_SwapMosiMiso()       SET_REG_BIT(USART4CR4, USART4CR4_IOSW_MSK)
+
+#define USART4CR4_SCCKS_MSK             (BIT3 | BIT2)
+#define USART4_SMC_SetClockDivider(n)   MODIFY_REG(USART4CR4, USART4CR4_SCCKS_MSK, ((n) << 2))
+#define USART4_SMC_SetClockDivider8()   USART4_SMC_SetClockDivider(3)
+#define USART4_SMC_SetClockDivider16()  USART4_SMC_SetClockDivider(2)
+#define USART4_SMC_SetClockDivider32()  USART4_SMC_SetClockDivider(1)
+#define USART4_SMC_SetClockDivider64()  USART4_SMC_SetClockDivider(0)
+
+#define USART4CR4_SPICKS_MSK            (BIT1 | BIT0)
+#define USART4_SPI_SetClockDivider(n)   MODIFY_REG(USART4CR4, USART4CR4_SPICKS_MSK, ((n) << 0))
+#define USART4_SPI_SetClockDivider2()   USART4_SPI_SetClockDivider(3)
+#define USART4_SPI_SetClockDivider4()   USART4_SPI_SetClockDivider(0)
+#define USART4_SPI_SetClockDivider8()   USART4_SPI_SetClockDivider(1)
+#define USART4_SPI_SetClockDivider16()  USART4_SPI_SetClockDivider(2)
+
+#define USART4CR5_BRKDET_MSK            BIT7
+#define USART4_LIN_CheckBreak()         READ_REG_BIT(USART4CR5, USART4CR5_BRKDET_MSK)
+#define USART4_LIN_ClearBreak()         CLR_REG_BIT(USART4CR5, USART4CR5_BRKDET_MSK)
+
+#define USART4CR5_HDRER_MSK             BIT6
+#define USART4_LIN_CheckHeaderError()   READ_REG_BIT(USART4CR5, USART4CR5_HDRER_MSK)
+#define USART4_LIN_ClearHeaderError()   CLR_REG_BIT(USART4CR5, USART4CR5_HDRER_MSK)
+
+#define USART4CR5_SLVEN_MSK             BIT5
+#define USART4_LIN_MasterMode()         CLR_REG_BIT(USART4CR5, USART4CR5_SLVEN_MSK)
+#define USART4_LIN_SlaveMode()          SET_REG_BIT(USART4CR5, USART4CR5_SLVEN_MSK)
+
+#define USART4CR5_ASYNC_MSK             BIT4
+#define USART4_LIN_EnableAutoSYNC()     SET_REG_BIT(USART4CR5, USART4CR5_ASYNC_MSK)
+#define USART4_LIN_DisableAutoSYNC()    CLR_REG_BIT(USART4CR5, USART4CR5_ASYNC_MSK)
+
+#define USART4CR5_TXCF_MSK              BIT3
+#define USART4_LIN_CheckTxContlict()    READ_REG_BIT(USART4CR5, USART4CR5_TXCF_MSK)
+#define USART4_LIN_ClearTxContlict()    CLR_REG_BIT(USART4CR5, USART4CR5_TXCF_MSK)
+
+#define USART4CR5_SENDBK_MSK            BIT2
+#define USART4_LIN_SendBreak()          SET_REG_BIT(USART4CR5, USART4CR5_SENDBK_MSK)
+
+#define USART4CR5_HDRDET_MSK            BIT1
+#define USART4_LIN_CheckHeader()        READ_REG_BIT(USART4CR5, USART4CR5_HDRDET_MSK)
+#define USART4_LIN_ClearHeader()        CLR_REG_BIT(USART4CR5, USART4CR5_HDRDET_MSK)
+
+#define USART4CR5_SYNC_MSK              BIT0
+#define USART4_LIN_CheckSYNC()          READ_REG_BIT(USART4CR5, USART4CR5_SYNC_MSK)
+#define USART4_LIN_ClearSYNC()          CLR_REG_BIT(USART4CR5, USART4CR5_SYNC_MSK)
+
+#define USART4_SMC_SetGuardTime(d)      (USART4GTR = (d))
+
+#define USART4_SetBaudrate(n)           USART4BRL = BYTE0(n); \
+                                        USART4BRH = BYTE1(n)
+
+#define S4CFG_SMOD_MSK                  BIT7
+#define USART4_BaudrateX2()             SET_REG_BIT(S4CFG, S4CFG_SMOD_MSK)
 
 ////////////////////////
 
@@ -4144,6 +4605,120 @@
 #define UART5_Timer2BRT()               CLR_REG_BIT(S5CFG, S5CFG_S5BRT_MSK)
 #define UART5_Timer5BRT()               SET_REG_BIT(S5CFG, S5CFG_S5BRT_MSK)
 
+#define USART5CR1_LINEN_MSK             BIT7
+#define USART5_LIN_ModeEnable()         SET_REG_BIT(USART5CR1, USART5CR1_LINEN_MSK)
+#define USART5_LIN_ModeDisable()        CLR_REG_BIT(USART5CR1, USART5CR1_LINEN_MSK)
+
+#define USART5CR1_DORD_MSK              BIT6
+#define USART5_SPI_DataLSB()            SET_REG_BIT(USART5CR1, USART5CR1_DORD_MSK)
+#define USART5_SPI_DataMSB()            CLR_REG_BIT(USART5CR1, USART5CR1_DORD_MSK)
+
+#define USART5CR1_CLKEN_MSK             BIT5
+#define USART5_SMC_ClockEnable()        SET_REG_BIT(USART5CR1, USART5CR1_CLKEN_MSK)
+#define USART5_SMC_ClockDisable()       CLR_REG_BIT(USART5CR1, USART5CR1_CLKEN_MSK)
+
+#define USART5CR1_SPMOD_MSK             BIT4
+#define USART5_SPI_ModeEnable()         SET_REG_BIT(USART5CR1, USART5CR1_SPMOD_MSK)
+#define USART5_SPI_ModeDisable()        CLR_REG_BIT(USART5CR1, USART5CR1_SPMOD_MSK)
+
+#define USART5CR1_SPIEN_MSK             BIT3
+#define USART5_SPI_Enable()             SET_REG_BIT(USART5CR1, USART5CR1_SPIEN_MSK)
+#define USART5_SPI_Disable()            CLR_REG_BIT(USART5CR1, USART5CR1_SPIEN_MSK)
+
+#define USART5CR1_SPSLV_MSK             BIT2
+#define USART5_SPI_MasterMode()         CLR_REG_BIT(USART5CR1, USART5CR1_SPSLV_MSK)
+#define USART5_SPI_SlaveMode()          SET_REG_BIT(USART5CR1, USART5CR1_SPSLV_MSK)
+
+#define USART5CR1_CPOL_MSK              BIT1
+#define USART5CR1_CPHA_MSK              BIT0
+#define USART5_SPIMODE                  (USART5CR1_CPOL_MSK | USART5CR1_CPHA_MSK)
+#define USART5_SPI_SetMode0()           MODIFY_REG(USART5CR1, USART5_SPIMODE, ((0) << 0))
+#define USART5_SPI_SetMode1()           MODIFY_REG(USART5CR1, USART5_SPIMODE, ((1) << 0))
+#define USART5_SPI_SetMode2()           MODIFY_REG(USART5CR1, USART5_SPIMODE, ((2) << 0))
+#define USART5_SPI_SetMode3()           MODIFY_REG(USART5CR1, USART5_SPIMODE, ((3) << 0))
+
+#define USART5CR2_IREN_MSK              BIT7
+#define USART5_IrDA_ModeEnable()        SET_REG_BIT(USART5CR2, USART5CR2_IREN_MSK)
+#define USART5_IrDA_ModeDisable()       CLR_REG_BIT(USART5CR2, USART5CR2_IREN_MSK)
+
+#define USART5CR2_IRLP_MSK              BIT6
+#define USART5_IrDA_NormalMode()        CLR_REG_BIT(USART5CR2, USART5CR2_IRLP_MSK)
+#define USART5_IrDA_LowPowerMode()      SET_REG_BIT(USART5CR2, USART5CR2_IRLP_MSK)
+
+#define USART5CR2_SCEN_MSK              BIT5
+#define USART5_SMC_ModeEnable()         SET_REG_BIT(USART5CR2, USART5CR2_SCEN_MSK)
+#define USART5_SMC_ModeDisable()        CLR_REG_BIT(USART5CR2, USART5CR2_SCEN_MSK)
+
+#define USART5CR2_NACK_MSK              BIT4
+#define USART5_SMC_EnableNACK()         SET_REG_BIT(USART5CR2, USART5CR2_NACK_MSK)
+#define USART5_SMC_DisableNACK()        CLR_REG_BIT(USART5CR2, USART5CR2_NACK_MSK)
+
+#define USART5CR2_HDSEL_MSK             BIT3
+#define USART5_EnableHalfDuplex()       SET_REG_BIT(USART5CR2, USART5CR2_HDSEL_MSK)
+#define USART5_DisableHalfDuplex()      CLR_REG_BIT(USART5CR2, USART5CR2_HDSEL_MSK)
+
+#define USART5CR2_PE_MSK                BIT0
+#define UART5_CheckParityError()        READ_REG_BIT(USART5CR2, USART5CR2_PE_MSK)
+#define UART5_ClearParityError()        CLR_REG_BIT(USART5CR2, USART5CR2_PE_MSK)
+
+#define USART5_IrDA_SetLowPowerBaudrate(d) (USART5CR3 = (d))
+
+#define USART5CR4_IOSW_MSK              BIT4
+#define USART5_SPI_SwapMosiMiso()       SET_REG_BIT(USART5CR4, USART5CR4_IOSW_MSK)
+
+#define USART5CR4_SCCKS_MSK             (BIT3 | BIT2)
+#define USART5_SMC_SetClockDivider(n)   MODIFY_REG(USART5CR4, USART5CR4_SCCKS_MSK, ((n) << 2))
+#define USART5_SMC_SetClockDivider8()   USART5_SMC_SetClockDivider(3)
+#define USART5_SMC_SetClockDivider16()  USART5_SMC_SetClockDivider(2)
+#define USART5_SMC_SetClockDivider32()  USART5_SMC_SetClockDivider(1)
+#define USART5_SMC_SetClockDivider64()  USART5_SMC_SetClockDivider(0)
+
+#define USART5CR4_SPICKS_MSK            (BIT1 | BIT0)
+#define USART5_SPI_SetClockDivider(n)   MODIFY_REG(USART5CR4, USART5CR4_SPICKS_MSK, ((n) << 0))
+#define USART5_SPI_SetClockDivider2()   USART5_SPI_SetClockDivider(3)
+#define USART5_SPI_SetClockDivider4()   USART5_SPI_SetClockDivider(0)
+#define USART5_SPI_SetClockDivider8()   USART5_SPI_SetClockDivider(1)
+#define USART5_SPI_SetClockDivider16()  USART5_SPI_SetClockDivider(2)
+
+#define USART5CR5_BRKDET_MSK            BIT7
+#define USART5_LIN_CheckBreak()         READ_REG_BIT(USART5CR5, USART5CR5_BRKDET_MSK)
+#define USART5_LIN_ClearBreak()         CLR_REG_BIT(USART5CR5, USART5CR5_BRKDET_MSK)
+
+#define USART5CR5_HDRER_MSK             BIT6
+#define USART5_LIN_CheckHeaderError()   READ_REG_BIT(USART5CR5, USART5CR5_HDRER_MSK)
+#define USART5_LIN_ClearHeaderError()   CLR_REG_BIT(USART5CR5, USART5CR5_HDRER_MSK)
+
+#define USART5CR5_SLVEN_MSK             BIT5
+#define USART5_LIN_MasterMode()         CLR_REG_BIT(USART5CR5, USART5CR5_SLVEN_MSK)
+#define USART5_LIN_SlaveMode()          SET_REG_BIT(USART5CR5, USART5CR5_SLVEN_MSK)
+
+#define USART5CR5_ASYNC_MSK             BIT4
+#define USART5_LIN_EnableAutoSYNC()     SET_REG_BIT(USART5CR5, USART5CR5_ASYNC_MSK)
+#define USART5_LIN_DisableAutoSYNC()    CLR_REG_BIT(USART5CR5, USART5CR5_ASYNC_MSK)
+
+#define USART5CR5_TXCF_MSK              BIT3
+#define USART5_LIN_CheckTxContlict()    READ_REG_BIT(USART5CR5, USART5CR5_TXCF_MSK)
+#define USART5_LIN_ClearTxContlict()    CLR_REG_BIT(USART5CR5, USART5CR5_TXCF_MSK)
+
+#define USART5CR5_SENDBK_MSK            BIT2
+#define USART5_LIN_SendBreak()          SET_REG_BIT(USART5CR5, USART5CR5_SENDBK_MSK)
+
+#define USART5CR5_HDRDET_MSK            BIT1
+#define USART5_LIN_CheckHeader()        READ_REG_BIT(USART5CR5, USART5CR5_HDRDET_MSK)
+#define USART5_LIN_ClearHeader()        CLR_REG_BIT(USART5CR5, USART5CR5_HDRDET_MSK)
+
+#define USART5CR5_SYNC_MSK              BIT0
+#define USART5_LIN_CheckSYNC()          READ_REG_BIT(USART5CR5, USART5CR5_SYNC_MSK)
+#define USART5_LIN_ClearSYNC()          CLR_REG_BIT(USART5CR5, USART5CR5_SYNC_MSK)
+
+#define USART5_SMC_SetGuardTime(d)      (USART5GTR = (d))
+
+#define USART5_SetBaudrate(n)           USART5BRL = BYTE0(n); \
+                                        USART5BRH = BYTE1(n)
+
+#define S5CFG_SMOD_MSK                  BIT7
+#define USART5_BaudrateX2()             SET_REG_BIT(S5CFG, S5CFG_SMOD_MSK)
+
 ////////////////////////
 
 #define S6CON_S6SM_MSK                  (BIT7 | BIT6)
@@ -4196,6 +4771,120 @@
 #define S6CFG_S6BRT_MSK                 BIT0
 #define UART6_Timer2BRT()               CLR_REG_BIT(S6CFG, S6CFG_S6BRT_MSK)
 #define UART6_Timer6BRT()               SET_REG_BIT(S6CFG, S6CFG_S6BRT_MSK)
+
+#define USART6CR1_LINEN_MSK             BIT7
+#define USART6_LIN_ModeEnable()         SET_REG_BIT(USART6CR1, USART6CR1_LINEN_MSK)
+#define USART6_LIN_ModeDisable()        CLR_REG_BIT(USART6CR1, USART6CR1_LINEN_MSK)
+
+#define USART6CR1_DORD_MSK              BIT6
+#define USART6_SPI_DataLSB()            SET_REG_BIT(USART6CR1, USART6CR1_DORD_MSK)
+#define USART6_SPI_DataMSB()            CLR_REG_BIT(USART6CR1, USART6CR1_DORD_MSK)
+
+#define USART6CR1_CLKEN_MSK             BIT5
+#define USART6_SMC_ClockEnable()        SET_REG_BIT(USART6CR1, USART6CR1_CLKEN_MSK)
+#define USART6_SMC_ClockDisable()       CLR_REG_BIT(USART6CR1, USART6CR1_CLKEN_MSK)
+
+#define USART6CR1_SPMOD_MSK             BIT4
+#define USART6_SPI_ModeEnable()         SET_REG_BIT(USART6CR1, USART6CR1_SPMOD_MSK)
+#define USART6_SPI_ModeDisable()        CLR_REG_BIT(USART6CR1, USART6CR1_SPMOD_MSK)
+
+#define USART6CR1_SPIEN_MSK             BIT3
+#define USART6_SPI_Enable()             SET_REG_BIT(USART6CR1, USART6CR1_SPIEN_MSK)
+#define USART6_SPI_Disable()            CLR_REG_BIT(USART6CR1, USART6CR1_SPIEN_MSK)
+
+#define USART6CR1_SPSLV_MSK             BIT2
+#define USART6_SPI_MasterMode()         CLR_REG_BIT(USART6CR1, USART6CR1_SPSLV_MSK)
+#define USART6_SPI_SlaveMode()          SET_REG_BIT(USART6CR1, USART6CR1_SPSLV_MSK)
+
+#define USART6CR1_CPOL_MSK              BIT1
+#define USART6CR1_CPHA_MSK              BIT0
+#define USART6_SPIMODE                  (USART6CR1_CPOL_MSK | USART6CR1_CPHA_MSK)
+#define USART6_SPI_SetMode0()           MODIFY_REG(USART6CR1, USART6_SPIMODE, ((0) << 0))
+#define USART6_SPI_SetMode1()           MODIFY_REG(USART6CR1, USART6_SPIMODE, ((1) << 0))
+#define USART6_SPI_SetMode2()           MODIFY_REG(USART6CR1, USART6_SPIMODE, ((2) << 0))
+#define USART6_SPI_SetMode3()           MODIFY_REG(USART6CR1, USART6_SPIMODE, ((3) << 0))
+
+#define USART6CR2_IREN_MSK              BIT7
+#define USART6_IrDA_ModeEnable()        SET_REG_BIT(USART6CR2, USART6CR2_IREN_MSK)
+#define USART6_IrDA_ModeDisable()       CLR_REG_BIT(USART6CR2, USART6CR2_IREN_MSK)
+
+#define USART6CR2_IRLP_MSK              BIT6
+#define USART6_IrDA_NormalMode()        CLR_REG_BIT(USART6CR2, USART6CR2_IRLP_MSK)
+#define USART6_IrDA_LowPowerMode()      SET_REG_BIT(USART6CR2, USART6CR2_IRLP_MSK)
+
+#define USART6CR2_SCEN_MSK              BIT5
+#define USART6_SMC_ModeEnable()         SET_REG_BIT(USART6CR2, USART6CR2_SCEN_MSK)
+#define USART6_SMC_ModeDisable()        CLR_REG_BIT(USART6CR2, USART6CR2_SCEN_MSK)
+
+#define USART6CR2_NACK_MSK              BIT4
+#define USART6_SMC_EnableNACK()         SET_REG_BIT(USART6CR2, USART6CR2_NACK_MSK)
+#define USART6_SMC_DisableNACK()        CLR_REG_BIT(USART6CR2, USART6CR2_NACK_MSK)
+
+#define USART6CR2_HDSEL_MSK             BIT3
+#define USART6_EnableHalfDuplex()       SET_REG_BIT(USART6CR2, USART6CR2_HDSEL_MSK)
+#define USART6_DisableHalfDuplex()      CLR_REG_BIT(USART6CR2, USART6CR2_HDSEL_MSK)
+
+#define USART6CR2_PE_MSK                BIT0
+#define UART6_CheckParityError()        READ_REG_BIT(USART6CR2, USART6CR2_PE_MSK)
+#define UART6_ClearParityError()        CLR_REG_BIT(USART6CR2, USART6CR2_PE_MSK)
+
+#define USART6_IrDA_SetLowPowerBaudrate(d) (USART6CR3 = (d))
+
+#define USART6CR4_IOSW_MSK              BIT4
+#define USART6_SPI_SwapMosiMiso()       SET_REG_BIT(USART6CR4, USART6CR4_IOSW_MSK)
+
+#define USART6CR4_SCCKS_MSK             (BIT3 | BIT2)
+#define USART6_SMC_SetClockDivider(n)   MODIFY_REG(USART6CR4, USART6CR4_SCCKS_MSK, ((n) << 2))
+#define USART6_SMC_SetClockDivider8()   USART6_SMC_SetClockDivider(3)
+#define USART6_SMC_SetClockDivider16()  USART6_SMC_SetClockDivider(2)
+#define USART6_SMC_SetClockDivider32()  USART6_SMC_SetClockDivider(1)
+#define USART6_SMC_SetClockDivider64()  USART6_SMC_SetClockDivider(0)
+
+#define USART6CR4_SPICKS_MSK            (BIT1 | BIT0)
+#define USART6_SPI_SetClockDivider(n)   MODIFY_REG(USART6CR4, USART6CR4_SPICKS_MSK, ((n) << 0))
+#define USART6_SPI_SetClockDivider2()   USART6_SPI_SetClockDivider(3)
+#define USART6_SPI_SetClockDivider4()   USART6_SPI_SetClockDivider(0)
+#define USART6_SPI_SetClockDivider8()   USART6_SPI_SetClockDivider(1)
+#define USART6_SPI_SetClockDivider16()  USART6_SPI_SetClockDivider(2)
+
+#define USART6CR5_BRKDET_MSK            BIT7
+#define USART6_LIN_CheckBreak()         READ_REG_BIT(USART6CR5, USART6CR5_BRKDET_MSK)
+#define USART6_LIN_ClearBreak()         CLR_REG_BIT(USART6CR5, USART6CR5_BRKDET_MSK)
+
+#define USART6CR5_HDRER_MSK             BIT6
+#define USART6_LIN_CheckHeaderError()   READ_REG_BIT(USART6CR5, USART6CR5_HDRER_MSK)
+#define USART6_LIN_ClearHeaderError()   CLR_REG_BIT(USART6CR5, USART6CR5_HDRER_MSK)
+
+#define USART6CR5_SLVEN_MSK             BIT5
+#define USART6_LIN_MasterMode()         CLR_REG_BIT(USART6CR5, USART6CR5_SLVEN_MSK)
+#define USART6_LIN_SlaveMode()          SET_REG_BIT(USART6CR5, USART6CR5_SLVEN_MSK)
+
+#define USART6CR5_ASYNC_MSK             BIT4
+#define USART6_LIN_EnableAutoSYNC()     SET_REG_BIT(USART6CR5, USART6CR5_ASYNC_MSK)
+#define USART6_LIN_DisableAutoSYNC()    CLR_REG_BIT(USART6CR5, USART6CR5_ASYNC_MSK)
+
+#define USART6CR5_TXCF_MSK              BIT3
+#define USART6_LIN_CheckTxContlict()    READ_REG_BIT(USART6CR5, USART6CR5_TXCF_MSK)
+#define USART6_LIN_ClearTxContlict()    CLR_REG_BIT(USART6CR5, USART6CR5_TXCF_MSK)
+
+#define USART6CR5_SENDBK_MSK            BIT2
+#define USART6_LIN_SendBreak()          SET_REG_BIT(USART6CR5, USART6CR5_SENDBK_MSK)
+
+#define USART6CR5_HDRDET_MSK            BIT1
+#define USART6_LIN_CheckHeader()        READ_REG_BIT(USART6CR5, USART6CR5_HDRDET_MSK)
+#define USART6_LIN_ClearHeader()        CLR_REG_BIT(USART6CR5, USART6CR5_HDRDET_MSK)
+
+#define USART6CR5_SYNC_MSK              BIT0
+#define USART6_LIN_CheckSYNC()          READ_REG_BIT(USART6CR5, USART6CR5_SYNC_MSK)
+#define USART6_LIN_ClearSYNC()          CLR_REG_BIT(USART6CR5, USART6CR5_SYNC_MSK)
+
+#define USART6_SMC_SetGuardTime(d)      (USART6GTR = (d))
+
+#define USART6_SetBaudrate(n)           USART6BRL = BYTE0(n); \
+                                        USART6BRH = BYTE1(n)
+
+#define S6CFG_SMOD_MSK                  BIT7
+#define USART6_BaudrateX2()             SET_REG_BIT(S6CFG, S6CFG_SMOD_MSK)
 
 ////////////////////////
 
@@ -4250,6 +4939,120 @@
 #define UART7_Timer2BRT()               CLR_REG_BIT(S7CFG, S7CFG_S7BRT_MSK)
 #define UART7_Timer7BRT()               SET_REG_BIT(S7CFG, S7CFG_S7BRT_MSK)
 
+#define USART7CR1_LINEN_MSK             BIT7
+#define USART7_LIN_ModeEnable()         SET_REG_BIT(USART7CR1, USART7CR1_LINEN_MSK)
+#define USART7_LIN_ModeDisable()        CLR_REG_BIT(USART7CR1, USART7CR1_LINEN_MSK)
+
+#define USART7CR1_DORD_MSK              BIT6
+#define USART7_SPI_DataLSB()            SET_REG_BIT(USART7CR1, USART7CR1_DORD_MSK)
+#define USART7_SPI_DataMSB()            CLR_REG_BIT(USART7CR1, USART7CR1_DORD_MSK)
+
+#define USART7CR1_CLKEN_MSK             BIT5
+#define USART7_SMC_ClockEnable()        SET_REG_BIT(USART7CR1, USART7CR1_CLKEN_MSK)
+#define USART7_SMC_ClockDisable()       CLR_REG_BIT(USART7CR1, USART7CR1_CLKEN_MSK)
+
+#define USART7CR1_SPMOD_MSK             BIT4
+#define USART7_SPI_ModeEnable()         SET_REG_BIT(USART7CR1, USART7CR1_SPMOD_MSK)
+#define USART7_SPI_ModeDisable()        CLR_REG_BIT(USART7CR1, USART7CR1_SPMOD_MSK)
+
+#define USART7CR1_SPIEN_MSK             BIT3
+#define USART7_SPI_Enable()             SET_REG_BIT(USART7CR1, USART7CR1_SPIEN_MSK)
+#define USART7_SPI_Disable()            CLR_REG_BIT(USART7CR1, USART7CR1_SPIEN_MSK)
+
+#define USART7CR1_SPSLV_MSK             BIT2
+#define USART7_SPI_MasterMode()         CLR_REG_BIT(USART7CR1, USART7CR1_SPSLV_MSK)
+#define USART7_SPI_SlaveMode()          SET_REG_BIT(USART7CR1, USART7CR1_SPSLV_MSK)
+
+#define USART7CR1_CPOL_MSK              BIT1
+#define USART7CR1_CPHA_MSK              BIT0
+#define USART7_SPIMODE                  (USART7CR1_CPOL_MSK | USART7CR1_CPHA_MSK)
+#define USART7_SPI_SetMode0()           MODIFY_REG(USART7CR1, USART7_SPIMODE, ((0) << 0))
+#define USART7_SPI_SetMode1()           MODIFY_REG(USART7CR1, USART7_SPIMODE, ((1) << 0))
+#define USART7_SPI_SetMode2()           MODIFY_REG(USART7CR1, USART7_SPIMODE, ((2) << 0))
+#define USART7_SPI_SetMode3()           MODIFY_REG(USART7CR1, USART7_SPIMODE, ((3) << 0))
+
+#define USART7CR2_IREN_MSK              BIT7
+#define USART7_IrDA_ModeEnable()        SET_REG_BIT(USART7CR2, USART7CR2_IREN_MSK)
+#define USART7_IrDA_ModeDisable()       CLR_REG_BIT(USART7CR2, USART7CR2_IREN_MSK)
+
+#define USART7CR2_IRLP_MSK              BIT6
+#define USART7_IrDA_NormalMode()        CLR_REG_BIT(USART7CR2, USART7CR2_IRLP_MSK)
+#define USART7_IrDA_LowPowerMode()      SET_REG_BIT(USART7CR2, USART7CR2_IRLP_MSK)
+
+#define USART7CR2_SCEN_MSK              BIT5
+#define USART7_SMC_ModeEnable()         SET_REG_BIT(USART7CR2, USART7CR2_SCEN_MSK)
+#define USART7_SMC_ModeDisable()        CLR_REG_BIT(USART7CR2, USART7CR2_SCEN_MSK)
+
+#define USART7CR2_NACK_MSK              BIT4
+#define USART7_SMC_EnableNACK()         SET_REG_BIT(USART7CR2, USART7CR2_NACK_MSK)
+#define USART7_SMC_DisableNACK()        CLR_REG_BIT(USART7CR2, USART7CR2_NACK_MSK)
+
+#define USART7CR2_HDSEL_MSK             BIT3
+#define USART7_EnableHalfDuplex()       SET_REG_BIT(USART7CR2, USART7CR2_HDSEL_MSK)
+#define USART7_DisableHalfDuplex()      CLR_REG_BIT(USART7CR2, USART7CR2_HDSEL_MSK)
+
+#define USART7CR2_PE_MSK                BIT0
+#define UART7_CheckParityError()        READ_REG_BIT(USART7CR2, USART7CR2_PE_MSK)
+#define UART7_ClearParityError()        CLR_REG_BIT(USART7CR2, USART7CR2_PE_MSK)
+
+#define USART7_IrDA_SetLowPowerBaudrate(d) (USART7CR3 = (d))
+
+#define USART7CR4_IOSW_MSK              BIT4
+#define USART7_SPI_SwapMosiMiso()       SET_REG_BIT(USART7CR4, USART7CR4_IOSW_MSK)
+
+#define USART7CR4_SCCKS_MSK             (BIT3 | BIT2)
+#define USART7_SMC_SetClockDivider(n)   MODIFY_REG(USART7CR4, USART7CR4_SCCKS_MSK, ((n) << 2))
+#define USART7_SMC_SetClockDivider8()   USART7_SMC_SetClockDivider(3)
+#define USART7_SMC_SetClockDivider16()  USART7_SMC_SetClockDivider(2)
+#define USART7_SMC_SetClockDivider32()  USART7_SMC_SetClockDivider(1)
+#define USART7_SMC_SetClockDivider64()  USART7_SMC_SetClockDivider(0)
+
+#define USART7CR4_SPICKS_MSK            (BIT1 | BIT0)
+#define USART7_SPI_SetClockDivider(n)   MODIFY_REG(USART7CR4, USART7CR4_SPICKS_MSK, ((n) << 0))
+#define USART7_SPI_SetClockDivider2()   USART7_SPI_SetClockDivider(3)
+#define USART7_SPI_SetClockDivider4()   USART7_SPI_SetClockDivider(0)
+#define USART7_SPI_SetClockDivider8()   USART7_SPI_SetClockDivider(1)
+#define USART7_SPI_SetClockDivider16()  USART7_SPI_SetClockDivider(2)
+
+#define USART7CR5_BRKDET_MSK            BIT7
+#define USART7_LIN_CheckBreak()         READ_REG_BIT(USART7CR5, USART7CR5_BRKDET_MSK)
+#define USART7_LIN_ClearBreak()         CLR_REG_BIT(USART7CR5, USART7CR5_BRKDET_MSK)
+
+#define USART7CR5_HDRER_MSK             BIT6
+#define USART7_LIN_CheckHeaderError()   READ_REG_BIT(USART7CR5, USART7CR5_HDRER_MSK)
+#define USART7_LIN_ClearHeaderError()   CLR_REG_BIT(USART7CR5, USART7CR5_HDRER_MSK)
+
+#define USART7CR5_SLVEN_MSK             BIT5
+#define USART7_LIN_MasterMode()         CLR_REG_BIT(USART7CR5, USART7CR5_SLVEN_MSK)
+#define USART7_LIN_SlaveMode()          SET_REG_BIT(USART7CR5, USART7CR5_SLVEN_MSK)
+
+#define USART7CR5_ASYNC_MSK             BIT4
+#define USART7_LIN_EnableAutoSYNC()     SET_REG_BIT(USART7CR5, USART7CR5_ASYNC_MSK)
+#define USART7_LIN_DisableAutoSYNC()    CLR_REG_BIT(USART7CR5, USART7CR5_ASYNC_MSK)
+
+#define USART7CR5_TXCF_MSK              BIT3
+#define USART7_LIN_CheckTxContlict()    READ_REG_BIT(USART7CR5, USART7CR5_TXCF_MSK)
+#define USART7_LIN_ClearTxContlict()    CLR_REG_BIT(USART7CR5, USART7CR5_TXCF_MSK)
+
+#define USART7CR5_SENDBK_MSK            BIT2
+#define USART7_LIN_SendBreak()          SET_REG_BIT(USART7CR5, USART7CR5_SENDBK_MSK)
+
+#define USART7CR5_HDRDET_MSK            BIT1
+#define USART7_LIN_CheckHeader()        READ_REG_BIT(USART7CR5, USART7CR5_HDRDET_MSK)
+#define USART7_LIN_ClearHeader()        CLR_REG_BIT(USART7CR5, USART7CR5_HDRDET_MSK)
+
+#define USART7CR5_SYNC_MSK              BIT0
+#define USART7_LIN_CheckSYNC()          READ_REG_BIT(USART7CR5, USART7CR5_SYNC_MSK)
+#define USART7_LIN_ClearSYNC()          CLR_REG_BIT(USART7CR5, USART7CR5_SYNC_MSK)
+
+#define USART7_SMC_SetGuardTime(d)      (USART7GTR = (d))
+
+#define USART7_SetBaudrate(n)           USART7BRL = BYTE0(n); \
+                                        USART7BRH = BYTE1(n)
+
+#define S7CFG_SMOD_MSK                  BIT7
+#define USART7_BaudrateX2()             SET_REG_BIT(S7CFG, S7CFG_SMOD_MSK)
+
 ////////////////////////
 
 #define S8CON_S8SM_MSK                  (BIT7 | BIT6)
@@ -4302,6 +5105,120 @@
 #define S8CFG_S8BRT_MSK                 BIT0
 #define UART8_Timer2BRT()               CLR_REG_BIT(S8CFG, S8CFG_S8BRT_MSK)
 #define UART8_Timer8BRT()               SET_REG_BIT(S8CFG, S8CFG_S8BRT_MSK)
+
+#define USART8CR1_LINEN_MSK             BIT7
+#define USART8_LIN_ModeEnable()         SET_REG_BIT(USART8CR1, USART8CR1_LINEN_MSK)
+#define USART8_LIN_ModeDisable()        CLR_REG_BIT(USART8CR1, USART8CR1_LINEN_MSK)
+
+#define USART8CR1_DORD_MSK              BIT6
+#define USART8_SPI_DataLSB()            SET_REG_BIT(USART8CR1, USART8CR1_DORD_MSK)
+#define USART8_SPI_DataMSB()            CLR_REG_BIT(USART8CR1, USART8CR1_DORD_MSK)
+
+#define USART8CR1_CLKEN_MSK             BIT5
+#define USART8_SMC_ClockEnable()        SET_REG_BIT(USART8CR1, USART8CR1_CLKEN_MSK)
+#define USART8_SMC_ClockDisable()       CLR_REG_BIT(USART8CR1, USART8CR1_CLKEN_MSK)
+
+#define USART8CR1_SPMOD_MSK             BIT4
+#define USART8_SPI_ModeEnable()         SET_REG_BIT(USART8CR1, USART8CR1_SPMOD_MSK)
+#define USART8_SPI_ModeDisable()        CLR_REG_BIT(USART8CR1, USART8CR1_SPMOD_MSK)
+
+#define USART8CR1_SPIEN_MSK             BIT3
+#define USART8_SPI_Enable()             SET_REG_BIT(USART8CR1, USART8CR1_SPIEN_MSK)
+#define USART8_SPI_Disable()            CLR_REG_BIT(USART8CR1, USART8CR1_SPIEN_MSK)
+
+#define USART8CR1_SPSLV_MSK             BIT2
+#define USART8_SPI_MasterMode()         CLR_REG_BIT(USART8CR1, USART8CR1_SPSLV_MSK)
+#define USART8_SPI_SlaveMode()          SET_REG_BIT(USART8CR1, USART8CR1_SPSLV_MSK)
+
+#define USART8CR1_CPOL_MSK              BIT1
+#define USART8CR1_CPHA_MSK              BIT0
+#define USART8_SPIMODE                  (USART8CR1_CPOL_MSK | USART8CR1_CPHA_MSK)
+#define USART8_SPI_SetMode0()           MODIFY_REG(USART8CR1, USART8_SPIMODE, ((0) << 0))
+#define USART8_SPI_SetMode1()           MODIFY_REG(USART8CR1, USART8_SPIMODE, ((1) << 0))
+#define USART8_SPI_SetMode2()           MODIFY_REG(USART8CR1, USART8_SPIMODE, ((2) << 0))
+#define USART8_SPI_SetMode3()           MODIFY_REG(USART8CR1, USART8_SPIMODE, ((3) << 0))
+
+#define USART8CR2_IREN_MSK              BIT7
+#define USART8_IrDA_ModeEnable()        SET_REG_BIT(USART8CR2, USART8CR2_IREN_MSK)
+#define USART8_IrDA_ModeDisable()       CLR_REG_BIT(USART8CR2, USART8CR2_IREN_MSK)
+
+#define USART8CR2_IRLP_MSK              BIT6
+#define USART8_IrDA_NormalMode()        CLR_REG_BIT(USART8CR2, USART8CR2_IRLP_MSK)
+#define USART8_IrDA_LowPowerMode()      SET_REG_BIT(USART8CR2, USART8CR2_IRLP_MSK)
+
+#define USART8CR2_SCEN_MSK              BIT5
+#define USART8_SMC_ModeEnable()         SET_REG_BIT(USART8CR2, USART8CR2_SCEN_MSK)
+#define USART8_SMC_ModeDisable()        CLR_REG_BIT(USART8CR2, USART8CR2_SCEN_MSK)
+
+#define USART8CR2_NACK_MSK              BIT4
+#define USART8_SMC_EnableNACK()         SET_REG_BIT(USART8CR2, USART8CR2_NACK_MSK)
+#define USART8_SMC_DisableNACK()        CLR_REG_BIT(USART8CR2, USART8CR2_NACK_MSK)
+
+#define USART8CR2_HDSEL_MSK             BIT3
+#define USART8_EnableHalfDuplex()       SET_REG_BIT(USART8CR2, USART8CR2_HDSEL_MSK)
+#define USART8_DisableHalfDuplex()      CLR_REG_BIT(USART8CR2, USART8CR2_HDSEL_MSK)
+
+#define USART8CR2_PE_MSK                BIT0
+#define UART8_CheckParityError()        READ_REG_BIT(USART8CR2, USART8CR2_PE_MSK)
+#define UART8_ClearParityError()        CLR_REG_BIT(USART8CR2, USART8CR2_PE_MSK)
+
+#define USART8_IrDA_SetLowPowerBaudrate(d) (USART8CR3 = (d))
+
+#define USART8CR4_IOSW_MSK              BIT4
+#define USART8_SPI_SwapMosiMiso()       SET_REG_BIT(USART8CR4, USART8CR4_IOSW_MSK)
+
+#define USART8CR4_SCCKS_MSK             (BIT3 | BIT2)
+#define USART8_SMC_SetClockDivider(n)   MODIFY_REG(USART8CR4, USART8CR4_SCCKS_MSK, ((n) << 2))
+#define USART8_SMC_SetClockDivider8()   USART8_SMC_SetClockDivider(3)
+#define USART8_SMC_SetClockDivider16()  USART8_SMC_SetClockDivider(2)
+#define USART8_SMC_SetClockDivider32()  USART8_SMC_SetClockDivider(1)
+#define USART8_SMC_SetClockDivider64()  USART8_SMC_SetClockDivider(0)
+
+#define USART8CR4_SPICKS_MSK            (BIT1 | BIT0)
+#define USART8_SPI_SetClockDivider(n)   MODIFY_REG(USART8CR4, USART8CR4_SPICKS_MSK, ((n) << 0))
+#define USART8_SPI_SetClockDivider2()   USART8_SPI_SetClockDivider(3)
+#define USART8_SPI_SetClockDivider4()   USART8_SPI_SetClockDivider(0)
+#define USART8_SPI_SetClockDivider8()   USART8_SPI_SetClockDivider(1)
+#define USART8_SPI_SetClockDivider16()  USART8_SPI_SetClockDivider(2)
+
+#define USART8CR5_BRKDET_MSK            BIT7
+#define USART8_LIN_CheckBreak()         READ_REG_BIT(USART8CR5, USART8CR5_BRKDET_MSK)
+#define USART8_LIN_ClearBreak()         CLR_REG_BIT(USART8CR5, USART8CR5_BRKDET_MSK)
+
+#define USART8CR5_HDRER_MSK             BIT6
+#define USART8_LIN_CheckHeaderError()   READ_REG_BIT(USART8CR5, USART8CR5_HDRER_MSK)
+#define USART8_LIN_ClearHeaderError()   CLR_REG_BIT(USART8CR5, USART8CR5_HDRER_MSK)
+
+#define USART8CR5_SLVEN_MSK             BIT5
+#define USART8_LIN_MasterMode()         CLR_REG_BIT(USART8CR5, USART8CR5_SLVEN_MSK)
+#define USART8_LIN_SlaveMode()          SET_REG_BIT(USART8CR5, USART8CR5_SLVEN_MSK)
+
+#define USART8CR5_ASYNC_MSK             BIT4
+#define USART8_LIN_EnableAutoSYNC()     SET_REG_BIT(USART8CR5, USART8CR5_ASYNC_MSK)
+#define USART8_LIN_DisableAutoSYNC()    CLR_REG_BIT(USART8CR5, USART8CR5_ASYNC_MSK)
+
+#define USART8CR5_TXCF_MSK              BIT3
+#define USART8_LIN_CheckTxContlict()    READ_REG_BIT(USART8CR5, USART8CR5_TXCF_MSK)
+#define USART8_LIN_ClearTxContlict()    CLR_REG_BIT(USART8CR5, USART8CR5_TXCF_MSK)
+
+#define USART8CR5_SENDBK_MSK            BIT2
+#define USART8_LIN_SendBreak()          SET_REG_BIT(USART8CR5, USART8CR5_SENDBK_MSK)
+
+#define USART8CR5_HDRDET_MSK            BIT1
+#define USART8_LIN_CheckHeader()        READ_REG_BIT(USART8CR5, USART8CR5_HDRDET_MSK)
+#define USART8_LIN_ClearHeader()        CLR_REG_BIT(USART8CR5, USART8CR5_HDRDET_MSK)
+
+#define USART8CR5_SYNC_MSK              BIT0
+#define USART8_LIN_CheckSYNC()          READ_REG_BIT(USART8CR5, USART8CR5_SYNC_MSK)
+#define USART8_LIN_ClearSYNC()          CLR_REG_BIT(USART8CR5, USART8CR5_SYNC_MSK)
+
+#define USART8_SMC_SetGuardTime(d)      (USART8GTR = (d))
+
+#define USART8_SetBaudrate(d)           USART8BRL = BYTE0(n); \
+                                        USART8BRH = BYTE1(n)
+
+#define S8CFG_SMOD_MSK                  BIT7
+#define USART8_BaudrateX2()             SET_REG_BIT(S8CFG, S8CFG_SMOD_MSK)
 
 /////////////////////////////////////////////////
 
@@ -4872,6 +5789,10 @@
 #define SPI1_SendData(d)                (SPDAT = (d))
 #define SPI1_ReadData()                 (SPDAT)
 
+#define HSSPICFG2_MOSIPL_MSK            BIT7
+#define SPI1_MOSIIdleLow()              CLR_REG_BIT(HSSPI_CFG2, HSSPICFG2_MOSIPL_MSK)
+#define SPI1_MOSIIdleHigh()             SET_REG_BIT(HSSPI_CFG2, HSSPICFG2_MOSIPL_MSK)
+
 #define HSSPICFG2_IOSW_MSK              BIT6
 #define SPI1_SwapMosiMiso()             SET_REG_BIT(HSSPI_CFG2, HSSPICFG2_IOSW_MSK)
 
@@ -4942,6 +5863,10 @@
 #define SPI2_SendData(d)                (SPI2DAT = (d))
 #define SPI2_ReadData()                 (SPI2DAT)
 
+#define HSSPI2CFG2_MOSIPL_MSK           BIT7
+#define SPI2_MOSIIdleLow()              CLR_REG_BIT(HSSPI2_CFG2, HSSPI2CFG2_MOSIPL_MSK)
+#define SPI2_MOSIIdleHigh()             SET_REG_BIT(HSSPI2_CFG2, HSSPI2CFG2_MOSIPL_MSK)
+
 #define HSSPI2CFG2_IOSW_MSK             BIT6
 #define SPI2_SwapMosiMiso()             SET_REG_BIT(HSSPI2_CFG2, HSSPI2CFG2_IOSW_MSK)
 
@@ -5011,6 +5936,10 @@
 
 #define SPI3_SendData(d)                (SPI3DAT = (d))
 #define SPI3_ReadData()                 (SPI3DAT)
+
+#define HSSPI3CFG2_MOSIPL_MSK           BIT7
+#define SPI3_MOSIIdleLow()              CLR_REG_BIT(HSSPI3_CFG2, HSSPI3CFG2_MOSIPL_MSK)
+#define SPI3_MOSIIdleHigh()             SET_REG_BIT(HSSPI3_CFG2, HSSPI3CFG2_MOSIPL_MSK)
 
 #define HSSPI3CFG2_IOSW_MSK             BIT6
 #define SPI3_SwapMosiMiso()             SET_REG_BIT(HSSPI3_CFG2, HSSPI3CFG2_IOSW_MSK)
@@ -6601,7 +7530,7 @@
 #define RST_EnableResetPin()            SET_REG_BIT(RSTCFG, RSTCFG_P47RST_MSK)
 #define RST_ResetPinAsGPIO()            CLR_REG_BIT(RSTCFG, RSTCFG_P47RST_MSK)
 
-#define RSTCFG_ENLVR_MSK                BIT7
+#define RSTCFG_ENLVR_MSK                BIT6
 #define LVR_EnableLVR()                 SET_REG_BIT(RSTCFG, RSTCFG_ENLVR_MSK)
 #define LVR_DisableLVR()                CLR_REG_BIT(RSTCFG, RSTCFG_ENLVR_MSK)
 
@@ -14185,6 +15114,29 @@
 
 #define DMA_P2PA_Disable()              (DMA_P2P1_DEST = 0, DMA_P2P1_SRC = 0)
 #define DMA_P2PB_Disable()              (DMA_P2P2_DEST = 0, DMA_P2P2_SRC = 0)
+
+/////////////////////////////////////////////////
+
+#define DMA_M2M_SetAmount(d)            (DMA_M2M_AMTH = HIBYTE(d), DMA_M2M_AMT = LOBYTE(d))
+#define DMA_M2M_SetTxAddress(d)         (DMA_M2M_TXAH = HIBYTE(d), DMA_M2M_TXAL = LOBYTE(d))
+#define DMA_M2M_SetRxAddress(d)         (DMA_M2M_RXAH = HIBYTE(d), DMA_M2M_RXAL = LOBYTE(d))
+
+#define DMAM2MCFG_M2MPTY_MSK            (BIT1 | BIT0)
+#define DMA_M2M_SetBusPriority(n)       MODIFY_REG(DMA_M2M_CFG,  DMAM2MCFG_M2MPTY_MSK, ((n) << 0))
+
+#define DMAM2MCR_ENM2M_MSK              BIT7
+#define DMA_M2M_Enable()                SET_REG_BIT(DMA_M2M_CR, DMAM2MCR_ENM2M_MSK)
+
+#define DMAM2MCR_TRIG_MSK               BIT6
+#define DMA_M2M_Trigger()               SET_REG_BIT(DMA_M2M_CR, DMAM2MCR_TRIG_MSK)
+
+/////////////////////////////////////////////////
+
+#define DMAARBCFG_XBANK_MSK             (BIT6 | BIT5)
+#define DMA_SelectXramBank(n)           MODIFY_REG(DMA_ARB_CFG,  DMAARBCFG_XBANK_MSK, ((n) << 5))
+#define DMA_SelectXramBank_01xxxx()     DMA_SelectXramBank(0)
+#define DMA_SelectXramBank_02xxxx()     DMA_SelectXramBank(1)
+#define DMA_SelectXramBank_03xxxx()     DMA_SelectXramBank(2)
 
 /////////////////////////////////////////////////
 

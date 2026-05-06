@@ -23,7 +23,7 @@
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8PWMEDMATxBuffer[12];   //PWMEDMA发送缓冲区数组
+uint8_t xdata pu8PWMEDMATxBuffer[PWME_DMATXSIZE]; //PWMEDMA发送缓冲区数组
 
 ////////////////////////////////////////
 // PWMA初始化函数
@@ -103,9 +103,9 @@ void PWME_Init(void)
     PWME_DMANeverSkipSpace();           //设置PWME DMA时不跳过保留寄存器（会对保留字节进行无效读写）
     PWME_SetDMAOutput();                //设置PWME DMA方向为输出（DMA输出PWM波形）
 
-    DMA_PWME_SetTxAmount(11);           //设置PWME发送DMA总字节数
+    DMA_PWME_SetTxAmount(PWME_DMATXSIZE - 1); //设置PWME发送DMA总字节数
     DMA_PWME_SetTxAddress(pu8PWMEDMATxBuffer); //设置PWME发送DMA缓冲区地址
-    DMA_PWME_SetInterval(0);            //设置PWME发送DMA字节间隔时间（系统时钟）
+    DMA_PWME_SetInterval(PWME_DMAITV);  //设置PWME发送DMA字节间隔时间（系统时钟）
     DMA_PWME_ClearTxFlag();             //清除PWME发送DMA中断标志
     DMA_PWME_SetTxBusPriority(0);       //设置总线访问为最低优先级
     DMA_PWME_EnableTx();                //使能PWME发送DMA功能
