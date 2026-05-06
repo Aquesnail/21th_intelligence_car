@@ -15,14 +15,18 @@
 //<<AICUBE_USER_DEFINE_END>>
 
 
-#define ADC1_STPCYC             0       //ADC1通道选择建立时间
-#define ADC1_HLDCYC             1       //ADC1通道选择保持时间
-#define ADC1_SMPCYC             9       //ADC1通道采样时间
+#define ADC2_STPCYC             0       //ADC2通道选择建立时间
+#define ADC2_HLDCYC             1       //ADC2通道选择保持时间
+#define ADC2_SMPCYC             14      //ADC2通道采样时间
+#define ADC2_DMAITV             10      //ADC2 DMA扫描间隔时间（系统时钟）
+#define ADC2_DMAAMT             65536   //ADC2 DMA扫描次数
+#define ADC2_DMASIZE            (ADC2_DMAAMT * (8 * 2 + 4) * 4) //ADC2 DMA缓冲区大小
 
 
-void ADC1_Init(void);
-uint16_t ADC1_Convert(uint8_t ch);
+void ADC2_Init(void);
+uint16_t ADC2_Convert(uint8_t ch);
 
+extern uint8_t xdata pu8ADC2DMABuffer[ADC2_DMASIZE];
 
 
 //<<AICUBE_USER_EXTERNAL_DECLARE_BEGIN>>

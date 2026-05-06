@@ -23,48 +23,58 @@
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
+uint8_t xdata pu8ADC2DMABuffer[ADC2_DMASIZE]; //ADC2 DMA接收缓冲区数组
 
 ////////////////////////////////////////
-// ADC1初始化函数
+// ADC2初始化函数
 // 入口参数: 无
 // 函数返回: 无
 ////////////////////////////////////////
-void ADC1_Init(void)
+void ADC2_Init(void)
 {
-    ADC1_SetClockDivider(0);            //设置ADC时钟
-    ADC1_ResultRightAlign();            //设置ADC结果右对齐(12位结果)
-    ADC1_DisablePWMTrig();              //禁止PWM同步触发ADC
-    ADC1_ADC2_IndependMode();           //两组ADC为独立模式
-    ADC1_DisableRepeatConv();           //关闭ADC自动重复转换功能
+    ADC2_SetClockDivider(15);           //设置ADC时钟
+    ADC2_ResultRightAlign();            //设置ADC结果右对齐(12位结果)
+    ADC2_DisablePWMTrig();              //禁止PWM同步触发ADC
+    ADC2_DisableRepeatConv();           //关闭ADC自动重复转换功能
 
-    ADC1_SetCSSetupCycles(ADC1_STPCYC); //设置ADC通道选择建立时间
-    ADC1_SetCSHoldCycles(ADC1_HLDCYC);  //设置ADC通道选择保持时间
-    ADC1_SetSampleDutyCycles(ADC1_SMPCYC); //设置ADC通道采样时间
+    ADC2_SetCSSetupCycles(ADC2_STPCYC); //设置ADC通道选择建立时间
+    ADC2_SetCSHoldCycles(ADC2_HLDCYC);  //设置ADC通道选择保持时间
+    ADC2_SetSampleDutyCycles(ADC2_SMPCYC); //设置ADC通道采样时间
 
-    ADC1_DisableETR();                  //禁止ADC外部触发功能
+    ADC2_DisableETR();                  //禁止ADC外部触发功能
 
-    ADC1_ActiveChannel(8);              //选择ADC通道
-    ADC1_Enable();                      //使能ADC功能
+    ADC2_ActiveChannel(0);              //选择ADC通道
+    ADC2_Enable();                      //使能ADC功能
 
-    //<<AICUBE_USER_ADC1_INITIAL_BEGIN>>
+    DMA_ADC2_SetAmount(ADC2_DMAAMT - 1); //设置ADC DMA扫描次数
+    DMA_ADC2_SetAddress(pu8ADC2DMABuffer); //设置ADC DMA缓冲区地址
+    DMA_ADC2_SetInterval(ADC2_DMAITV);  //设置ADC DMA扫描间隔时间（系统时钟）
+    DMA_ADC2_SetChannels(0x000f);       //设置ADC DMA扫描通道
+    DMA_ADC2_SetRepeat8Times();         //设置ADC DMA时每个通道重复转换次数
+    DMA_ADC2_ClearFlag();               //清除ADC DMA中断标志
+    DMA_ADC2_SetBusPriority(0);         //设置总线访问为最低优先级
+    DMA_ADC2_Enable();                  //使能ADC DMA功能
+//  DMA_ADC2_Trigger();                 //触发ADC DMA
+
+    //<<AICUBE_USER_ADC2_INITIAL_BEGIN>>
     // 在此添加用户初始化代码  
-    //<<AICUBE_USER_ADC1_INITIAL_END>>
+    //<<AICUBE_USER_ADC2_INITIAL_END>>
 }
 
 ////////////////////////////////////////
-// 获取ADC1转换结果函数
+// 获取ADC2转换结果函数
 // 入口参数: ch (ADC通道选择)
 // 函数返回: ADC转换结果
 ////////////////////////////////////////
-uint16_t ADC1_Convert(uint8_t ch)
+uint16_t ADC2_Convert(uint8_t ch)
 {
     uint16_t res;                       //定义保存ADC结果的变量
 
-    ADC1_ActiveChannel(ch);             //选择ADC通道
-    ADC1_Start();                       //开始ADC转换
-    while (!ADC1_CheckFlag());          //等待ADC转换完成
-    ADC1_ClearFlag();                   //清除ADC转换完成中断标志
-    res = ADC1_ReadResult();            //读取ADC转换结果
+    ADC2_ActiveChannel(ch);             //选择ADC通道
+    ADC2_Start();                       //开始ADC转换
+    while (!ADC2_CheckFlag());          //等待ADC转换完成
+    ADC2_ClearFlag();                   //清除ADC转换完成中断标志
+    res = ADC2_ReadResult();            //读取ADC转换结果
 
     return res;                         //返回ADC结果
 }

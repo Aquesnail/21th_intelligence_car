@@ -1877,7 +1877,7 @@
 		<IntPriority>0</IntPriority>
 	</EXTI4>
 	<ADC1>
-		<PeriEnable>1</PeriEnable>
+		<PeriEnable>0</PeriEnable>
 		<ADCChannels>1792</ADCChannels>
 		<ClockDivider>0</ClockDivider>
 		<ResultAlign>1</ResultAlign>
@@ -1908,27 +1908,27 @@
 		<LinkageMode>0</LinkageMode>
 	</ADC1>
 	<ADC2>
-		<PeriEnable>0</PeriEnable>
-		<ADCChannels>1528</ADCChannels>
-		<ClockDivider>0</ClockDivider>
+		<PeriEnable>1</PeriEnable>
+		<ADCChannels>15</ADCChannels>
+		<ClockDivider>15</ClockDivider>
 		<ResultAlign>1</ResultAlign>
 		<SetupTiming>0</SetupTiming>
 		<HoldTiming>1</HoldTiming>
-		<SampleTiming>9</SampleTiming>
+		<SampleTiming>14</SampleTiming>
 		<ETRMode>0</ETRMode>
 		<ETRPort>-1</ETRPort>
 		<RepeatConvert>0</RepeatConvert>
 		<IntPriority>0</IntPriority>
 		<EnablePWMTrig>0</EnablePWMTrig>
-		<EnableDMA>0</EnableDMA>
+		<EnableDMA>1</EnableDMA>
 		<EnableDMAInt>0</EnableDMAInt>
 		<EnableInt>0</EnableInt>
-		<DMAAmount>16</DMAAmount>
-		<DMARepeat>0</DMARepeat>
-		<DMAInterval>0</DMAInterval>
+		<DMAAmount>65536</DMAAmount>
+		<DMARepeat>3</DMARepeat>
+		<DMAInterval>10</DMAInterval>
 		<DMAIntPriority>0</DMAIntPriority>
 		<DMABusPriority>0</DMABusPriority>
-		<DMAChannels>0</DMAChannels>
+		<DMAChannels>15</DMAChannels>
 		<DMABuffer>pu8ADC2DMABuffer</DMABuffer>
 		<EnableP2PA>0</EnableP2PA>
 		<EnableP2PB>0</EnableP2PB>
@@ -3753,12 +3753,7 @@
 	<PINMAP>
 		<PinCount>256</PinCount>
 		<Pin01Map>1</Pin01Map>
-		<Pin02Map>1</Pin02Map>
-		<Pin03Map>1</Pin03Map>
-		<Pin04Map>1</Pin04Map>
-		<Pin05Map>1</Pin05Map>
 		<Pin06Map>2</Pin06Map>
-		<Pin07Map>1</Pin07Map>
 		<Pin17Map>255</Pin17Map>
 		<Pin18Map>2</Pin18Map>
 		<Pin19Map>2</Pin19Map>
@@ -3784,11 +3779,10 @@
 		<Pin87Map>4</Pin87Map>
 		<Pin88Map>4</Pin88Map>
 		<Pin92Map>255</Pin92Map>
-		<Pin95Map>1</Pin95Map>
-		<Pin96Map>1</Pin96Map>
-		<Pin97Map>1</Pin97Map>
+		<Pin95Map>2</Pin95Map>
+		<Pin96Map>2</Pin96Map>
+		<Pin97Map>2</Pin97Map>
 		<Pin98Map>1</Pin98Map>
-		<Pin99Map>1</Pin99Map>
 		<Pin100Map>1</Pin100Map>
 	</PINMAP>
 	<PINALIAS></PINALIAS>

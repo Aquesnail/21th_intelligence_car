@@ -3794,7 +3794,7 @@
 #define TIMER10_Stop()                  CLR_REG_BIT(T10T9M, T10T9M_T10R_MSK)
 
 #define TIMER10_SetReload16(n)          (T10H = HIBYTE(n), T10L = LOBYTE(n))
-#define TIMER10_SetPrescale(n)          (TM8PS = (n))
+#define TIMER10_SetPrescale(n)          (TM10PS = (n))
 
 #define T10T9M_T10X12_MSK               BIT5
 #define TIMER10_1TMode()                SET_REG_BIT(T10T9M, T10T9M_T10X12_MSK)

@@ -12,7 +12,7 @@
 #pragma warning disable = 138
 
 /* ================= 配置与定义 ================= */
-#define MAX_DEBUG_VARS  16
+#define MAX_DEBUG_VARS  256
 #define TX_BUF_SIZE     255  // 统一发送缓冲区
 #define RX_BUF_SIZE     512  // 接收缓冲区
 debug_port_t* debug_init_struct = NULL;
@@ -38,7 +38,7 @@ typedef struct {
 
 /* ================= 静态变量 ================= */
 static DebugObj_t debugTable[MAX_DEBUG_VARS] = {0};
-static uint8_t debugVarCount = 0;
+static uint16_t debugVarCount = 0;
 static uint8_t xdata txPkt[TX_BUF_SIZE] = {0}; // 统一发送缓冲
 static char xdata print_buf[512] = {0};
 

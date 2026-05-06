@@ -6,7 +6,7 @@
 // ADC2 配置参数
 #define ADC2_SPEED      15      // 0~15, ADC转换时间 = (n+1)*32 个CPU时钟
 #define ADC2_RES_FMT    (1<<5)  // 右对齐: ADC_RES: 0 0 0 0 D11 D10 D9 D8, ADC_RESL: D7 D6 D5 D4 D3 D2 D1 D0
-#define ADC2_CH_NUM     8       // 通道数: P0.0~P0.7 对应 ADC2_0~ADC2_7
+#define ADC2_CH_NUM     4       // 通道数: P0.0~P0.3 对应 ADC2_0~ADC2_3 (ADCB0~3)
 #define ADC2_BUF_SIZE   16      // 每个通道采样次数
 
 // DMA 目标地址 (xdata 区域)
