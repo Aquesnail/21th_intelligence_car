@@ -47,7 +47,7 @@ void GPIO_Init(void) {
     P3M1 = 0x00;
     P3M0 = (PIN_2 | PIN_4 | PIN_5);
     P3SR = ~(PIN_2 | PIN_4);
-    P3DR &= ~(PIN_2 | PIN_4);
+   // P3DR &= ~(PIN_2 | PIN_4);
     P3IE = 0xFF;
 
     // --- P4口配置 ---
@@ -63,8 +63,9 @@ void GPIO_Init(void) {
     // P5.1: ICM_INT1, 准双向, 上拉开, 中断开(下降沿)
     // 其余浮空准双向
     P5M1 = 0x00;
-    P5M0 = PIN_0;
+    P5M0 = PIN_0|PIN_4;
     P5PU = PIN_1;
+    P5SR = ~(PIN_4);
     P5IE = 0xFF;
     P5IM2 &= ~PIN_1;
     P5IM1 &= ~PIN_1;

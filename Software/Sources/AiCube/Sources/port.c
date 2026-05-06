@@ -170,7 +170,8 @@ void PORT5_Init(void)
     SetP5nHighZInputMode(PIN_2);        //设置P5.2为高阻输入模式
     SetP5nManualMode(PIN_ALL);          //设置P5手动配置端口模式
 
-    DisableP5nPullUp(PIN_ALL);          //关闭P5内部上拉电阻
+    EnableP5nPullUp(PIN_4);             //使能P5.4内部上拉电阻
+    DisableP5nPullUp(PIN_7 | PIN_6 | PIN_5 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //关闭P5.7,P5.6,P5.5,P5.3,P5.2,P5.1,P5.0内部上拉电阻
     DisableP5nPullDown(PIN_ALL);        //关闭P5内部下拉电阻
     EnableP5nSchmitt(PIN_ALL);          //使能P5施密特触发
     SetP5nSlewRateNormal(PIN_7 | PIN_6 | PIN_5 | PIN_1 | PIN_0); //设置P5.7,P5.6,P5.5,P5.1,P5.0一般翻转速度

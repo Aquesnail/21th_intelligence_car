@@ -536,7 +536,7 @@
 		<PortLevel_3>1</PortLevel_3>
 		<PortMD_4>0</PortMD_4>
 		<PortBP_4>1</PortBP_4>
-		<PortPU_4>0</PortPU_4>
+		<PortPU_4>1</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
 		<PortSR_4>0</PortSR_4>
@@ -1143,7 +1143,7 @@
 		<HIRCFrequency>48000000</HIRCFrequency>
 		<HIRCSource>1</HIRCSource>
 		<HIRCPreset>4</HIRCPreset>
-		<EnableXOSC>0</EnableXOSC>
+		<EnableXOSC>1</EnableXOSC>
 		<XOSCFrequency>24000000</XOSCFrequency>
 		<XOSCType>1</XOSCType>
 		<XOSCGain>0</XOSCGain>
@@ -1151,23 +1151,23 @@
 		<EnableX32K>0</EnableX32K>
 		<EnableIRC48M>1</EnableIRC48M>
 		<EnableHPLL1>1</EnableHPLL1>
-		<HPLL1ClockSource>1</HPLL1ClockSource>
-		<HPLL1ClockInDivider>8</HPLL1ClockInDivider>
+		<HPLL1ClockSource>0</HPLL1ClockSource>
+		<HPLL1ClockInDivider>4</HPLL1ClockInDivider>
 		<HPLL1ClockOutSel>9</HPLL1ClockOutSel>
 		<HPLL1Frequency>420000000</HPLL1Frequency>
 		<EnableHPLL2>1</EnableHPLL2>
-		<HPLL2ClockSource>1</HPLL2ClockSource>
-		<HPLL2ClockInDivider>8</HPLL2ClockInDivider>
+		<HPLL2ClockSource>0</HPLL2ClockSource>
+		<HPLL2ClockInDivider>4</HPLL2ClockInDivider>
 		<HPLL2ClockOutSel>14</HPLL2ClockOutSel>
 		<HPLL2Frequency>480000000</HPLL2Frequency>
 		<MCLKClockSource>5</MCLKClockSource>
-		<BASEClockSource>0</BASEClockSource>
+		<BASEClockSource>1</BASEClockSource>
 		<MCLKDivider>2</MCLKDivider>
 		<SYSCLKFrequency>120000000</SYSCLKFrequency>
 		<EnableMCLKO>1</EnableMCLKO>
-		<MCLKOClockSource>0</MCLKOClockSource>
+		<MCLKOClockSource>1</MCLKOClockSource>
 		<MCLKODivider>60</MCLKODivider>
-		<MCLKOPort>-1</MCLKOPort>
+		<MCLKOPort>0</MCLKOPort>
 		<HSIOClockSource>0</HSIOClockSource>
 		<HSI2SClockSource>0</HSI2SClockSource>
 		<HSSPI1Divider>1</HSSPI1Divider>
@@ -3766,6 +3766,7 @@
 		<Pin24Map>4</Pin24Map>
 		<Pin25Map>255</Pin25Map>
 		<Pin26Map>255</Pin26Map>
+		<Pin27Map>8</Pin27Map>
 		<Pin28Map>255</Pin28Map>
 		<Pin29Map>255</Pin29Map>
 		<Pin30Map>255</Pin30Map>

@@ -837,8 +837,8 @@
                   <ModuleSelection>0</ModuleSelection>
                   <IncludeInBuild>2</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>1</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>1</AssembleAssemblyFile>
+                  <GenerateAssemblyFile>0</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>0</AssembleAssemblyFile>
                   <PublicsOnly>2</PublicsOnly>
                   <StopOnExitCode>11</StopOnExitCode>
                   <CustomArgument></CustomArgument>
@@ -855,7 +855,7 @@
                     <uUch>2</uUch>
                     <uFlt64>2</uFlt64>
                     <Fuzzy>8</Fuzzy>
-                    <Optim>10</Optim>
+                    <Optim>0</Optim>
                     <wLevel>4</wLevel>
                     <SizSpd>2</SizSpd>
                     <AcaOpt>2</AcaOpt>
