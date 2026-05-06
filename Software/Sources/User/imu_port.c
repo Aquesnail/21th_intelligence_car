@@ -151,6 +151,9 @@ void vIMUProcessTask(void *pvParameters) {
         xSemaphoreTake(xDebugReadySignal, portMAX_DELAY);
         xSemaphoreGive(xDebugReadySignal);
     }
+		// while(1){
+		// 	vTaskDelay(pdMS_TO_TICKS(3));
+		// };
 
     memset(FIFO_TxBuffer, 0xff, sizeof(FIFO_TxBuffer));
     vTaskDelay(pdMS_TO_TICKS(2));
@@ -174,7 +177,7 @@ void vIMUProcessTask(void *pvParameters) {
                 /* 从 FIFO 中读取数据包 */
                 ICM42688_ReadFIFO(FIFO_RxBuffer);
                 ptr = FIFO_RxBuffer;
-                P14 = 1;
+                P50 = 1;
                 for (i = 0; i < icm_fifo_ths; i++) {
                     /* 解析数据包：计算物理加速度、角速度并提取原始 16bit Timestamp */
                     ICM42688_FIFO_Data_Handle(&IMU_Dat, ptr);
@@ -226,7 +229,7 @@ void vIMUProcessTask(void *pvParameters) {
                 if(++tt >= 5) { /* 注意：需根据你的任务调用频率计算此处阈值 */
                     tt = 0;
                     taskENTER_CRITICAL();
-                    P14 = 0;             /* 翻转引脚发出边沿信号给 FSYNC 引脚 */
+                    P50 = 0;             /* 翻转引脚发出边沿信号给 FSYNC 引脚 */
                     fsync_time = Get_Tim9(); /* 记录 MCU 本地精密时间戳 */
                     taskEXIT_CRITICAL();
                 }
@@ -247,7 +250,7 @@ void IMU_Init() {
     //Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
     //Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
    // Debug_Register("imu_k",DBG_FLOAT | STATIC_TYPE,&imu_slope_k);
-    Debug_Register("delta", DBG_FLOAT | STATIC_TYPE, &(imu_slope_k));
+    Debug_Register("imu_k", DBG_FLOAT | STATIC_TYPE, &(imu_slope_k));
     Debug_Register("pitch", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->pitch));
     Debug_Register("roll", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->roll));
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->yaw));
