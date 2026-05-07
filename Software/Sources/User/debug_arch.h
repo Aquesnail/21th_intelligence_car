@@ -1,7 +1,7 @@
 #ifndef _DEBUG_ARCH_H
 #define _DEBUG_ARCH_H
 
-#include "stc32g144k246.h"  // 包含硬件寄存器定义
+#include "stc32g144k246.h"  /* 包含硬件寄存器定义 */
 #include "dma_uart.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -14,10 +14,22 @@
 #define DataType_Msk    0x0F
 #define FreqType_Msk    0x10
 #define StaticType_Msk  0x20
+#define CBType_Msk      0x40
+#define MAX_CALLBACK_VARS 32
 
 #define HIGH_FREQ_TYPE 0x10
 #define LOW_FREQ_TYPE  0x00
 #define STATIC_TYPE    0x20
+
+/* 回调类型定义 ------------------------------------------------------------ */
+typedef uint8_t (*debug_var_read_t)(void* ctx, uint8_t* buf, uint8_t max_len);
+typedef void    (*debug_var_write_t)(void* ctx, const uint8_t* dat, uint8_t len);
+
+typedef struct {
+    void*             ctx;
+    debug_var_read_t  read;
+    debug_var_write_t write;
+} DebugVarCallback_t;
 
 /* 静态变量表定义宏 -------------------------------------------------------- */
 #define DEBUG_VAR_TABLE_BEGIN()  \
@@ -51,6 +63,10 @@ extern SemaphoreHandle_t xDebugReadySignal;
 
 void vDebugTask(void *pvParameters);
 void Debug_Register(char* name, uint8_t type, void* addr);
+void Debug_Register_Callback(char* name, uint8_t type,
+                             void* ctx,
+                             debug_var_read_t  rd,
+                             debug_var_write_t wr);
 void Debug_RegisterFromTable(const void* table, uint8_t count);
 void Debug_Log(const char* fmt,...);
 void vDebug_Log(const char* fmt, va_list args);

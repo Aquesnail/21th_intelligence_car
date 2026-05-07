@@ -11,17 +11,12 @@ uint8_t xdata adc_dma_buf[ADC2_CH_NUM * ADC2_BUF_SIZE * 2];
 /* ADC 各通道采样值 (ADCB0~3) */
 static uint16_t adc_values[ADC2_CH_NUM];
 
-/* ===================================================================
- * MOTOR 测试任务 (已注释)
- * ===================================================================
-#include "spi1_user.h"
-#include "motor.h"
 #include <stdio.h>
 
 #define MOTOR_CS_SET()   (P22 = 1)
 #define MOTOR_CS_RESET() (P22 = 0)
 
-void SPI1_Callback(void *pvParameters){
+void SPI3_Callback(void *pvParameters){
 }
 
 static float s_speed_measure[2] = {0.0f, 0.0f};
@@ -81,11 +76,11 @@ void Motor_Test_SendCmd(void)
     value = 0x12345678;
     MOTOR_CS_RESET();
     for (i = 0; i < 4; i++) {
-        SPI1_WriteByte((uint8_t)(frame & 0xFFu));
+        SPI3_WriteByte((uint8_t)(frame & 0xFFu));
         frame >>= 8;
     }
     for (i = 0; i < 4; i++) {
-        SPI1_WriteByte((uint8_t)(value & 0xFFu));
+        SPI3_WriteByte((uint8_t)(value & 0xFFu));
         value >>= 8;
     }
     MOTOR_CS_SET();
@@ -94,7 +89,7 @@ void Motor_Test_SendCmd(void)
 void Motor_Test_Task(void *pvParameters){
     uint8_t counter = 0;
     MOTOR_CS_SET();
-    SPI1_Init(SPI1_Callback);
+    SPI3_Init(SPI3_Callback);
     for(;;){
         vTaskDelay(pdMS_TO_TICKS(2));
         Get_Motor_Data();
@@ -105,7 +100,7 @@ void Motor_Test_Task(void *pvParameters){
         }
     }
 }
-*/
+
 
 /* ===================================================================
  * ADC 测试任务
@@ -140,5 +135,5 @@ void Main_Control_Task_Init(void) {
     Debug_Register("adc2", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[2]);
     Debug_Register("adc3", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[3]);
 
-    xTaskCreate(ADC_Test_Task, "adc_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(Motor_Test_Task, "motor_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
 }

@@ -165,7 +165,7 @@ void vIMUProcessTask(void *pvParameters) {
     if (i != ICM_OK) {
         ICM42688_Print("IMU Init Error: %d \r\n", i);
     }
-    P5INTE = PIN_1;
+    
     /* -----------------------------------------------------------
      * 3. 任务主循环
      * ----------------------------------------------------------- */
@@ -244,7 +244,7 @@ void vIMUProcessTask(void *pvParameters) {
 extern UserParams_t *UserParams;
 
 void IMU_Init() {
-    xTaskCreate(vIMUProcessTask, "IMU", 764, NULL, tskIDLE_PRIORITY + 4, NULL);
+    xTaskCreate(vIMUProcessTask, "IMU", 728, NULL, tskIDLE_PRIORITY + 4, NULL);
 
 		//Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
     //Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
@@ -257,11 +257,11 @@ void IMU_Init() {
     Debug_Register("Kp", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Kp));
     Debug_Register("Ki", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Ki));
   //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
-  //  Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
-  //  Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
-  //  Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
-   // Debug_Register("gx", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gx));
-   // Debug_Register("gy", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gy));
+ //   Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
+ //   Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
+ //   Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
+ //   Debug_Register("gx", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gx));
+ //   Debug_Register("gy", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gy));
     Debug_Register("bias_gy", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gy));
     Debug_Register("bias_gz", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gz));
 }
