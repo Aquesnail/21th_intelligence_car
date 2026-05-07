@@ -14,39 +14,38 @@ bit adc2_dma_done=0;
 //========================================================================
 void ADC2_Init(void)
 {
-    // // 1. 配置 P0.0~P0.3 为高阻输入模式 (模拟输入)
-    // // P0M1=1, P0M0=0 表示高阻输入模式
-    // P0M1 |= 0x0F;       // P0.0~P0.3 设置高阻
-    // P0M0 &= ~0x0F;      // P0.0~P0.3 清除推挽
+    // 1. 配置 P0.0~P0.3 为高阻输入模式 (模拟输入)
+    // P0M1=1, P0M0=0 表示高阻输入模式
+//    P0M1 |= 0x0F;       // P0.0~P0.3 设置高阻
+ //   P0M0 &= ~0x0F;      // P0.0~P0.3 清除推挽
 
-    // // 2. 禁止 P0 端口的数字输入，防止漏电流
-    // P0IE &= ~0x0F;      // 关闭 P0.0~P0.3 数字输入
+    // 2. 禁止 P0 端口的数字输入，防止漏电流
+  //  P0IE &= ~0x0F;      // 关闭 P0.0~P0.3 数字输入
 
-    // // 3. 配置 ADC2 时序
-    // // ADC2TIM: 通道选择时间、建立时间、保持时间
-    // // 0x3f 是默认值，可根据需要调整
-    // ADC2TIM = 0b00011111 | (0b00000011 << 5);
+    // 3. 配置 ADC2 时序
+    // ADC2TIM: 通道选择时间、建立时间、保持时间
+    // 0x3f 是默认值，可根据需要调整
+    ADC2TIM = 0x3f;
+    // 4. 配置 ADC2 速度和结果格式
+    // bit5: 1=右对齐, 0=左对齐
+    // bit3~0: 速度 0~15
+    ADC2CFG = ADC2_RES_FMT | ADC2_SPEED;
 
-    // // 4. 配置 ADC2 速度和结果格式
-    // // bit5: 1=右对齐, 0=左对齐
-    // // bit3~0: 速度 0~15
-    // ADC2CFG = ADC2_RES_FMT | ADC2_SPEED;
+    // 5. 打开 ADC2 电源，选择通道 0
+    // bit7: 1=ADC 电源打开
+    // bit3~0: 通道选择 (0~3 对应 P0.0~P0.3)
+    ADC2_CONTR = 0x80;
 
-    // // 5. 打开 ADC2 电源，选择通道 0
-    // // bit7: 1=ADC 电源打开
-    // // bit3~0: 通道选择 (0~3 对应 P0.0~P0.3)
-    // ADC2_CONTR = 0x80;
-
-    // // 延时等待 ADC 电源稳定 (建议 1ms)
-    // delay_ms(1);
+    // 延时等待 ADC 电源稳定 (建议 1ms)
+    delay_ms(1);
 }
 
 
 #define ADC2_STPCYC             0       //ADC2通道选择建立时间
 #define ADC2_HLDCYC             1       //ADC2通道选择保持时间
 #define ADC2_SMPCYC             14      //ADC2通道采样时间
-#define ADC2_DMAITV             10      //ADC2 DMA扫描间隔时间（系统时钟）
-#define ADC2_DMAAMT             8   //ADC2 DMA扫描次数
+#define ADC2_DMAITV             10000      //ADC2 DMA扫描间隔时间（系统时钟）
+#define ADC2_DMAAMT             4   //ADC2 DMA扫描次数
 #define ADC2_DMASIZE            (ADC2_DMAAMT * (8 * 2 + 4) * 4) //ADC2 DMA缓冲区大小
 //========================================================================
 // 函数: void ADC2_DMA_Init(void)
@@ -57,7 +56,7 @@ void ADC2_Init(void)
 void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
 {
 
-    ADC2_SetClockDivider(15);           //设置ADC时钟
+    ADC2_SetClockDivider(3);           //设置ADC时钟
     ADC2_ResultRightAlign();            //设置ADC结果右对齐(12位结果)
     ADC2_DisablePWMTrig();              //禁止PWM同步触发ADC
     ADC2_DisableRepeatConv();           //关闭ADC自动重复转换功能

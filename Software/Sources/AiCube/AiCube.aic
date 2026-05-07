@@ -1878,7 +1878,7 @@
 	</EXTI4>
 	<ADC1>
 		<PeriEnable>0</PeriEnable>
-		<ADCChannels>1792</ADCChannels>
+		<ADCChannels>0</ADCChannels>
 		<ClockDivider>0</ClockDivider>
 		<ResultAlign>1</ResultAlign>
 		<SetupTiming>0</SetupTiming>

@@ -54,7 +54,7 @@ void SPI1_Init(DMA_SPI1_Callback_t callback)
     SPI1_IgnoreSS();                    //忽略SS脚
     SPI1_DataMSB();                     //设置SPI1数据顺序为MSB (高位在前)
     SPI1_SetMode3();                    //设置SPI1工作模式0 (CPOL=0, CPHA=0)
-    SPI1_SetClockDivider2();           //设置SPI1时钟分频
+    SPI1_SetClockDivider8();           //设置SPI1时钟分频
 
     HSSPI1_Disable();                   //关闭SPI1高速模式
 
@@ -69,7 +69,7 @@ void SPI1_Init(DMA_SPI1_Callback_t callback)
     DMA_SPI1_ClearFlag();               //清除SPI1 DMA中断标志
     DMA_SPI1_EnableTx();                //使能发送数据
     DMA_SPI1_EnableRx();                //使能接收数据
-    DMA_SPI1_SetBusPriority(0);         //设置总线访问为最低优先级
+    DMA_SPI1_SetBusPriority(1);         //设置总线访问为最低优先级
     DMA_SPI1_SetIntPriority(0);         //设置中断为较低优先级
     DMA_SPI1_EnableInt();               //使能SPI1 DMA中断
     DMA_SPI1_Enable();                  //使能SPI1 DMA功能

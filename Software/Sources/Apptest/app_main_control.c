@@ -114,12 +114,12 @@ void Motor_Test_Task(void *pvParameters){
 void ADC_Test_Task(void *pvParameters) {
     uint8_t i;
 
-    ADC2_Init();
+    //ADC2_Init();
     ADC2_DMA_Init(adc_dma_buf);
     ADC2_DMA_Start();
     vTaskDelay(pdMS_TO_TICKS(10)); // 等待 ADC 稳定
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(10));
 
         if (ADC2_DMA_IsDone()) {
             ADC2_DMA_ClearFlag();
@@ -140,5 +140,5 @@ void Main_Control_Task_Init(void) {
     Debug_Register("adc2", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[2]);
     Debug_Register("adc3", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[3]);
 
-    xTaskCreate(ADC_Test_Task, "adc_test", 1024, NULL, tskIDLE_PRIORITY + 4, NULL);
+    xTaskCreate(ADC_Test_Task, "adc_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
 }
