@@ -38,8 +38,10 @@ void GPIO_Init(void) {
     P2M0 = (PIN_2 | PIN_3 | PIN_5);
     P2SR = ~(PIN_3 | PIN_5);
     P2DR &= ~(PIN_3 | PIN_5);
+   // P2IM2 = PIN_0;
+  //  SetP2IntPriority(2); // P2.0最高优先级
     P2IE = 0xFF;
-    P2INTE = 0x00;
+    //P2INTE = PIN_0;
 
     // --- P3口配置 ---
     // P3.2: ICM_SCK, P3.4: ICM_MOSI, P3.5: ICM_CS — 推挽

@@ -18,6 +18,7 @@
 #include "task.h"
 #include "semphr.h"
 #include "string.h"
+#include "motor.h"
 
 //<<AICUBE_USER_INCLUDE_END>>
 

@@ -4,7 +4,8 @@
 #include "config.h"
 #include "adc_user.h"
 #include "debug_arch.h"
-
+#include "motor.h"
+#include "spi3_user.h"
 /* ADC DMA 缓冲区 (xdata 区域) */
 uint8_t xdata adc_dma_buf[ADC2_CH_NUM * ADC2_BUF_SIZE * 2];
 
@@ -72,30 +73,57 @@ void Motor_Test_SendCmd(void)
     uint32_t frame;
     uint32_t value;
     uint8_t i;
-    frame = motor_pack_head(1, 0x10, 0x00);
+    frame = motor_pack_head(1, 0x01, 0x01);
     value = 0x12345678;
     MOTOR_CS_RESET();
-    for (i = 0; i < 4; i++) {
-        SPI3_WriteByte((uint8_t)(frame & 0xFFu));
-        frame >>= 8;
-    }
-    for (i = 0; i < 4; i++) {
-        SPI3_WriteByte((uint8_t)(value & 0xFFu));
-        value >>= 8;
-    }
+    motor_write_reg(0x01,0xFFFFFFFF);
+		
+//for (i = 0; i < 4; i++) {
+    //    SPI3_WriteByte((uint8_t)(0xFFu));
+   //     frame >>= 8;
+  //  }
+  //  for (i = 0; i < 4; i++) {
+  //      SPI3_WriteByte((uint8_t)(0xAAu));
+  //      value >>= 8;
+   // }
     MOTOR_CS_SET();
 }
+uint32_t read_motor_test;
+uint32_t write_motor_test=0x0000FF00;
+uint8_t red_test=0x00;
+
+
 
 void Motor_Test_Task(void *pvParameters){
     uint8_t counter = 0;
-    MOTOR_CS_SET();
+	uint8_t i;
+
+    //ADC2_Init();
+    ADC2_DMA_Init(adc_dma_buf);
+    ADC2_DMA_Start();
     SPI3_Init(SPI3_Callback);
+    vTaskDelay(pdMS_TO_TICKS(10)); 
+    MOTOR_CS_RESET();
+    motor_write_reg(0x01,write_motor_test);
+	MOTOR_CS_SET();
+     vTaskDelay(pdMS_TO_TICKS(10));
+    MOTOR_CS_RESET();
+    motor_stream_start(0x01, 0x02);
+    MOTOR_CS_SET();
+    vTaskDelay(pdMS_TO_TICKS(10)); // 等待设备稳定
     for(;;){
-        vTaskDelay(pdMS_TO_TICKS(2));
-        Get_Motor_Data();
+				write_motor_test+=1;
+        vTaskDelay(pdMS_TO_TICKS(25));
+		// 		MOTOR_CS_RESET();
+        // motor_write_reg(0x01,write_motor_test);
+		// 		MOTOR_CS_SET();
+				vTaskDelay(pdMS_TO_TICKS(25));
+				MOTOR_CS_RESET();
+				read_motor_test = motor_spi_recv_u32();
+				MOTOR_CS_SET();
         counter++;
         if (counter % 50 == 0) {
-            Motor_Test_SendCmd();
+           
             counter = 0;
         }
     }
@@ -133,7 +161,7 @@ void Main_Control_Task_Init(void) {
     Debug_Register("adc0", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[0]);
     Debug_Register("adc1", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[1]);
     Debug_Register("adc2", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[2]);
-    Debug_Register("adc3", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[3]);
+    Debug_Register("read", DBG_UINT32 | HIGH_FREQ_TYPE, &read_motor_test);
 
     xTaskCreate(Motor_Test_Task, "motor_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
 }

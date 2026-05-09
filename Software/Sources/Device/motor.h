@@ -22,5 +22,5 @@ uint32_t motor_read_reg(uint8_t addr);
 void     motor_read_two_regs(uint8_t addr1, uint8_t addr2, uint32_t *val1, uint32_t *val2);
 void     motor_stream_start(uint8_t addr1, uint8_t addr2);
 void     motor_stream_stop(void);
-
+uint32_t motor_spi_recv_u32(void);
 #endif

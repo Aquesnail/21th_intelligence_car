@@ -1,4 +1,5 @@
 #include "motor.h"
+#include "timer.h"
 
 /* 命令码 */
 #define MOTOR_CMD_WRITE_ONE        1u
@@ -31,7 +32,7 @@ static void motor_spi_send_u32(uint32_t val)
 }
 
 /* 通过 SPI 接收 32bit 值 (低字节在前) */
-static uint32_t motor_spi_recv_u32(void)
+uint32_t motor_spi_recv_u32(void)
 {
     uint32_t val;
     uint8_t i;
@@ -62,18 +63,49 @@ void motor_write_two_regs(uint8_t addr1, uint8_t addr2, uint32_t val1, uint32_t 
     motor_spi_send_u32(val1);
     motor_spi_send_u32(val2);
 }
+/* 超时时间: 100ms = 100,000 ticks (Get_Tim9 为 1MHz) */
+#define MOTOR_READ_TIMEOUT  100000UL
 
-/* 读单个寄存器: 发送命令帧 + 接收1个32bit数据 */
+/* 等待 P2.0 电平翻转, 超时返回1, 成功返回0 */
+static uint8_t motor_wait_toggle(uint8_t pre_level)
+{
+    uint32_t start;
+    start = Get_Tim9();
+    while ((P2 & PIN_0) == pre_level) {
+        if ((Get_Tim9() - start) >= MOTOR_READ_TIMEOUT) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* 读单个寄存器: 发送命令帧 -> 等待电平翻转 -> 接收1个32bit数据 */
 uint32_t motor_read_reg(uint8_t addr)
 {
+    uint8_t pre_level;
+    pre_level = (P2 & PIN_0);
     motor_send_cmd(MOTOR_CMD_READ_ONE, addr, 0);
+    P22 = 1;
+    if (motor_wait_toggle(pre_level)) {
+
+        return 0;
+    }
+    P22 = 0;
+    NOP30();
     return motor_spi_recv_u32();
 }
 
-/* 读两个寄存器: 发送命令帧 + 接收2个32bit数据 (先addr1后addr2) */
+/* 读两个寄存器: 发送命令帧 -> 等待电平翻转 -> 接收2个32bit数据 (先addr1后addr2) */
 void motor_read_two_regs(uint8_t addr1, uint8_t addr2, uint32_t *val1, uint32_t *val2)
 {
+    uint8_t pre_level;
+    pre_level = (P2 & PIN_0);
     motor_send_cmd(MOTOR_CMD_READ_TWO, addr1, addr2);
+    if (motor_wait_toggle(pre_level)) {
+        *val1 = 0;
+        *val2 = 0;
+        return;
+    }
     *val1 = motor_spi_recv_u32();
     *val2 = motor_spi_recv_u32();
 }

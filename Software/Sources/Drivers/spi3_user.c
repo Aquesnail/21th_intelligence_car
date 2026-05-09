@@ -53,7 +53,7 @@ void SPI3_Init(DMA_SPI3_Callback_t callback)
     SPI3_MasterMode();                  //设置SPI3为主机模式
     SPI3_IgnoreSS();                    //忽略SS脚
     SPI3_DataMSB();                     //设置SPI3数据顺序为MSB (高位在前)
-    SPI3_SetMode3();                    //设置SPI3工作模式0 (CPOL=0, CPHA=0)
+    SPI3_SetMode0();                    //设置SPI3工作模式0 (CPOL=0, CPHA=0)
     SPI3_SetClockDivider16();           //设置SPI3时钟分频
 
     HSSPI3_Disable();                   //关闭SPI3高速模式
