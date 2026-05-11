@@ -1,10 +1,10 @@
 #include "ws2812.h"
-#include "pwm.h" // 包含AICube生成的pwm初始化函数声明
+#include "pwm_user.h" // 包含AICube生成的pwm初始化函数声明
 
 // 计算所需的缓冲区大小
 // 每个灯24位，每位需要1个结构体(4字节)
 // 额外加1个结构体用于发送结束时的低电平(Reset/Idle)
-#define BUFFER_SIZE_PKTS   (WS2812_LED_NUM * 24 + 1)
+#define BUFFER_SIZE_PKTS   (WS2812_LED_NUM * 24 + 232)
 
 // 定义DMA缓冲区 (放在 xdata 防止溢出)
 WS2812_DMA_Packet_t xdata ws_buffer[BUFFER_SIZE_PKTS] = {0};
@@ -20,8 +20,8 @@ void WS2812_Init(void)
     // 1. 调用底层的 PWM 初始化 (由 AICube 生成的那个函数)
     // 确保里面的 PWME_Init 已经包含了我们调试好的:
     // PWME_SetReload16(74); 分频1; 4字节突发; EnableUpdate;
-    PWME_Init(); 
-    DMA_PWME_EnableTxInt(); 
+    PWMC_Init(); 
+    DMA_PWMC_EnableTxInt(); 
     // 2. 清空缓冲区（全0，即灯全灭）
     WS2812_Clear();
 }
@@ -101,25 +101,25 @@ void WS2812_Show(void)
     ws_dma_busy = 1;
 
     // --- DMA 配置与启动 ---
-    DMA_PWME_DisableTx(); // 先关闭以配置
+    DMA_PWMC_DisableTx(); // 先关闭以配置
     
     // 设置地址 (强转为 uint8_t*)
-    DMA_PWME_SetTxAddress((uint8_t *)ws_buffer);
+    DMA_PWMC_SetTxAddress((uint8_t *)ws_buffer);
     
     // 设置传输总量：(灯数 * 24 + 1) * 4字节
     // 注意：STC的 SetTxAmount 通常接收的是“总字节数”或者“总次数”，
     // 根据你的库函数实现，如果是写入 DMA_AMT 寄存器，通常是 (次数-1)。
     // AICube生成的 SetTxAmount(val) 内部通常直接写寄存器，所以这里填 总字节数
-    DMA_PWME_SetTxAmount(BUFFER_SIZE_PKTS * 4); 
+    DMA_PWMC_SetTxAmount(BUFFER_SIZE_PKTS * 4); 
     
-    DMA_PWME_ClearTxFlag();
-    DMA_PWME_EnableTx();
+    DMA_PWMC_ClearTxFlag();
+    DMA_PWMC_EnableTx();
     
     // 【关键】手动触发 (AICube可能未生成Trigger函数，手动置位)
-    // 假设使用 PWME，对应 DMA_PWMET_CR 寄存器
-    // 如果你有 DMA_PWME_TriggerTx() 就用，没有就用下面的寄存器操作：
-    // DMA_PWMET_CR |= 0x40; // bit6 = TRIG
-    DMA_PWME_TriggerTx();
+    // 假设使用 PWMC，对应 DMA_PWMCR_CR 寄存器
+    // 如果你有 DMA_PWMC_TriggerTx() 就用，没有就用下面的寄存器操作：
+    // DMA_PWMCR_CR |= 0x40; // bit6 = TRIG
+    DMA_PWMC_TriggerTx();
 }
 
 /**
@@ -134,18 +134,19 @@ uint8_t WS2812_IsBusy(void)
 // 放在 pwm.c 或者这里都可以，确保不要重复定义
 // 如果 pwm.c 里已经有了 DMA_PWMETX_ISR，请把这段逻辑移过去
 
-void DMA_PWMETX_ISR(void) interrupt DMA_PWMET_VECTOR
+void DMA_PWMETX_ISR(void) interrupt DMA_PWMCT_VECTOR
 {
-    if (DMA_PWME_CheckTxFlag())
+    if (DMA_PWMC_CheckTxFlag())
     {
-        DMA_PWME_ClearTxFlag();
+        DMA_PWMC_ClearTxFlag();
         
         // 传输完成，停止 DMA
-        DMA_PWME_DisableTx();
+        DMA_PWMC_DisableTx();
         
         // 强制通道输出低电平 (Reset 信号)
         // 这一步很重要，防止DMA停了但PWM还在按最后一个值输出
-        PWM_UpdateDuty(PWME_CH5, 0); 
+      //  PWM_UpdateDuty(PWMC_CH5, 0); 
+        PWMC_SetCCR3Value(0); // 直接设置 CCR3 = 0，强制输出低电平
         
         // 清除忙标志
         ws_dma_busy = 0;

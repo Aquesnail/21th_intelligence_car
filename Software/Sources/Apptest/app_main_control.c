@@ -88,11 +88,37 @@ void Motor_Test_SendCmd(void)
    // }
     MOTOR_CS_SET();
 }
+TaskHandle_t xMainControlTaskHandle = NULL;
+#define SIGNAL_MOTOR_DATA_READY (1 << 2) /* 位 2：电机数据准备好 */
 uint32_t read_motor_test;
 uint32_t write_motor_test=0x0000FF00;
 uint8_t red_test=0x00;
+void Main_Control_Task(void *pvParameters) {
+    uint32_t ulNotifiedValue;
+    (void)pvParameters;
+
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        if(xTaskNotifyWait(0, SIGNAL_MOTOR_DATA_READY, &ulNotifiedValue, 0) == pdTRUE) {
+           if(ulNotifiedValue & SIGNAL_MOTOR_DATA_READY) {
+                vTaskDelay(pdMS_TO_TICKS(10)); // 等待数据稳定
+                MOTOR_CS_RESET();
+                motor_write_reg(0x01,write_motor_test);
+								MOTOR_CS_SET();
+                vTaskDelay(pdMS_TO_TICKS(10));
+                MOTOR_CS_RESET();
+                motor_stream_start(0x01, 0x02);
+                MOTOR_CS_SET();
+            }
+        }
+    }
+}
 
 
+
+void Motor_Data_Ready_INT1_Handle(BaseType_t* xHigherPriorityTaskWoken){
+    xTaskNotifyFromISR(xMainControlTaskHandle, SIGNAL_MOTOR_DATA_READY, eSetBits, xHigherPriorityTaskWoken);
+}
 
 void Motor_Test_Task(void *pvParameters){
     uint8_t counter = 0;
@@ -105,8 +131,8 @@ void Motor_Test_Task(void *pvParameters){
     vTaskDelay(pdMS_TO_TICKS(10)); 
     MOTOR_CS_RESET();
     motor_write_reg(0x01,write_motor_test);
-	MOTOR_CS_SET();
-     vTaskDelay(pdMS_TO_TICKS(10));
+		MOTOR_CS_SET();
+    vTaskDelay(pdMS_TO_TICKS(10));
     MOTOR_CS_RESET();
     motor_stream_start(0x01, 0x02);
     MOTOR_CS_SET();
@@ -164,4 +190,5 @@ void Main_Control_Task_Init(void) {
     Debug_Register("read", DBG_UINT32 | HIGH_FREQ_TYPE, &read_motor_test);
 
     xTaskCreate(Motor_Test_Task, "motor_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
+  //  xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 2, &xMainControlTaskHandle);
 }

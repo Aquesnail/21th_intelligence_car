@@ -23,52 +23,60 @@
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
+uint8_t xdata pu8PWMCDMATxBuffer[PWMC_DMATXSIZE]; //PWMCDMA发送缓冲区数组
 uint8_t xdata pu8PWMEDMATxBuffer[PWME_DMATXSIZE]; //PWMEDMA发送缓冲区数组
 
 ////////////////////////////////////////
-// PWMA初始化函数
+// PWMC初始化函数
 // 入口参数: 无
 // 函数返回: 无
 ////////////////////////////////////////
-void PWMA_Init(void)
+void PWMC_Init(void)
 {
-    PWMA_C3SwitchP6465();               //设置PWMA通道3数据端口: PWMA3P (P6.4), PWMA3N (P6.5)
-    PWMA_C4SwitchP6667();               //设置PWMA通道4数据端口: PWMA4P (P6.6), PWMA4N (P6.7)
+    PWMC_C3SwitchP6465();               //设置PWMC通道3数据端口: PWMC3P (P6.4), PWMC3N (P6.5)
 
-    HSPWMA_Disable();                   //关闭高速模式，使用同步方式进行初始化
-    PWMA_InternalClockMode();           //选择内部时钟模式
-    PWMA_SetClockDivider(1199);         //设置16位预分频
-    PWMA_SetReload16(999);              //设置16位重载值
-    PWMA_BufferARR();                   //使能重载值寄存器预装载功能
-    PWMA_SetCounter(0);                 //初始化计数值
+    HSPWMC_Disable();                   //关闭高速模式，使用同步方式进行初始化
+    PWMC_InternalClockMode();           //选择内部时钟模式
+    PWMC_SetClockDivider(0);            //设置16位预分频
+    PWMC_SetReload16(149);              //设置16位重载值
+    PWMC_BufferARR();                   //使能重载值寄存器预装载功能
+    PWMC_SetCounter(0);                 //初始化计数值
 
-    PWMA_CC3PDisable();                 //关闭通道
-    PWMA_CC3Output();                   //使能通道输出功能
-    PWMA_CC3PEnable();                  //打开通道
-    PWM_UpdateDuty(PWMA_CH3, 0);        //设置通道的PWM占空比
-    PWMA_OC3REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
-    PWMA_BufferCCR3();                  //使能CCRn预装载功能
-    PWMA_CC3PNonInverted();             //设置正极通道输出高电平有效
-    PWMA_EnablePWM3POutput();           //使能正极通道输出
-    PWMA_DisablePWM3NOutput();          //关闭负极通道输出
+    PWMC_CC3PDisable();                 //关闭通道
+    PWMC_CC3Output();                   //使能通道输出功能
+    PWMC_CC3PEnable();                  //打开通道
+    PWM_UpdateDuty(PWMC_CH3, 500);      //设置通道的PWM占空比
+    PWMC_OC3REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
+    PWMC_BufferCCR3();                  //使能CCRn预装载功能
+    PWMC_CC3PNonInverted();             //设置正极通道输出高电平有效
+    PWMC_EnablePWM3POutput();           //使能正极通道输出
+    PWMC_DisablePWM3NOutput();          //关闭负极通道输出
 
-    PWMA_CC4PDisable();                 //关闭通道
-    PWMA_CC4Output();                   //使能通道输出功能
-    PWMA_CC4PEnable();                  //打开通道
-    PWM_UpdateDuty(PWMA_CH4, 0);        //设置通道的PWM占空比
-    PWMA_OC4REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
-    PWMA_BufferCCR4();                  //使能CCRn预装载功能
-    PWMA_CC4PNonInverted();             //设置正极通道输出高电平有效
-    PWMA_EnablePWM4POutput();           //使能正极通道输出
-    PWMA_DisablePWM4NOutput();          //关闭负极通道输出
+    PWMC_EnableMainOutput();            //使能PWM主输出
 
-    PWMA_EnableMainOutput();            //使能PWM主输出
+    PWMC_UpdateIntAsDMAEvent();         //设置PWMC更新中断作为DMA事件
+    PWMC_SetDMABaseAddress(15);         //设置PWMC DMA的寄存器基地址
+    PWMC_SetDMABurstCount(0);           //设置PWMC DMA突发传输次数
+    PWMC_SetDMABurst4Bytes();           //设置PWMC DMA突发传输字节数
+    PWMC_DMASkipSpace();                //设置PWMC DMA时跳过保留寄存器（空白字节）
+    PWMC_SetDMAOutput();                //设置PWMC DMA方向为输出（DMA输出PWM波形）
 
-    PWMA_Run();                         //PWMA开始运行
+    DMA_PWMC_SetTxAmount(PWMC_DMATXSIZE - 1); //设置PWMC发送DMA总字节数
+    DMA_PWMC_SetTxAddress(pu8PWMCDMATxBuffer); //设置PWMC发送DMA缓冲区地址
+    DMA_PWMC_SetInterval(PWMC_DMAITV);  //设置PWMC发送DMA字节间隔时间（系统时钟）
+    DMA_PWMC_ClearTxFlag();             //清除PWMC发送DMA中断标志
+    DMA_PWMC_SetTxBusPriority(0);       //设置总线访问为最低优先级
+    DMA_PWMC_SetTxIntPriority(0);       //设置中断为最低优先级
+    DMA_PWMC_EnableTxInt();             //使能PWMC发送DMA中断
+    DMA_PWMC_EnableTx();                //使能PWMC发送DMA功能
+    PWMC_EnableDMA();                   //设置PWMC DMA方向为输出（DMA输出PWM波形）
 
-    //<<AICUBE_USER_PWM0_INITIAL_BEGIN>>
+    PWMC_Run();                         //PWMC开始运行
+//  DMA_PWMC_TriggerTx();               //触发PWMC发送DMA
+
+    //<<AICUBE_USER_PWM2_INITIAL_BEGIN>>
     // 在此添加用户初始化代码  
-    //<<AICUBE_USER_PWM0_INITIAL_END>>
+    //<<AICUBE_USER_PWM2_INITIAL_END>>
 }
 
 ////////////////////////////////////////
@@ -115,7 +123,7 @@ void PWME_Init(void)
 //  DMA_PWME_TriggerTx();               //触发PWME发送DMA
 
     //<<AICUBE_USER_PWM4_INITIAL_BEGIN>>
-    PWME_EnableUpdate(); // 确保PWM计数器溢出时能产生事件
+    // 在此添加用户初始化代码  
     //<<AICUBE_USER_PWM4_INITIAL_END>>
 }
 
@@ -581,6 +589,22 @@ void HSPWMF_WriteReg(uint8_t addr, uint8_t dat)
     HSPWMF_AsyncWrite(addr, dat);       //触发异步方式写寄存器
 }
 
+
+////////////////////////////////////////
+// PWMC发送DMA中断服务程序
+// 入口参数: 无
+// 函数返回: 无
+////////////////////////////////////////
+void DMA_PWMCTX_ISR(void) interrupt DMA_PWMCT_VECTOR
+{
+    //<<AICUBE_USER_PWM2_ISR_CODE2_BEGIN>>
+    // 在此添加中断函数用户代码  
+    if (DMA_PWMC_CheckTxFlag())         //判断PWMC发送DMA中断
+    {
+        DMA_PWMC_ClearTxFlag();         //清除PWMC发送DMA中断标志
+    }
+    //<<AICUBE_USER_PWM2_ISR_CODE2_END>>
+}
 
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_BEGIN>>

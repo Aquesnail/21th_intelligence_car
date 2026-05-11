@@ -4,15 +4,15 @@
 #include "config.h" // 包含你的MCU头文件，如 AI8051U.h
 
 // ================= 用户配置区 =================
-#define WS2812_LED_NUM      4      // 修改这里：灯珠总数量
+#define WS2812_LED_NUM      1      // 修改这里：灯珠总数量
 // ============================================
 
 // 120MHz 主频下的参数 (ARR=74)
 // 0码: ~300ns (18/75 * 1.25us)
 // 1码: ~750ns (45/75 * 1.25us)
-#define WS_ARR_VAL          74
-#define WS_CODE_0           18
-#define WS_CODE_1           45
+#define WS_ARR_VAL          149
+#define WS_CODE_0           36
+#define WS_CODE_1           102
 
 // 核心结构体：DMA每次搬运4字节，分别对应 CCR5X, Res, CCR5H, CCR5L
 typedef struct {

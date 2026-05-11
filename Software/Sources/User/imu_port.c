@@ -147,10 +147,10 @@ void vIMUProcessTask(void *pvParameters) {
     xImuTaskHandle = xTaskGetCurrentTaskHandle();
 
     /* 等待调试系统准备就绪 (如有) */
-    if (xDebugReadySignal != NULL) {
-        xSemaphoreTake(xDebugReadySignal, portMAX_DELAY);
-        xSemaphoreGive(xDebugReadySignal);
-    }
+    // if (xDebugReadySignal != NULL) {
+    //     xSemaphoreTake(xDebugReadySignal, portMAX_DELAY);
+    //     xSemaphoreGive(xDebugReadySignal);
+    // }
 		// while(1){
 		// 	vTaskDelay(pdMS_TO_TICKS(3));
 		// };

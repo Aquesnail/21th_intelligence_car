@@ -17,13 +17,13 @@ static void hw_beep(uint16_t freq) {
     uint16_t reload;
     
     if (freq == 0) { 
-        PWM_UpdateDuty(PWMA_CH3, 0); 
+        //PWM_UpdateDuty(PWMA_CH3, 0); 
         return; 
     }
     
     reload = (100000UL / freq) - 1;
     PWMA_SetReload16(reload);
-    PWM_UpdateDuty(PWMA_CH3, reload / 2);
+   // PWM_UpdateDuty(PWMA_CH3, reload / 2);
 }
 
 static void beep_callback(TimerHandle_t xTimer) {

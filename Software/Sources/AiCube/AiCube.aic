@@ -627,9 +627,9 @@
 		<PortIE_3>0</PortIE_3>
 		<PortWK_3>0</PortWK_3>
 		<PortLevel_3>1</PortLevel_3>
-		<PortMD_4>1</PortMD_4>
+		<PortMD_4>0</PortMD_4>
 		<PortBP_4>1</PortBP_4>
-		<PortPU_4>0</PortPU_4>
+		<PortPU_4>1</PortPU_4>
 		<PortPD_4>0</PortPD_4>
 		<PortNCS_4>0</PortNCS_4>
 		<PortSR_4>0</PortSR_4>
@@ -640,7 +640,7 @@
 		<PortLevel_4>1</PortLevel_4>
 		<PortMD_5>0</PortMD_5>
 		<PortBP_5>1</PortBP_5>
-		<PortPU_5>0</PortPU_5>
+		<PortPU_5>1</PortPU_5>
 		<PortPD_5>0</PortPD_5>
 		<PortNCS_5>0</PortNCS_5>
 		<PortSR_5>1</PortSR_5>
@@ -2693,7 +2693,7 @@
 		<IntPriority>0</IntPriority>
 	</LIN2>
 	<PWMA>
-		<PeriEnable>1</PeriEnable>
+		<PeriEnable>0</PeriEnable>
 		<WorkMode>2</WorkMode>
 		<Prescaler>1199</Prescaler>
 		<Counter>0</Counter>
@@ -2790,7 +2790,7 @@
 		<CaptureFilter_CC2>0</CaptureFilter_CC2>
 		<CaptureDivider_CC2>0</CaptureDivider_CC2>
 		<EnableCCnInt_CC3>0</EnableCCnInt_CC3>
-		<CCnPort_CC3>2</CCnPort_CC3>
+		<CCnPort_CC3>-1</CCnPort_CC3>
 		<EnableChannel_CC3>1</EnableChannel_CC3>
 		<CCnDirection_CC3>0</CCnDirection_CC3>
 		<POutputMode_CC3>1</POutputMode_CC3>
@@ -3037,11 +3037,11 @@
 		<TimerUnit>0</TimerUnit>
 	</PWMB>
 	<PWMC>
-		<PeriEnable>0</PeriEnable>
-		<WorkMode>0</WorkMode>
+		<PeriEnable>1</PeriEnable>
+		<WorkMode>2</WorkMode>
 		<Prescaler>0</Prescaler>
 		<Counter>0</Counter>
-		<AutoReload>999</AutoReload>
+		<AutoReload>149</AutoReload>
 		<RepeatCounter>0</RepeatCounter>
 		<PreloadARR>0</PreloadARR>
 		<CounterAlign>0</CounterAlign>
@@ -3072,30 +3072,30 @@
 		<EnableTriggerInt>0</EnableTriggerInt>
 		<EnableCOMInt>0</EnableCOMInt>
 		<EnableUpdateInt>0</EnableUpdateInt>
-		<EnableTxDMA>0</EnableTxDMA>
+		<EnableTxDMA>1</EnableTxDMA>
 		<EnableRxDMA>0</EnableRxDMA>
-		<EnableTxDMAInt>0</EnableTxDMAInt>
+		<EnableTxDMAInt>1</EnableTxDMAInt>
 		<EnableRxDMAInt>0</EnableRxDMAInt>
 		<IntPriority>0</IntPriority>
 		<EnableHSMode>0</EnableHSMode>
 		<EnableHSInt>0</EnableHSInt>
-		<TxDMAAmount>1</TxDMAAmount>
-		<TxDMAInterval>0</TxDMAInterval>
+		<TxDMAAmount>256</TxDMAAmount>
+		<TxDMAInterval>2</TxDMAInterval>
 		<TxDMAIntPriority>0</TxDMAIntPriority>
 		<TxDMABusPriority>0</TxDMABusPriority>
 		<TxDMABuffer>pu8PWMCDMATxBuffer</TxDMABuffer>
-		<RxDMAAmount>1</RxDMAAmount>
+		<RxDMAAmount>256</RxDMAAmount>
 		<RxDMAInterval>0</RxDMAInterval>
 		<RxDMAIntPriority>0</RxDMAIntPriority>
 		<RxDMABusPriority>0</RxDMABusPriority>
 		<RxDMABuffer>pu8PWMCDMARxBuffer</RxDMABuffer>
-		<DMAEnable>0</DMAEnable>
+		<DMAEnable>1</DMAEnable>
 		<DMADirect>0</DMADirect>
 		<DMATriggerEvent>1</DMATriggerEvent>
-		<DMARegisterBase>13</DMARegisterBase>
+		<DMARegisterBase>15</DMARegisterBase>
 		<DMATransCount>0</DMATransCount>
-		<DMATransBytes>0</DMATransBytes>
-		<DMAAmount>100</DMAAmount>
+		<DMATransBytes>3</DMATransBytes>
+		<DMAAmount>64</DMAAmount>
 		<DMASkipReserved>1</DMASkipReserved>
 		<EnableCCnInt_CC1>0</EnableCCnInt_CC1>
 		<CCnPort_CC1>-1</CCnPort_CC1>
@@ -3109,7 +3109,7 @@
 		<PreloadCCR_CC1>0</PreloadCCR_CC1>
 		<IdlePOutputState_CC1>0</IdlePOutputState_CC1>
 		<IdleNOutputState_CC1>0</IdleNOutputState_CC1>
-		<PWMDuty_CC1>10.000</PWMDuty_CC1>
+		<PWMDuty_CC1>100.000</PWMDuty_CC1>
 		<CompareValue_CC1>500</CompareValue_CC1>
 		<CaptureMap_CC1>0</CaptureMap_CC1>
 		<CaptureMode_CC1>0</CaptureMode_CC1>
@@ -3127,17 +3127,17 @@
 		<PreloadCCR_CC2>0</PreloadCCR_CC2>
 		<IdlePOutputState_CC2>0</IdlePOutputState_CC2>
 		<IdleNOutputState_CC2>0</IdleNOutputState_CC2>
-		<PWMDuty_CC2>10.000</PWMDuty_CC2>
+		<PWMDuty_CC2>100.000</PWMDuty_CC2>
 		<CompareValue_CC2>500</CompareValue_CC2>
 		<CaptureMap_CC2>0</CaptureMap_CC2>
 		<CaptureMode_CC2>0</CaptureMode_CC2>
 		<CaptureFilter_CC2>0</CaptureFilter_CC2>
 		<CaptureDivider_CC2>0</CaptureDivider_CC2>
 		<EnableCCnInt_CC3>0</EnableCCnInt_CC3>
-		<CCnPort_CC3>-1</CCnPort_CC3>
-		<EnableChannel_CC3>0</EnableChannel_CC3>
+		<CCnPort_CC3>0</CCnPort_CC3>
+		<EnableChannel_CC3>1</EnableChannel_CC3>
 		<CCnDirection_CC3>0</CCnDirection_CC3>
-		<POutputMode_CC3>0</POutputMode_CC3>
+		<POutputMode_CC3>1</POutputMode_CC3>
 		<NOutputMode_CC3>0</NOutputMode_CC3>
 		<ETRClearOutput_CC3>0</ETRClearOutput_CC3>
 		<OutputMode_CC3>0</OutputMode_CC3>
@@ -3145,7 +3145,7 @@
 		<PreloadCCR_CC3>0</PreloadCCR_CC3>
 		<IdlePOutputState_CC3>0</IdlePOutputState_CC3>
 		<IdleNOutputState_CC3>0</IdleNOutputState_CC3>
-		<PWMDuty_CC3>10.000</PWMDuty_CC3>
+		<PWMDuty_CC3>100.000</PWMDuty_CC3>
 		<CompareValue_CC3>500</CompareValue_CC3>
 		<CaptureMap_CC3>0</CaptureMap_CC3>
 		<CaptureMode_CC3>0</CaptureMode_CC3>
@@ -3163,7 +3163,7 @@
 		<PreloadCCR_CC4>0</PreloadCCR_CC4>
 		<IdlePOutputState_CC4>0</IdlePOutputState_CC4>
 		<IdleNOutputState_CC4>0</IdleNOutputState_CC4>
-		<PWMDuty_CC4>10.000</PWMDuty_CC4>
+		<PWMDuty_CC4>100.000</PWMDuty_CC4>
 		<CompareValue_CC4>500</CompareValue_CC4>
 		<CaptureMap_CC4>0</CaptureMap_CC4>
 		<CaptureMode_CC4>0</CaptureMode_CC4>
@@ -3181,7 +3181,7 @@
 		<PreloadCCR_CC5>0</PreloadCCR_CC5>
 		<IdlePOutputState_CC5>0</IdlePOutputState_CC5>
 		<IdleNOutputState_CC5>0</IdleNOutputState_CC5>
-		<PWMDuty_CC5>10.000</PWMDuty_CC5>
+		<PWMDuty_CC5>100.000</PWMDuty_CC5>
 		<CompareValue_CC5>500</CompareValue_CC5>
 		<CaptureMap_CC5>0</CaptureMap_CC5>
 		<CaptureMode_CC5>0</CaptureMode_CC5>
@@ -3199,7 +3199,7 @@
 		<PreloadCCR_CC6>0</PreloadCCR_CC6>
 		<IdlePOutputState_CC6>0</IdlePOutputState_CC6>
 		<IdleNOutputState_CC6>0</IdleNOutputState_CC6>
-		<PWMDuty_CC6>10.000</PWMDuty_CC6>
+		<PWMDuty_CC6>100.000</PWMDuty_CC6>
 		<CompareValue_CC6>500</CompareValue_CC6>
 		<CaptureMap_CC6>0</CaptureMap_CC6>
 		<CaptureMode_CC6>0</CaptureMode_CC6>
@@ -3765,8 +3765,8 @@
 		<Pin28Map>255</Pin28Map>
 		<Pin29Map>255</Pin29Map>
 		<Pin30Map>255</Pin30Map>
-		<Pin32Map>16</Pin32Map>
-		<Pin33Map>16</Pin33Map>
+		<Pin32Map>32</Pin32Map>
+		<Pin33Map>32</Pin33Map>
 		<Pin34Map>16</Pin34Map>
 		<Pin35Map>16</Pin35Map>
 		<Pin41Map>16</Pin41Map>

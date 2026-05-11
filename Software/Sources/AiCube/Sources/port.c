@@ -194,13 +194,13 @@ void PORT5_Init(void)
 void PORT6_Init(void)
 {
     SetP6nInitLevelHigh(PIN_ALL);       //设置P6初始化电平
-    SetP6nQuasiMode(PIN_7 | PIN_5 | PIN_3 | PIN_1); //设置P6.7,P6.5,P6.3,P6.1为无弱上拉准双向口模式
-    SetP6nPushPullMode(PIN_6 | PIN_4);  //设置P6.6,P6.4为推挽输出模式
+    SetP6nQuasiMode(PIN_7 | PIN_5 | PIN_4 | PIN_3 | PIN_1); //设置P6.7,P6.5,P6.4,P6.3,P6.1为无弱上拉准双向口模式
+    SetP6nPushPullMode(PIN_6);          //设置P6.6为推挽输出模式
     SetP6nHighZInputMode(PIN_2 | PIN_0); //设置P6.2,P6.0为高阻输入模式
     SetP6nManualMode(PIN_ALL);          //设置P6手动配置端口模式
 
-    EnableP6nPullUp(PIN_1);             //使能P6.1内部上拉电阻
-    DisableP6nPullUp(PIN_7 | PIN_6 | PIN_5 | PIN_4 | PIN_3 | PIN_2 | PIN_0); //关闭P6.7,P6.6,P6.5,P6.4,P6.3,P6.2,P6.0内部上拉电阻
+    EnableP6nPullUp(PIN_5 | PIN_4 | PIN_1); //使能P6.5,P6.4,P6.1内部上拉电阻
+    DisableP6nPullUp(PIN_7 | PIN_6 | PIN_3 | PIN_2 | PIN_0); //关闭P6.7,P6.6,P6.3,P6.2,P6.0内部上拉电阻
     DisableP6nPullDown(PIN_ALL);        //关闭P6内部下拉电阻
     EnableP6nSchmitt(PIN_ALL);          //使能P6施密特触发
     SetP6nSlewRateNormal(PIN_7 | PIN_5 | PIN_3 | PIN_2 | PIN_1 | PIN_0); //设置P6.7,P6.5,P6.3,P6.2,P6.1,P6.0一般翻转速度

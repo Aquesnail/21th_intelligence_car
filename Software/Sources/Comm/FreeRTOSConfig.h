@@ -169,5 +169,5 @@ extern uint32_t GetRunTimeCounterValue(void);
 #define configUSE_RTOS_P6          1
 #define configUSE_RTOS_P8          1
 #define configUSE_RTOS_P5          1
-
+#define configUSE_RTOS_P2          1
 #endif /* FREERTOS_CONFIG_H */

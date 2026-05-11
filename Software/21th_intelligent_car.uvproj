@@ -730,16 +730,6 @@
               <FilePath>.\Sources\Drivers\clock.h</FilePath>
             </File>
             <File>
-              <FileName>pwm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Drivers\pwm.c</FilePath>
-            </File>
-            <File>
-              <FileName>pwm.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\pwm.h</FilePath>
-            </File>
-            <File>
               <FileName>iap_user.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Drivers\iap_user.c</FilePath>
@@ -908,6 +898,16 @@
               <FileName>spi3_user.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\spi3_user.h</FilePath>
+            </File>
+            <File>
+              <FileName>pwm_user.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\pwm_user.c</FilePath>
+            </File>
+            <File>
+              <FileName>pwm_user.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\pwm_user.h</FilePath>
             </File>
           </Files>
         </Group>

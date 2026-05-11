@@ -7,21 +7,46 @@
 extern void PWM_Test_Simple(void);
 void app_clk_test(void)
 {
-    uint8_t pos = 0;
-	for(;;){
-    // 1. 设置颜色
-        WS2812_Clear(); // 先全黑
-		vTaskDelay(pdMS_TO_TICKS(50));
-        WS2812_SetColor(pos, 50, 50, 0); // 点亮第 pos 个灯，红色亮度50
-        
-        // 2. 发送
+    uint16_t hue;
+    uint16_t breath_phase;
+    uint8_t r, g, b;
+    uint8_t breath;
+    uint8_t h_val;
+
+    hue = 0;
+    breath_phase = 0;
+
+    for(;;){
+        /* 三角波呼吸亮度: 0 -> 255 -> 0 */
+        if(breath_phase < 256) {
+            breath = (uint8_t)breath_phase;
+        } else {
+            breath = (uint8_t)(511 - breath_phase);
+        }
+
+        /* 色相转 RGB: 红 -> 黄 -> 绿 -> 青 -> 蓝 -> 紫 -> 红 */
+        h_val = (uint8_t)hue;
+        if      (h_val < 43)  { r = 255; g = h_val * 6; b = 0; }
+        else if (h_val < 86)  { r = 255 - (h_val - 43) * 6;  g = 255; b = 0; }
+        else if (h_val < 129) { r = 0;   g = 255; b = (h_val - 86) * 6; }
+        else if (h_val < 172) { r = 0;   g = 255 - (h_val - 129) * 6; b = 255; }
+        else if (h_val < 215) { r = (h_val - 172) * 6; g = 0; b = 255; }
+        else                  { r = 255; g = 0; b = 255 - (h_val - 215) * 6; }
+
+        /* 应用呼吸亮度 */
+        r = (uint8_t)((uint16_t)r * breath / 255);
+        g = (uint8_t)((uint16_t)g * breath / 255);
+        b = (uint8_t)((uint16_t)b * breath / 255);
+
+        WS2812_SetColor(0, r, g, b);
         WS2812_Show();
-       
-        // 3. 移动位置
-        pos++;
-        if(pos >= WS2812_LED_NUM) pos = 0;
-		vTaskDelay(pdMS_TO_TICKS(50));
-	}
+
+        hue++;
+        breath_phase += 3;
+        if(breath_phase >= 512) breath_phase = 0;
+
+        vTaskDelay(pdMS_TO_TICKS(25));
+    }
 }
 
 void APP_CLK_TEST_Init(void){

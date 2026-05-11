@@ -28,7 +28,7 @@ void app_init(void){
 		//Params_Init_Default(); 
    // App_UartTest_Init();
 		App_DebugTask_Init();
-		//APP_CLK_TEST_Init();
+		APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
    // Beep_Init();
     IMU_Init();

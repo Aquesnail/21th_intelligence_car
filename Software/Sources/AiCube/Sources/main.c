@@ -87,7 +87,7 @@ void SYS_Init(void)
     UART4_Init();                       //串口4初始化
     ADC2_Init();                        //ADC2初始化
     SPI2_Init();                        //SPI2初始化
-    PWMA_Init();                        //高级PWMA初始化
+    PWMC_Init();                        //高级PWMC初始化
     PWME_Init();                        //高级PWME初始化
     MATHLIB_Init();                     //MATH库初始化
     CRC_Init();                         //CRC初始化

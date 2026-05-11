@@ -14,14 +14,17 @@
 #include "mathlib.h"
 #include "gpio_user.h"
 #include "adc_user.h"
+#include "pwm_user.h"
 
 
 void sys_init(void);
 void main(){
 		EnableAccessXFR();                  //??????XFR
-    AccessCodeFastest();                //????????????
-    AccessIXramFastest();               //??????????XDATA
-    IAP_SetTimeBase();                  //??IAP????,??1us??
+    	AccessCodeFastest();                //????????????
+    	AccessIXramFastest();               //??????????XDATA
+    	IAP_SetTimeBase();                  //??IAP????,??1us??
+		EAXFR = 1; //扩展寄存器(XFR)访问使能
+		RSTFLAG |= 0x04;   //设置硬件复位后需要检测P3.2的状态选择运行区域，否则硬件复位后进入USB下载模式	
 		P0M0=0x00;        P0M1=0x00;
 		P1M0=0x00;        P1M1=0x00;
 		P2M0=0x00;        P2M1=0x00;
@@ -51,6 +54,7 @@ void sys_init(void){
 	//PWME_Init();
 
 	//TIMER10_Init();
+	PWMC_Init();
 	TIMER9_Init();
 	MATHLIB_Init();
 	//ADC2_Init();

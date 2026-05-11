@@ -58,7 +58,7 @@
 #define PWM_MODE1               0x06
 #define PWM_MODE2               0x07
 
-void PWMA_Init(void);
+void PWMC_Init(void);
 void PWME_Init(void);
 
 void PWM_UpdateDuty(uint8_t PWMx, uint16_t nCompare);
@@ -79,6 +79,7 @@ void HSPWMD_WriteReg(uint8_t addr, uint8_t dat);
 void HSPWME_WriteReg(uint8_t addr, uint8_t dat);
 void HSPWMF_WriteReg(uint8_t addr, uint8_t dat);
 
+extern uint8_t xdata pu8PWMCDMATxBuffer[PWMC_DMATXSIZE];
 extern uint8_t xdata pu8PWMEDMATxBuffer[PWME_DMATXSIZE];
 
 
