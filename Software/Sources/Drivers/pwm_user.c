@@ -42,7 +42,7 @@ void PWMC_Init(void)
   //  DMA_PWMCR_AMT = LOBYTE(PWMC_DMATXSIZE - 1 ); //设置PWMC发送DMA总字节数
     DMA_PWMC_SetTxAmount(PWMC_DMATXSIZE - 1); //设置PWMC发送DMA总字节数
   //  DMA_PWMC_SetTxAddress(pu8PWMCDMATxBuffer); //设置PWMC发送DMA缓冲区地址
-    DMA_PWMC_SetInterval(5);  //设置PWMC发送DMA字节间隔时间（系统时钟）
+    DMA_PWMC_SetInterval(0);  //设置PWMC发送DMA字节间隔时间（系统时钟）
     DMA_PWMC_ClearTxFlag();             //清除PWMC发送DMA中断标志
     DMA_PWMC_SetTxBusPriority(0);       //设置总线访问为最低优先级
     //DMA_PWMC_SetTxIntPriority(0);       //设置中断为最低优先级

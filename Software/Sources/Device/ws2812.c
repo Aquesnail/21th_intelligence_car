@@ -4,7 +4,7 @@
 // 计算所需的缓冲区大小
 // 每个灯24位，每位需要1个结构体(4字节)
 // 额外加1个结构体用于发送结束时的低电平(Reset/Idle)
-#define BUFFER_SIZE_PKTS   (WS2812_LED_NUM * 24 + 232)
+#define BUFFER_SIZE_PKTS   (WS2812_LED_NUM * 24 + 400)
 
 // 定义DMA缓冲区 (放在 xdata 防止溢出)
 WS2812_DMA_Packet_t xdata ws_buffer[BUFFER_SIZE_PKTS] = {0};
@@ -110,7 +110,7 @@ void WS2812_Show(void)
     // 注意：STC的 SetTxAmount 通常接收的是“总字节数”或者“总次数”，
     // 根据你的库函数实现，如果是写入 DMA_AMT 寄存器，通常是 (次数-1)。
     // AICube生成的 SetTxAmount(val) 内部通常直接写寄存器，所以这里填 总字节数
-    DMA_PWMC_SetTxAmount(BUFFER_SIZE_PKTS * 4); 
+    DMA_PWMC_SetTxAmount(BUFFER_SIZE_PKTS * 4 - 1); 
     
     DMA_PWMC_ClearTxFlag();
     DMA_PWMC_EnableTx();

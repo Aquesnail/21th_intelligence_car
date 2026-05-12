@@ -96,7 +96,10 @@ uint8_t red_test=0x00;
 void Main_Control_Task(void *pvParameters) {
     uint32_t ulNotifiedValue;
     (void)pvParameters;
-
+    SPI3_Init(SPI3_Callback);
+    MOTOR_CS_RESET();
+    motor_stream_start(0x01, 0x02);
+    MOTOR_CS_SET();
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(1000));
         if(xTaskNotifyWait(0, SIGNAL_MOTOR_DATA_READY, &ulNotifiedValue, 0) == pdTRUE) {
@@ -104,11 +107,15 @@ void Main_Control_Task(void *pvParameters) {
                 vTaskDelay(pdMS_TO_TICKS(10)); // 等待数据稳定
                 MOTOR_CS_RESET();
                 motor_write_reg(0x01,write_motor_test);
-								MOTOR_CS_SET();
+				MOTOR_CS_SET();
                 vTaskDelay(pdMS_TO_TICKS(10));
-                MOTOR_CS_RESET();
-                motor_stream_start(0x01, 0x02);
-                MOTOR_CS_SET();
+                vTaskDelay(pdMS_TO_TICKS(25));
+				MOTOR_CS_RESET();
+				read_motor_test = motor_spi_recv_u32();
+				MOTOR_CS_SET();
+                // MOTOR_CS_RESET();
+                // motor_stream_start(0x01, 0x02);
+                // MOTOR_CS_SET();
             }
         }
     }
@@ -133,9 +140,7 @@ void Motor_Test_Task(void *pvParameters){
     motor_write_reg(0x01,write_motor_test);
 		MOTOR_CS_SET();
     vTaskDelay(pdMS_TO_TICKS(10));
-    MOTOR_CS_RESET();
-    motor_stream_start(0x01, 0x02);
-    MOTOR_CS_SET();
+   
     vTaskDelay(pdMS_TO_TICKS(10)); // 等待设备稳定
     for(;;){
 				write_motor_test+=1;
@@ -143,10 +148,7 @@ void Motor_Test_Task(void *pvParameters){
 		// 		MOTOR_CS_RESET();
         // motor_write_reg(0x01,write_motor_test);
 		// 		MOTOR_CS_SET();
-				vTaskDelay(pdMS_TO_TICKS(25));
-				MOTOR_CS_RESET();
-				read_motor_test = motor_spi_recv_u32();
-				MOTOR_CS_SET();
+				
         counter++;
         if (counter % 50 == 0) {
            
@@ -189,6 +191,6 @@ void Main_Control_Task_Init(void) {
     Debug_Register("adc2", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[2]);
     Debug_Register("read", DBG_UINT32 | HIGH_FREQ_TYPE, &read_motor_test);
 
-    xTaskCreate(Motor_Test_Task, "motor_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(Main_Control_Task, "motor_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
   //  xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 2, &xMainControlTaskHandle);
 }

@@ -37,6 +37,11 @@ void P5_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     if(intf & PIN_1){
         IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
     }
+    if(intf & PIN_4){
+        //CLK_MCLK_HIRC();                    //选择内部高精度HIRC作为主时钟
+        IAP_CONTR &= 0x40;
+        IAP_CONTR |= 0x20;
+    }
     ClearP5nFlag(PIN_ALL);       
 }
 

@@ -45,7 +45,7 @@ void app_clk_test(void)
         breath_phase += 3;
         if(breath_phase >= 512) breath_phase = 0;
 
-        vTaskDelay(pdMS_TO_TICKS(25));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 

@@ -12,5 +12,10 @@
     "clangd.path": "", // 清空路径也可以阻止其启动
     
     /* 4. 如果你之前禁用了官方的增强着色，也可以重新开启 */
-    "C_Cpp.enhancedColorization": "enabled"
+    "C_Cpp.enhancedColorization": "enabled",
+
+    /* 5. 让 C/C++ 插件忽略 AiCube 目录 */
+    "C_Cpp.files.exclude": {
+        "Sources/AiCube/**": true
+    }
 }

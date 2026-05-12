@@ -69,10 +69,10 @@ void GPIO_Init(void) {
     P5PU = PIN_1;
    // P5SR = ~(PIN_4);
     P5IE = 0xFF;
-    P5IM2 &= ~PIN_1;
-    P5IM1 &= ~PIN_1;
-    P5IM0 &= ~PIN_1;
-    P5INTE = PIN_1;
+    P5IM2 &= ~(PIN_1 | PIN_4);
+    P5IM1 &= ~(PIN_1 | PIN_4);
+    P5IM0 &= ~(PIN_1 | PIN_4);
+    P5INTE = PIN_1 | PIN_4;
 
     // --- P6口配置 ---
     // P6.0: BUZZER, P6.4: LED_PWM — 推挽
