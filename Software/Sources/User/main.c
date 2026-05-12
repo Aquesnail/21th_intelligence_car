@@ -34,7 +34,9 @@ void main(){
 		P6M0=0x00;        P6M1=0x00;
 		P7M0=0x00;        P7M1=0x00;
 		sys_init();
+		//WDT_Clear();
 		app_init();
+		//WDT_Clear();
 		while(1){}
 }
 
@@ -42,10 +44,12 @@ void sys_init(void){
 	GPIO_User_Control_On();
 
 	GPIO_Init();
+	delay_ms(10);
 	CLK_Init();    
 
+	//WDT_SetPrescale256();
 	//CLK_Init();  
-	WTST = 0x03;
+	WTST = 0x04;
 	delay_ms(100);
 	
 	//GPIO_Init();

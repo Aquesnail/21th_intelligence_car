@@ -138,6 +138,7 @@ void vTimer0ISR( void )
     {
         portEND_SWITCHING_ISR();
     }
+   // WDT_Clear();
 #else
     xTaskIncrementTick();
 #endif
