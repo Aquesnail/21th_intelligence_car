@@ -3,6 +3,14 @@
 // DMA 缓冲区定义 (必须位于 xdata 区域)
 uint8_t * adc2_dma_buffer = NULL;
 
+// ADC2 配置参数
+#define ADC2_SPEED      15      // 0~15, ADC转换时间 = (n+1)*32 个CPU时钟
+#define ADC2_RES_FMT    (1<<5)  // 右对齐: ADC_RES: 0 0 0 0 D11 D10 D9 D8, ADC_RESL: D7 D6 D5 D4 D3 D2 D1 D0
+#define ADC2_CH_NUM     4       // 通道数: P0.0~P0.3 对应 ADC2_0~ADC2_3 (ADCB0~3)
+#define ADC2_BUF_SIZE   8      // 每个通道采样次数
+
+// DMA 目标地址 (xdata 区域)
+#define ADC2_DMA_ADDR   0x1000
 // DMA 完成标志
 bit adc2_dma_done=0;
 
@@ -41,12 +49,9 @@ void ADC2_Init(void)
 }
 
 
-#define ADC2_STPCYC             0       //ADC2通道选择建立时间
-#define ADC2_HLDCYC             1       //ADC2通道选择保持时间
-#define ADC2_SMPCYC             14      //ADC2通道采样时间
-#define ADC2_DMAITV             10000      //ADC2 DMA扫描间隔时间（系统时钟）
-#define ADC2_DMAAMT             4   //ADC2 DMA扫描次数
-#define ADC2_DMASIZE            (ADC2_DMAAMT * (8 * 2 + 4) * 4) //ADC2 DMA缓冲区大小
+
+
+// ... 其他代码保持不变 ...
 //========================================================================
 // 函数: void ADC2_DMA_Init(void)
 // 描述: ADC2 DMA 配置初始化
@@ -56,7 +61,7 @@ void ADC2_Init(void)
 void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
 {
 
-    ADC2_SetClockDivider(3);           //设置ADC时钟
+    ADC2_SetClockDivider(15);           //设置ADC时钟
     ADC2_ResultRightAlign();            //设置ADC结果右对齐(12位结果)
     ADC2_DisablePWMTrig();              //禁止PWM同步触发ADC
     ADC2_DisableRepeatConv();           //关闭ADC自动重复转换功能
@@ -71,12 +76,13 @@ void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
     ADC2_Enable();                      //使能ADC功能
 
     DMA_ADC2_SetAmount(ADC2_DMAAMT - 1); //设置ADC DMA扫描次数
-    //DMA_ADC2_SetAddress(pu8ADC2DMABuffer); //设置ADC DMA缓冲区地址
+  //  DMA_ADC2_SetAddress(pu8ADC2DMABuffer); //设置ADC DMA缓冲区地址
     DMA_ADC2_SetInterval(ADC2_DMAITV);  //设置ADC DMA扫描间隔时间（系统时钟）
     DMA_ADC2_SetChannels(0x000f);       //设置ADC DMA扫描通道
     DMA_ADC2_SetRepeat8Times();         //设置ADC DMA时每个通道重复转换次数
     DMA_ADC2_ClearFlag();               //清除ADC DMA中断标志
     DMA_ADC2_SetBusPriority(0);         //设置总线访问为最低优先级
+    DMA_ADC2_Enable();                  //使能ADC DMA功能
     // // 1. 清除状态寄存器
     // DMA_ADC2_STA = 0x00;
 
@@ -141,30 +147,6 @@ void ADC2_DMA_ClearFlag(void)
     adc2_dma_done = 0;
 }
 
-//========================================================================
-// 函数: uint16_t ADC2_GetRawValue(uint8_t ch)
-// 描述: 获取指定通道的最后一次 ADC 采样值 (12位)
-// 参数: ch: 通道号 0~3
-// 返回: 12位 ADC 值
-//========================================================================
-uint16_t ADC2_GetRawValue(uint8_t ch)
-{
-    uint16_t adc_val;
-    uint8_t idx;
-    uint16_t offset;
-    if (ch >= ADC2_CH_NUM) return 0;
-
-    // 取最后一次采样值
-    idx = ADC2_BUF_SIZE - 1;
-
-    // 右对齐格式: 高8位在 RES，低8位在 RESL
-    // DMA 缓冲区存储格式: 低字节在前，高字节在后
-    offset = ch * ADC2_BUF_SIZE * 2 + idx * 2;
-    adc_val = adc2_dma_buffer[offset];         // 低字节
-    adc_val |= (uint16_t)adc2_dma_buffer[offset + 1] << 8;  // 高字节
-
-    return adc_val & 0x0FFF;  // 只保留12位
-}
 
 //========================================================================
 // 函数: uint16_t ADC2_GetAvgValue(uint8_t ch)
@@ -172,26 +154,32 @@ uint16_t ADC2_GetRawValue(uint8_t ch)
 // 参数: ch: 通道号 0~3
 // 返回: 12位平均 ADC 值
 //========================================================================
+//========================================================================
+// 函数: uint16_t ADC2_GetAvgValue(uint8_t ch)
+// 描述: 获取指定通道的硬件平均 ADC 值 (12位)
+//========================================================================
 uint16_t ADC2_GetAvgValue(uint8_t ch)
 {
-    uint32_t sum = 0;
-    uint16_t adc_val;
-    uint8_t i;
+    uint16_t offset;
+    
+    uint16_t high_byte, low_byte;
 
     if (ch >= ADC2_CH_NUM) return 0;
 
-    // 计算所有采样值的平均
-    for (i = 0; i < ADC2_BUF_SIZE; i++)
-    {
-        uint16_t offset = ch * ADC2_BUF_SIZE * 2 + i * 2;
-        adc_val = adc2_dma_buffer[offset];
-        adc_val |= (uint16_t)adc2_dma_buffer[offset + 1] << 8;
-        sum += (adc_val & 0x0FFF);
-    }
+    // 1. 计算当前通道在数组中的基础偏移量 (通道号 * 单通道块大小)
+    offset = ch * ADC2_CH_BLOCK_SIZE + (ADC2_DMAAMT * 2);
 
-    return (uint16_t)(sum / ADC2_BUF_SIZE);
+    // 2. 定位到硬件计算平均值的基础位置 (偏移为 2n)
+    // n 是采样次数 ADC2_DMAAMT
+   
+
+    // 3. 读取平均值的高低字节 (手册规定位置在 2n+2 和 2n+3)
+    high_byte = adc2_dma_buffer[offset + 2];
+    low_byte  = adc2_dma_buffer[offset + 3];
+
+    // 4. 拼接并返回 (屏蔽高4位，保留12位有效数据)
+    return ((high_byte << 8) | low_byte) & 0x0FFF;
 }
-
 //========================================================================
 // 函数: void ADC2_DMA_ISR(void)
 // 描述: ADC2 DMA 中断服务函数 (中断号 76)

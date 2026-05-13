@@ -50,7 +50,7 @@ void PWMC_Init(void)
     DMA_PWMC_EnableTxInt();             //使能PWMC发送DMA中断
     DMA_PWMC_EnableTx();                //使能PWMC发送DMA功能
     PWMC_EnableDMA();                   //设置PWMC DMA方向为输出（DMA输出PWM波形）
-
+    PWMC_DMANeverSkipSpace();
     PWMC_Run();                         //PWMC开始运行
 //  DMA_PWMC_TriggerTx();               //触发PWMC发送DMA
 

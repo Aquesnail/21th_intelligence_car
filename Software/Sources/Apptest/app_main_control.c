@@ -7,15 +7,15 @@
 #include "motor.h"
 #include "spi3_user.h"
 /* ADC DMA 缓冲区 (xdata 区域) */
-uint8_t xdata adc_dma_buf[ADC2_CH_NUM * ADC2_BUF_SIZE * 2];
+// 每个通道: 采样次数 * 2 + 4个硬件计算字节
+static uint8_t xdata adc_dma_buf[ADC2_DMASIZE];
 
 /* ADC 各通道采样值 (ADCB0~3) */
 static uint16_t adc_values[ADC2_CH_NUM];
 
 #include <stdio.h>
 
-#define MOTOR_CS_SET()   (P22 = 1)
-#define MOTOR_CS_RESET() (P22 = 0)
+
 
 void SPI3_Callback(void *pvParameters){
 }
@@ -90,29 +90,75 @@ void Motor_Test_SendCmd(void)
 }
 TaskHandle_t xMainControlTaskHandle = NULL;
 #define SIGNAL_MOTOR_DATA_READY (1 << 2) /* 位 2：电机数据准备好 */
-uint32_t read_motor_test;
-uint32_t write_motor_test=0x0000FF00;
+motor_data_t read_motor_test;
+uint32_t write_motor_test=0x000000AA;
 uint8_t red_test=0x00;
+
+/* 呼吸灯状态 (2ms 周期, 三角波) */
+#define BREATH_CYCLE_STEPS  1000u   /* 2ms * 1000 = 2s 完整周期 */
+static uint16_t s_breath_phase = 0;
+
+/* 呼吸灯数值计算 (三角波: 0 -> max -> 0) */
+static uint32_t Breath_Calc(void)
+{
+    uint32_t val;
+    uint16_t half;
+    half = BREATH_CYCLE_STEPS / 2u;
+    if (s_breath_phase < half) {
+        val = (uint32_t)s_breath_phase * 0xFFFFu / half;
+    } else {
+        val = (uint32_t)(BREATH_CYCLE_STEPS - s_breath_phase) * 0xFFFFu / half;
+    }
+    s_breath_phase++;
+    if (s_breath_phase >= BREATH_CYCLE_STEPS) {
+        s_breath_phase = 0;
+    }
+    return val;
+}
 void Main_Control_Task(void *pvParameters) {
     uint32_t ulNotifiedValue;
+    uint8_t i;
     (void)pvParameters;
+    xMainControlTaskHandle = xTaskGetCurrentTaskHandle();
     SPI3_Init(SPI3_Callback);
+    ADC2_DMA_Init(adc_dma_buf);
+    ADC2_DMA_Start();
+    vTaskDelay(pdMS_TO_TICKS(10)); // 等待 ADC 稳定
     MOTOR_CS_RESET();
     motor_stream_start(0x01, 0x02);
     MOTOR_CS_SET();
+    P21=1;
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        if(xTaskNotifyWait(0, SIGNAL_MOTOR_DATA_READY, &ulNotifiedValue, 0) == pdTRUE) {
+       // vTaskDelay(pdMS_TO_TICKS(25));
+        if(xTaskNotifyWait(0, SIGNAL_MOTOR_DATA_READY, &ulNotifiedValue, portMAX_DELAY) == pdTRUE) {
            if(ulNotifiedValue & SIGNAL_MOTOR_DATA_READY) {
-                vTaskDelay(pdMS_TO_TICKS(10)); // 等待数据稳定
-                MOTOR_CS_RESET();
-                motor_write_reg(0x01,write_motor_test);
-				MOTOR_CS_SET();
-                vTaskDelay(pdMS_TO_TICKS(10));
-                vTaskDelay(pdMS_TO_TICKS(25));
-				MOTOR_CS_RESET();
-				read_motor_test = motor_spi_recv_u32();
-				MOTOR_CS_SET();
+                //vTaskDelay(pdMS_TO_TICKS(10)); // 等待数据稳定
+                
+                write_motor_test = Breath_Calc();
+                //vTaskDelay(pdMS_TO_TICKS(10));
+               // write_motor_test = 2;
+                if (ADC2_DMA_IsDone()) {
+            ADC2_DMA_ClearFlag();
+
+            for (i = 0; i < ADC2_CH_NUM; i++) {
+                adc_values[i] = ADC2_GetAvgValue(i);
+            }
+
+            ADC2_DMA_Start();
+        }
+							MOTOR_CS_RESET();
+							read_motor_test = motor_spi_recv_u32();
+							MOTOR_CS_SET();
+						  //vTaskDelay(pdMS_TO_TICKS(1));
+						  NOP33();
+						  MOTOR_CS_RESET();
+                          
+                        motor_write_reg(0x01,2);
+             
+							MOTOR_CS_SET();
+
+               
+               // vTaskDelay(pdMS_TO_TICKS(10));
                 // MOTOR_CS_RESET();
                 // motor_stream_start(0x01, 0x02);
                 // MOTOR_CS_SET();
@@ -123,73 +169,18 @@ void Main_Control_Task(void *pvParameters) {
 
 
 
-void Motor_Data_Ready_INT1_Handle(BaseType_t* xHigherPriorityTaskWoken){
+void Motor_Data_Ready_INT2_Handle(BaseType_t* xHigherPriorityTaskWoken){
     xTaskNotifyFromISR(xMainControlTaskHandle, SIGNAL_MOTOR_DATA_READY, eSetBits, xHigherPriorityTaskWoken);
 }
 
-void Motor_Test_Task(void *pvParameters){
-    uint8_t counter = 0;
-	uint8_t i;
 
-    //ADC2_Init();
-    ADC2_DMA_Init(adc_dma_buf);
-    ADC2_DMA_Start();
-    SPI3_Init(SPI3_Callback);
-    vTaskDelay(pdMS_TO_TICKS(10)); 
-    MOTOR_CS_RESET();
-    motor_write_reg(0x01,write_motor_test);
-		MOTOR_CS_SET();
-    vTaskDelay(pdMS_TO_TICKS(10));
-   
-    vTaskDelay(pdMS_TO_TICKS(10)); // 等待设备稳定
-    for(;;){
-				write_motor_test+=1;
-        vTaskDelay(pdMS_TO_TICKS(25));
-		// 		MOTOR_CS_RESET();
-        // motor_write_reg(0x01,write_motor_test);
-		// 		MOTOR_CS_SET();
-				
-        counter++;
-        if (counter % 50 == 0) {
-           
-            counter = 0;
-        }
-    }
-}
-
-
-/* ===================================================================
- * ADC 测试任务
- * 采集 ADCB0~3 (P0.0~P0.3) 四通道 ADC 值，注册为高频调试变量
- * =================================================================== */
-void ADC_Test_Task(void *pvParameters) {
-    uint8_t i;
-
-    //ADC2_Init();
-    ADC2_DMA_Init(adc_dma_buf);
-    ADC2_DMA_Start();
-    vTaskDelay(pdMS_TO_TICKS(10)); // 等待 ADC 稳定
-    for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(10));
-
-        if (ADC2_DMA_IsDone()) {
-            ADC2_DMA_ClearFlag();
-
-            for (i = 0; i < ADC2_CH_NUM; i++) {
-                adc_values[i] = ADC2_GetAvgValue(i);
-            }
-
-            ADC2_DMA_Start();
-        }
-    }
-}
 
 void Main_Control_Task_Init(void) {
     /* 注册 ADCB0~3 为高频调试变量 */
     Debug_Register("adc0", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[0]);
     Debug_Register("adc1", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[1]);
     Debug_Register("adc2", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[2]);
-    Debug_Register("read", DBG_UINT32 | HIGH_FREQ_TYPE, &read_motor_test);
+    Debug_Register("adc3", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[3]);
 
     xTaskCreate(Main_Control_Task, "motor_test", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
   //  xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 2, &xMainControlTaskHandle);

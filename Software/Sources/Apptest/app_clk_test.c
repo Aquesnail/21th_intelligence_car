@@ -4,6 +4,7 @@
 #include "adc_user.h"
 #pragma warning disable = 98
 #pragma warning disable = 91
+#include "motor.h"
 extern void PWM_Test_Simple(void);
 void app_clk_test(void)
 {
@@ -37,15 +38,17 @@ void app_clk_test(void)
         r = (uint8_t)((uint16_t)r * breath / 255);
         g = (uint8_t)((uint16_t)g * breath / 255);
         b = (uint8_t)((uint16_t)b * breath / 255);
-
+        // MOTOR_CS_RESET();
+        // motor_write_reg(0x03, (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+        // MOTOR_CS_SET();
         WS2812_SetColor(0, r, g, b);
         WS2812_Show();
-
+        
         hue++;
         breath_phase += 3;
         if(breath_phase >= 512) breath_phase = 0;
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(25));
     }
 }
 

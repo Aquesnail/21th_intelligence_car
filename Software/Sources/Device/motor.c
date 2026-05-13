@@ -31,16 +31,28 @@ static void motor_spi_send_u32(uint32_t val)
     }
 }
 
-/* 通过 SPI 接收 32bit 值 (低字节在前) */
-uint32_t motor_spi_recv_u32(void)
+static void motor_spi_send_u32_small(uint32_t val)
 {
-    uint32_t val;
     uint8_t i;
-    val = 0;
+		uint8_t byte_to_send;
     for (i = 0; i < MOTOR_FRAME_BYTES; i++) {
-        val |= (uint32_t)MOTOR_SPI_TxRx(0xFFu) << (i * 8);
+        // 计算当前应该发送哪个字节
+        // 当 i=0 时，位移 24 位(如果是4字节)，发送最高位
+        byte_to_send = (uint8_t)(val >> ((MOTOR_FRAME_BYTES - 1 - i) * 8));
+        MOTOR_SPI_TxRx(byte_to_send);
     }
-    return val;
+}
+
+/* 通过 SPI 接收 32bit 值 (低字节在前) */
+motor_data_t motor_spi_recv_u32(void)
+{
+    motor_data_t dat;
+    int8_t i;
+    dat.u32 = 0;
+    for (i = MOTOR_FRAME_BYTES-1; i >= 0; i--) {
+        dat.u32 |= (uint32_t)MOTOR_SPI_TxRx(0xFFu) << (i * 8);
+    }
+    return dat;
 }
 
 /* 发送命令帧 */
@@ -53,15 +65,15 @@ static void motor_send_cmd(uint8_t cmd, uint8_t data1, uint8_t data2)
 void motor_write_reg(uint8_t addr, uint32_t value)
 {
     motor_send_cmd(MOTOR_CMD_WRITE_ONE, addr, 0);
-    motor_spi_send_u32(value);
+    motor_spi_send_u32_small(value);
 }
 
 /* 写两个寄存器: 发送命令帧 + 2个32bit数据 (先addr1后addr2) */
 void motor_write_two_regs(uint8_t addr1, uint8_t addr2, uint32_t val1, uint32_t val2)
 {
     motor_send_cmd(MOTOR_CMD_WRITE_TWO, addr1, addr2);
-    motor_spi_send_u32(val1);
-    motor_spi_send_u32(val2);
+    motor_spi_send_u32_small(val1);
+    motor_spi_send_u32_small(val2);
 }
 /* 超时时间: 100ms = 100,000 ticks (Get_Tim9 为 1MHz) */
 #define MOTOR_READ_TIMEOUT  100000UL
@@ -80,15 +92,17 @@ static uint8_t motor_wait_toggle(uint8_t pre_level)
 }
 
 /* 读单个寄存器: 发送命令帧 -> 等待电平翻转 -> 接收1个32bit数据 */
-uint32_t motor_read_reg(uint8_t addr)
+motor_data_t motor_read_reg(uint8_t addr)
 {
+    motor_data_t result;
     uint8_t pre_level;
+    result.u32 = 0;
     pre_level = (P2 & PIN_0);
     motor_send_cmd(MOTOR_CMD_READ_ONE, addr, 0);
     P22 = 1;
     if (motor_wait_toggle(pre_level)) {
-
-        return 0;
+        P22 = 0;
+        return result;
     }
     P22 = 0;
     NOP30();
@@ -96,14 +110,14 @@ uint32_t motor_read_reg(uint8_t addr)
 }
 
 /* 读两个寄存器: 发送命令帧 -> 等待电平翻转 -> 接收2个32bit数据 (先addr1后addr2) */
-void motor_read_two_regs(uint8_t addr1, uint8_t addr2, uint32_t *val1, uint32_t *val2)
+void motor_read_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t *val1, motor_data_t *val2)
 {
     uint8_t pre_level;
     pre_level = (P2 & PIN_0);
     motor_send_cmd(MOTOR_CMD_READ_TWO, addr1, addr2);
     if (motor_wait_toggle(pre_level)) {
-        *val1 = 0;
-        *val2 = 0;
+        val1->u32 = 0;
+        val2->u32 = 0;
         return;
     }
     *val1 = motor_spi_recv_u32();

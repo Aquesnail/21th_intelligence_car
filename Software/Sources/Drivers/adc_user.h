@@ -7,10 +7,24 @@
 #define ADC2_SPEED      15      // 0~15, ADC转换时间 = (n+1)*32 个CPU时钟
 #define ADC2_RES_FMT    (1<<5)  // 右对齐: ADC_RES: 0 0 0 0 D11 D10 D9 D8, ADC_RESL: D7 D6 D5 D4 D3 D2 D1 D0
 #define ADC2_CH_NUM     4       // 通道数: P0.0~P0.3 对应 ADC2_0~ADC2_3 (ADCB0~3)
-#define ADC2_BUF_SIZE   16      // 每个通道采样次数
+#define ADC2_BUF_SIZE   8      // 每个通道采样次数
 
 // DMA 目标地址 (xdata 区域)
 #define ADC2_DMA_ADDR   0x1000
+
+#define ADC2_STPCYC             0       //ADC2通道选择建立时间
+#define ADC2_HLDCYC             1       //ADC2通道选择保持时间
+#define ADC2_SMPCYC             14      //ADC2通道采样时间
+#define ADC2_DMAITV             10      //ADC2 DMA扫描间隔时间（系统时钟）
+// ... 其他代码保持不变 ...
+
+#define ADC2_DMAAMT             8       // ADC2 DMA 每个通道扫描次数(采样次数 n)
+
+// 关键修正：单通道在 DMA 缓冲区占用的字节数 = (采样次数 n * 2) + 4 字节的尾部数据
+#define ADC2_CH_BLOCK_SIZE      (ADC2_DMAAMT * 2 + 4) 
+
+// 关键修正：ADC2 DMA 缓冲区总大小 = 通道数 * 单通道块大小
+#define ADC2_DMASIZE            (ADC2_CH_NUM * ADC2_CH_BLOCK_SIZE) 
 
 // ADC2 初始化
 void ADC2_Init(void);

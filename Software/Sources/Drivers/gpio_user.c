@@ -34,15 +34,16 @@ void GPIO_Init(void) {
     // P2.3: SPI_MOSI, P2.5: SPI_SCK, P2.2: SPI_CTR_CS — 推挽
     // P2.0: SPI_CTR_INT1, P2.1: SPI_CTR_INT2, P2.4: SPI_MISO — 准双向
     // 其余浮空准双向
-    P2M1 = 0x00;
+    P2M1 = PIN_1 | PIN_0;
     P2M0 = (PIN_2 | PIN_3 | PIN_5);
     P2SR = ~(PIN_3 | PIN_5);
     P2DR &= ~(PIN_3 | PIN_5);
-   // P2IM2 = PIN_0;
-  //  SetP2IntPriority(2); // P2.0最高优先级
+    P2IM2 = PIN_0;
+    SetP2IntPriority(2); // P2.0最高优先级
+    P2INTE |= PIN_0;
     P2IE = 0xFF;
     //P2INTE = PIN_0;
-
+		
     // --- P3口配置 ---
     // P3.2: ICM_SCK, P3.4: ICM_MOSI, P3.5: ICM_CS — 推挽
     // P3.3: ICM_MISO — 准双向;  其余浮空准双向

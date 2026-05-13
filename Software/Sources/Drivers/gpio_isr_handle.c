@@ -72,13 +72,13 @@ void P8_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     ClearP8nFlag(PIN_ALL);       
 }
 
-extern void Motor_Data_Ready_INT1_Handle(BaseType_t* xHigherPriorityTaskWoken);
+extern void Motor_Data_Ready_INT2_Handle(BaseType_t* xHigherPriorityTaskWoken);
 void P2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     uint8_t intf;
 
     intf = CheckP2nFlag(PIN_ALL);       //读取中断请求标志
     if(intf & PIN_0){
-        Motor_Data_Ready_INT1_Handle(xHigherPriorityTaskWoken);
+        Motor_Data_Ready_INT2_Handle(xHigherPriorityTaskWoken);
     }
     ClearP2nFlag(PIN_ALL);       
 }
