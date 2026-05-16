@@ -3498,7 +3498,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
                  * allows the application designer to add background functionality
                  * without the overhead of a separate task.
                  * NOTE: vApplicationIdleHook() MUST NOT, UNDER ANY CIRCUMSTANCES,
-                 * CALL A FUNCTION THAT MIGHT BLOCK. */
+                 * CALL A FUNCTION THAT MIGHT BLOCK. */  
                 vApplicationIdleHook();
             }
         #endif /* configUSE_IDLE_HOOK */

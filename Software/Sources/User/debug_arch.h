@@ -14,10 +14,22 @@
 #define DataType_Msk    0x0F
 #define FreqType_Msk    0x10
 #define StaticType_Msk  0x20
+#define PeriType_Msk    0x40
 
 #define HIGH_FREQ_TYPE 0x10
 #define LOW_FREQ_TYPE  0x00
 #define STATIC_TYPE    0x20
+#define PERI_TYPE      0x40
+
+/* 外设变量描述符与回调 ---------------------------------------------------- */
+typedef void (*DebugPeriReadCb_t)(uint32_t peri_addr, void* pData, uint8_t len);
+typedef void (*DebugPeriWriteCb_t)(uint32_t peri_addr, void* pData, uint8_t len);
+
+typedef struct {
+    uint32_t peri_addr;
+    DebugPeriReadCb_t read_cb;
+    DebugPeriWriteCb_t write_cb;
+} DebugPeriDesc_t;
 
 /* 静态变量表定义宏 -------------------------------------------------------- */
 #define DEBUG_VAR_TABLE_BEGIN()  \
@@ -26,6 +38,9 @@
 
 #define DEBUG_VAR(name, type_flags, var_addr)  \
     { name, type_flags, (void*)var_addr }
+
+#define DEBUG_VAR_PERI(name, type_flags, desc_ptr)  \
+    { name, (type_flags) | PERI_TYPE, (void*)desc_ptr }
 
 #define DEBUG_VAR_TABLE_END()  \
     }; \

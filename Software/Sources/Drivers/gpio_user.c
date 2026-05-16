@@ -40,7 +40,7 @@ void GPIO_Init(void) {
     P2DR &= ~(PIN_3 | PIN_5);
     P2IM2 = PIN_0;
     SetP2IntPriority(2); // P2.0最高优先级
-    P2INTE |= PIN_0;
+    
     P2IE = 0xFF;
     //P2INTE = PIN_0;
 		

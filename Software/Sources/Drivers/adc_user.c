@@ -3,12 +3,6 @@
 // DMA 缓冲区定义 (必须位于 xdata 区域)
 uint8_t * adc2_dma_buffer = NULL;
 
-// ADC2 配置参数
-#define ADC2_SPEED      15      // 0~15, ADC转换时间 = (n+1)*32 个CPU时钟
-#define ADC2_RES_FMT    (1<<5)  // 右对齐: ADC_RES: 0 0 0 0 D11 D10 D9 D8, ADC_RESL: D7 D6 D5 D4 D3 D2 D1 D0
-#define ADC2_CH_NUM     4       // 通道数: P0.0~P0.3 对应 ADC2_0~ADC2_3 (ADCB0~3)
-#define ADC2_BUF_SIZE   8      // 每个通道采样次数
-
 // DMA 目标地址 (xdata 区域)
 #define ADC2_DMA_ADDR   0x1000
 // DMA 完成标志
@@ -79,7 +73,7 @@ void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
   //  DMA_ADC2_SetAddress(pu8ADC2DMABuffer); //设置ADC DMA缓冲区地址
     DMA_ADC2_SetInterval(ADC2_DMAITV);  //设置ADC DMA扫描间隔时间（系统时钟）
     DMA_ADC2_SetChannels(0x000f);       //设置ADC DMA扫描通道
-    DMA_ADC2_SetRepeat8Times();         //设置ADC DMA时每个通道重复转换次数
+    DMA_ADC2_SetRepeat4Times();         //设置ADC DMA时每个通道重复转换次数
     DMA_ADC2_ClearFlag();               //清除ADC DMA中断标志
     DMA_ADC2_SetBusPriority(0);         //设置总线访问为最低优先级
     DMA_ADC2_Enable();                  //使能ADC DMA功能

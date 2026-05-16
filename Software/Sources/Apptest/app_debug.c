@@ -16,13 +16,11 @@
 debug_port_t        debug_init_structure = {0};
 TaskHandle_t        xDebugTaskHandle    = NULL;
 TaskHandle_t        xDebugTaskHandle2   = NULL;
-SemaphoreHandle_t   xRegistrationSemaphore = NULL;
 
 /* 私有函数原型 ------------------------------------------------------------ */
 static void Debug_Write(uint8_t* pData, uint16_t len);
 static uint16_t Debug_Read(uint8_t* pData, uint16_t len);
 void vDebugTaskDelayedStart(void *pvParameters);
-void vTestLoopTask(void *pvParameters);
 
 /* 私有函数实现 ------------------------------------------------------------ */
 static void Debug_Write(uint8_t* pData, uint16_t len)
@@ -39,19 +37,6 @@ static uint16_t Debug_Read(uint8_t* pData, uint16_t len)
 void App_DebugTask_Init(void)
 {
     /* 创建注册信号量 */
-    xRegistrationSemaphore = xSemaphoreCreateBinary();
-    if (xRegistrationSemaphore == NULL) {
-        /* 信号量创建失败，死循环 */
-        while (1);
-    }
-
-    /* 创建测试循环任务 */
-    xTaskCreate(vTestLoopTask,          /* 任务函数 */
-                "Debug_Test",           /* 任务名称 */
-                256,                    /* 堆栈大小 */
-                NULL,                   /* 参数 */
-                DEBUG_TASK_PRIORITY,    /* 优先级 */
-                &xDebugTaskHandle2);    /* 任务句柄 */
 
     /* 创建延迟启动任务（低优先级） */
     xTaskCreate(vDebugTaskDelayedStart,
@@ -73,16 +58,14 @@ void vDebugTaskDelayedStart(void *pvParameters)
     debug_init_structure.debug_write = Debug_Write;
     Debug_Init(&debug_init_structure);
 
-    if (xSemaphoreTake(xRegistrationSemaphore, portMAX_DELAY) == pdTRUE) {
-        /* 注册完成后创建真正的调试任务 */
-        xTaskCreate(vDebugTask,
+    
+    xTaskCreate(vDebugTask,
                     "DebugTask",
                     DEBUG_TASK_STACK_SIZE,
                     NULL,
                     DEBUG_TASK_PRIORITY,
                     &xDebugTaskHandle);
-    }
-    xSemaphoreGive(xRegistrationSemaphore);
+
 
     /* 删除自身任务 */
     vTaskDelete(NULL);
@@ -105,18 +88,3 @@ void Debug_OnTextReceived(char* str, uint8_t len)
 }
 
 
-/* 测试循环任务 */
-void vTestLoopTask(void *pvParameters)
-{
-    char info[64];
-    (void)pvParameters;
-    /* 通知延迟启动任务可以继续了 */
-    xSemaphoreGive(xRegistrationSemaphore);
-
-    Debug_Log("System Booted. Ready for Command.");
-
-    for (;;) {
-
-        vTaskDelay(pdMS_TO_TICKS(5));        /* 5ms 循环 */
-    }
-}

@@ -148,23 +148,55 @@ static void Debug_SendMetaPacket(uint8_t id) {
 
 // 发送变量值 (ID=0..N)
 static void Debug_SendValuePacket(uint8_t id) {
-    uint8_t len = GetTypeSize(debugTable[id].type & DataType_Msk);
+    uint8_t len;
+    uint8_t temp_buf[4];
+    uint8_t* pData;
+    DebugPeriDesc_t* desc;
+
+    len = GetTypeSize(debugTable[id].type & DataType_Msk);
     if(len > 0) {
+        pData = (uint8_t*)debugTable[id].addr;
+
+        if((debugTable[id].type & PeriType_Msk) != 0) {
+            desc = (DebugPeriDesc_t*)debugTable[id].addr;
+            if(desc && desc->read_cb) {
+                desc->read_cb(desc->peri_addr, temp_buf, len);
+                pData = temp_buf;
+            } else {
+                return;
+            }
+        }
+
         if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
-            Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+            Debug_TxCore(id, debugTable[id].type, pData, len);
             xSemaphoreGive(xLogMutex);
         }
-        
     }
 }
 static void Debug_SendHighFreqValuePacket(uint8_t id){
-    uint8_t len = GetTypeSize(debugTable[id].type&DataType_Msk);
+    uint8_t len;
+    uint8_t temp_buf[4];
+    uint8_t* pData;
+    DebugPeriDesc_t* desc;
+
+    len = GetTypeSize(debugTable[id].type & DataType_Msk);
     if(len > 0) {
+        pData = (uint8_t*)debugTable[id].addr;
+
+        if((debugTable[id].type & PeriType_Msk) != 0) {
+            desc = (DebugPeriDesc_t*)debugTable[id].addr;
+            if(desc && desc->read_cb) {
+                desc->read_cb(desc->peri_addr, temp_buf, len);
+                pData = temp_buf;
+            } else {
+                return;
+            }
+        }
+
         if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
-            Debug_TxCore(id, debugTable[id].type, (uint8_t*)debugTable[id].addr, len);
+            Debug_TxCore(id, debugTable[id].type, pData, len);
             xSemaphoreGive(xLogMutex);
         }
-        
     }
 }
 // 1. 底层核心函数：直接接收 va_list
@@ -254,22 +286,36 @@ void Debug_Register(char* name, uint8_t type, void* addr) {
 static void Debug_SendBulkHighFreqPacket(void) {
     uint8_t i;
     uint8_t payload_len = 0;
-    // 缓冲区大小计算：最多16个变量，每个最多(1字节ID + 4字节数据) = 80字节
-    uint8_t xdata temp_buf[MAX_DEBUG_VARS * 5]; 
+    uint8_t xdata temp_buf[MAX_DEBUG_VARS * 5];
+    uint8_t peri_buf[4];
+    DebugPeriDesc_t* desc;
+    uint8_t* pSrc;
 
     for(i = 0; i < debugVarCount; i++) {
         // 判断是否为高频变量
         if((debugTable[i].type & FreqType_Msk) != 0) {
             uint8_t var_len = GetTypeSize(debugTable[i].type & DataType_Msk);
-            
+
             // 防止越界保护
             if(var_len > 0 && (payload_len + 1 + var_len) <= sizeof(temp_buf)) {
                 // 1. 写入变量 ID
                 temp_buf[payload_len++] = i;
-                
-                // 2. 写入变量值 (加入临界区防止8位机读取32位浮点数时数据撕裂)    
-                memcpy(&temp_buf[payload_len], debugTable[i].addr, var_len);
-                
+
+                // 2. 获取数据源指针（外设变量通过回调读取到 peri_buf）
+                if((debugTable[i].type & PeriType_Msk) != 0) {
+                    desc = (DebugPeriDesc_t*)debugTable[i].addr;
+                    if(desc && desc->read_cb) {
+                        desc->read_cb(desc->peri_addr, peri_buf, var_len);
+                        pSrc = peri_buf;
+                    } else {
+                        continue;
+                    }
+                } else {
+                    pSrc = (uint8_t*)debugTable[i].addr;
+                }
+
+                memcpy(&temp_buf[payload_len], pSrc, var_len);
+
                 payload_len += var_len;
             }
         }
@@ -296,7 +342,8 @@ static void Debug_ProcessIncoming(void) {
 		uint8_t id;
 		uint8_t vLen;
         volatile uint8_t *ptr;
-        //char logbuf[32];
+        DebugPeriDesc_t* desc;
+        /* char logbuf[32]; */
     // 1. 预读头部 [0x55] [CMD] [LEN]
     if(!FindFrameHeader()) return;
     if(Debug_Arch_Read(&rxBuf[1], 2) != 2) return;
@@ -341,20 +388,23 @@ static void Debug_ProcessIncoming(void) {
             // ---> 写变量 (Payload: ID, Len, Data...)
             case CMD_WRITE:
                 {
-                    id = rxBuf[3]; 
+                    id = rxBuf[3];
                     vLen = rxBuf[4];
                     if(id < debugVarCount) {
-                        // 直接内存拷贝修改
-                        taskENTER_CRITICAL();
-                        //memcpy(debugTable[id].addr, &rxBuf[5], vLen);
-                        ptr = (uint8_t *)(debugTable[id].addr);
-                        ptr[0] = rxBuf[5];
-                        if(vLen > 1) ptr[1] = rxBuf[6];
-                        if(vLen > 2) ptr[2] = rxBuf[7];
-                        if(vLen > 3) ptr[3] = rxBuf[8];
-                        //sprintf(logbuf, "Wr Addr: %p", debugTable[id].addr); // %p 在 C251 会打印类型和偏移
-                    //	Debug_Log("Wr Addr: %p", debugTable[id].addr);
-                        taskEXIT_CRITICAL();
+                        if((debugTable[id].type & PeriType_Msk) != 0) {
+                            desc = (DebugPeriDesc_t*)debugTable[id].addr;
+                            if(desc && desc->write_cb) {
+                                desc->write_cb(desc->peri_addr, &rxBuf[5], vLen);
+                            }
+                        } else {
+                            taskENTER_CRITICAL();
+                            ptr = (uint8_t *)(debugTable[id].addr);
+                            ptr[0] = rxBuf[5];
+                            if(vLen > 1) ptr[1] = rxBuf[6];
+                            if(vLen > 2) ptr[2] = rxBuf[7];
+                            if(vLen > 3) ptr[3] = rxBuf[8];
+                            taskEXIT_CRITICAL();
+                        }
                     }
                 }
                 break;

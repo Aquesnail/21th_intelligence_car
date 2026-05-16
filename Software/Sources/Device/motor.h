@@ -27,8 +27,8 @@ typedef union {
  * 协议 API
  * =========================================================*/
 uint32_t motor_pack_head(uint8_t cmd, uint8_t data1, uint8_t data2);
-void     motor_write_reg(uint8_t addr, uint32_t value);
-void     motor_write_two_regs(uint8_t addr1, uint8_t addr2, uint32_t val1, uint32_t val2);
+void     motor_write_reg(uint8_t addr, motor_data_t value);
+void     motor_write_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t val1, motor_data_t val2);
 motor_data_t motor_read_reg(uint8_t addr);
 void         motor_read_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t *val1, motor_data_t *val2);
 void         motor_stream_start(uint8_t addr1, uint8_t addr2);

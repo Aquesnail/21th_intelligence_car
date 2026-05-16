@@ -1,6 +1,8 @@
 #include "motor.h"
 #include "timer.h"
 
+#pragma warning disable = 47
+
 /* 命令码 */
 #define MOTOR_CMD_WRITE_ONE        1u
 #define MOTOR_CMD_WRITE_TWO        2u
@@ -62,18 +64,18 @@ static void motor_send_cmd(uint8_t cmd, uint8_t data1, uint8_t data2)
 }
 
 /* 写单个寄存器: 发送命令帧 + 1个32bit数据 */
-void motor_write_reg(uint8_t addr, uint32_t value)
+void motor_write_reg(uint8_t addr, motor_data_t value)
 {
     motor_send_cmd(MOTOR_CMD_WRITE_ONE, addr, 0);
-    motor_spi_send_u32_small(value);
+    motor_spi_send_u32_small(value.u32);
 }
 
 /* 写两个寄存器: 发送命令帧 + 2个32bit数据 (先addr1后addr2) */
-void motor_write_two_regs(uint8_t addr1, uint8_t addr2, uint32_t val1, uint32_t val2)
+void motor_write_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t val1, motor_data_t val2)
 {
     motor_send_cmd(MOTOR_CMD_WRITE_TWO, addr1, addr2);
-    motor_spi_send_u32_small(val1);
-    motor_spi_send_u32_small(val2);
+    motor_spi_send_u32_small(val1.u32);
+    motor_spi_send_u32_small(val2.u32);
 }
 /* 超时时间: 100ms = 100,000 ticks (Get_Tim9 为 1MHz) */
 #define MOTOR_READ_TIMEOUT  100000UL
@@ -94,34 +96,15 @@ static uint8_t motor_wait_toggle(uint8_t pre_level)
 /* 读单个寄存器: 发送命令帧 -> 等待电平翻转 -> 接收1个32bit数据 */
 motor_data_t motor_read_reg(uint8_t addr)
 {
-    motor_data_t result;
-    uint8_t pre_level;
-    result.u32 = 0;
-    pre_level = (P2 & PIN_0);
-    motor_send_cmd(MOTOR_CMD_READ_ONE, addr, 0);
-    P22 = 1;
-    if (motor_wait_toggle(pre_level)) {
-        P22 = 0;
-        return result;
-    }
-    P22 = 0;
-    NOP30();
-    return motor_spi_recv_u32();
+    motor_data_t dat;
+    dat.u32 = 0;
+    return dat;
 }
 
 /* 读两个寄存器: 发送命令帧 -> 等待电平翻转 -> 接收2个32bit数据 (先addr1后addr2) */
 void motor_read_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t *val1, motor_data_t *val2)
 {
-    uint8_t pre_level;
-    pre_level = (P2 & PIN_0);
-    motor_send_cmd(MOTOR_CMD_READ_TWO, addr1, addr2);
-    if (motor_wait_toggle(pre_level)) {
-        val1->u32 = 0;
-        val2->u32 = 0;
-        return;
-    }
-    *val1 = motor_spi_recv_u32();
-    *val2 = motor_spi_recv_u32();
+		return;
 }
 
 /* 开启流传输: 下位机自动连续推送 addr1 和 addr2 的当前值 */
