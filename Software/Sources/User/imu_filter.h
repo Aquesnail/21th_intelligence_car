@@ -14,7 +14,7 @@ typedef struct{
     IMU_SensorData_u sensor;  /* 共享union：包含 ax,ay,az,gx,gy,gz,temp,sample_time */
     float Kp,Ki;
     float bias_gx,bias_gy,bias_gz;
-    uint8_t is_calibrated;
+    volatile uint8_t is_calibrated;
 }IMU_Filter_t;
 
 void IMU_Filter_Update(IMU_Filter_t* dat);

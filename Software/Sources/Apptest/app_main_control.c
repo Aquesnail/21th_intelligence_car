@@ -19,28 +19,28 @@
 /* ================================================================
  * TaskNotify 信号位定义
  * ================================================================ */
-#define SIGNAL_MOTOR_DATA_READY  (1 << 3)
+
 
 /* ================================================================
  * 全局变量
  * ================================================================ */
 
 /* ADC DMA 缓冲区 */
-static uint8_t xdata adc_dma_buf[ADC2_DMASIZE];
+static uint8_t xdata adc_dma_buf[ADC2_DMASIZE] = {0};
 
 /* ADC 各通道采样值 */
-static uint16_t adc_values[ADC2_CH_NUM];
+static uint16_t adc_values[ADC2_CH_NUM] = {0};
 
 /* 电机数据 (500Hz stream 推送) */
-static float    g_left_speed_actual;
-static float    g_right_speed_actual;
-static uint32_t g_mech_state;
+static float    g_left_speed_actual  = 0.0f;
+static float    g_right_speed_actual = 0.0f;
+static uint32_t g_mech_state         = 0;
 
 /* 速度目标 & 误差 */
-static motor_data_t g_left_speed_target;
-static motor_data_t g_right_speed_target;
-static float g_left_speed_error;
-static float g_right_speed_error;
+static motor_data_t g_left_speed_target  = {0};
+static motor_data_t g_right_speed_target = {0};
+static float g_left_speed_error  = 0.0f;
+static float g_right_speed_error = 0.0f;
 
 /* PID 参数访问互斥锁 (非0=正在进行PID读写, Main_Control需跳过电机写入) */
 static volatile uint8_t g_pid_access_locked = 0;
@@ -168,52 +168,46 @@ void Main_Control_Task(void *pvParameters)
     g_stream_active = 1;
     P2INTE |= PIN_0;
     for (;;) {
-        if (xTaskNotifyWait(0, SIGNAL_MOTOR_DATA_READY, &ulNotifiedValue, portMAX_DELAY) == pdTRUE) {
-            if (ulNotifiedValue & SIGNAL_MOTOR_DATA_READY) {
-                    
+        ulNotifiedValue = 0;
+        xTaskNotifyWait(0, SIGNAL_MOTOR_DATA_READY, &ulNotifiedValue, pdMS_TO_TICKS(2));
 
-            /* --- 2. 写入左右电机速度目标 (stream 关闭或 PID 访问期间跳过) --- */
+        /* --- 电机数据处理 (仅在有信号时) --- */
+        if (ulNotifiedValue & SIGNAL_MOTOR_DATA_READY) {
             if (g_stream_active) {
-                taskENTER_CRITICAL();
+                //taskENTER_CRITICAL();
+                
                 MOTOR_CS_RESET();
-                for(i=0;i<12;i++){
+                for (i = 0; i < 12; i++) {
                     spi_buffer[i] = MOTOR_SPI_TxRx(0xFFu);
                 }
                 
-                tmp=motor_spi_dat_handle(spi_buffer);
-                g_left_speed_actual = tmp.f;
-                tmp=motor_spi_dat_handle(spi_buffer+4);
-                g_right_speed_actual = tmp.f;
-                tmp = motor_spi_dat_handle(spi_buffer+8);
-                g_mech_state = tmp.u32;
                 MOTOR_CS_SET();
-                NOP10();
-                MOTOR_CS_RESET();
-                motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
-                motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
-                MOTOR_CS_SET();
-               
-                taskEXIT_CRITICAL();
-
-               
+                // tmp = motor_spi_dat_handle(spi_buffer);
+                // g_left_speed_actual = tmp.f;
+                // tmp = motor_spi_dat_handle(spi_buffer + 4);
+                // g_right_speed_actual = tmp.f;
+                // tmp = motor_spi_dat_handle(spi_buffer + 8);
+                // g_mech_state = tmp.u32;
+                // MOTOR_CS_SET();
                 
+                // MOTOR_CS_RESET();
+                // motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
+                // motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
+                // MOTOR_CS_SET();
+
+                //taskEXIT_CRITICAL();
             }
-			if (ADC2_DMA_IsDone()) {
+            if (ADC2_DMA_IsDone()) {
                 ADC2_DMA_ClearFlag();
                 for (i = 0; i < ADC2_CH_NUM; i++) {
                     adc_values[i] = ADC2_GetAvgValue(i);
                 }
-                //ADC2_DMA_Start();
-            }
-            
+                ADC2_DMA_Start();
             }
         }
-    
-       // vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
-       // vTaskDelay(pdMS_TO_TICKS(2)); /* 额外延时 2ms, 避免与电机数据读取任务过于接近导致总线冲突 */
-        /* --- 1. ADC 采样处理 --- */
+
+        /* --- ADC DMA 处理 (独立于电机信号) --- */
         
-       
     }
 }
 
@@ -234,17 +228,17 @@ void Main_Control_Task_Init(void)
     motor_data_t tmp;
 
     /* 注册 ADC 调试变量 */
-    Debug_Register("adc0", DBG_UINT8 | HIGH_FREQ_TYPE, &spi_buffer[0]);
-    Debug_Register("adc1", DBG_UINT8 | HIGH_FREQ_TYPE, &spi_buffer[1]);
-    Debug_Register("adc2", DBG_UINT8 | HIGH_FREQ_TYPE, &spi_buffer[2]);
-    Debug_Register("adc3", DBG_UINT8 | HIGH_FREQ_TYPE, &spi_buffer[3]);
+    Debug_Register("adc0", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[0]);
+    Debug_Register("adc1", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[1]);
+    Debug_Register("adc2", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[2]);
+    Debug_Register("adc3", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[3]);
 
     /* 注册电机调试变量 */
     // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
-     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_actual);
+    Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_actual);
     // Debug_Register("L_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_error);
     // Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_target);
-     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
+    Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
     // Debug_Register("R_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_error);
     // Debug_Register("Mech",  DBG_UINT32 | HIGH_FREQ_TYPE, &g_mech_state);
     g_stream_active = 0;
@@ -262,12 +256,12 @@ void Main_Control_Task_Init(void)
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
     ADC2_DMA_Start();
-   // vTaskDelay(pdMS_TO_TICKS(10));
+    //vTaskDelay(pdMS_TO_TICKS(10));
     
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */
     /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */
   //  xTaskCreate(Motor_Data_Task, "motor_data", 512, NULL, tskIDLE_PRIORITY + 1, &xMotorDataTaskHandle);
 
     /* 创建 Main_Control_Task (低优先级, 2ms 周期) */
-    xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 3, &xMainControlTaskHandle);
+     xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 3, &xMainControlTaskHandle);
 }

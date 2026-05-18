@@ -117,7 +117,8 @@ void TIMER9_ISR(void) interrupt TMR9_TMR10_VECTOR
 void TIMER11_ISR(void) interrupt TMR11_VECTOR
 {
     //<<AICUBE_USER_TIMER11_ISR_CODE1_BEGIN>>
-    g_u16OverflowCount++; 
+    TIMER11_ClearFlag();
+    g_u16OverflowCount++;
     //<<AICUBE_USER_TIMER11_ISR_CODE1_END>>
 }
 

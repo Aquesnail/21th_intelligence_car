@@ -35,7 +35,7 @@ void GPIO_Init(void) {
     // P2.0: SPI_CTR_INT1, P2.1: SPI_CTR_INT2, P2.4: SPI_MISO — 准双向
     // 其余浮空准双向
     P2M1 = PIN_1 | PIN_0;
-    P2M0 = (PIN_2 | PIN_3 | PIN_5);
+    P2M0 = (PIN_2 | PIN_3 | PIN_5 | PIN_7);
     P2SR = ~(PIN_3 | PIN_5);
     P2DR &= ~(PIN_3 | PIN_5);
     P2IM2 = PIN_0;

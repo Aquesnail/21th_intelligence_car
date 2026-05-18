@@ -31,34 +31,24 @@ void TimDisable(void){
 // 获取当前时间值
 uint32_t GetRunTimeCounterValue(void)
 {
-    uint32_t ulReturn;
     uint16_t u16High;
     uint16_t u16Low;
-    
-    // 【关键】进入临界区，防止读取过程中发生中断导致高低位不匹配
-    // 比如：读了 Low 是 0xFFFF，刚准备读 High，中断来了 High+1，
-    // 回来后读到新的 High，拼起来就会导致时间“突变”大了 65536。
-    // FreeRTOS 提供了临界区保护函数：
-    unsigned char ucState = 0;
-    
-    // 简单的关中断保护 (STC32 / C251)
-		ucState = EA;
-    EA = 0; 
-    
-    u16High = g_u16OverflowCount;
-    u16Low = ((uint16_t)T11H << 8) | T11L; // 读取硬件计数值
-    
-    // 再次检查溢出标志位（防止刚关中断前一瞬间溢出了但没进中断）
-    // 如果硬件计数值很小（刚溢出），但溢出标志位还在，说明中断还没来得及处理
-    // 注意：STC32 可能没有显式的 T2IF 标志位供查询，依赖中断自动处理
-    // 如果无法查询溢出标志，上面的关中断逻辑通常足够应付 99.9% 的情况
-    
-    EA = ucState; // 开中断
+    unsigned char ucState;
 
-    // 拼凑 32 位
-    ulReturn = ((uint32_t)u16High << 16) | u16Low;
-    
-    return ulReturn;
+    ucState = EA;
+    EA = 0;
+
+    u16High = g_u16OverflowCount;
+    u16Low  = ((uint16_t)T11H << 8) | T11L;
+
+    /* 如果定时器溢出标志置位但 ISR 还未执行, 手动补偿 */
+    if (TIMER11_CheckFlag() && u16Low < 0x8000u) {
+        u16High++;
+    }
+
+    EA = ucState;
+
+    return ((uint32_t)u16High << 16) | u16Low;
 }
 uint8_t xdata taskbit = 1;
 uint8_t CPUStatus_HandleCommand(const char* cmd) {

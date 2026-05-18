@@ -15,7 +15,7 @@
 #define ADC2_STPCYC             0       //ADC2通道选择建立时间
 #define ADC2_HLDCYC             1       //ADC2通道选择保持时间
 #define ADC2_SMPCYC             14      //ADC2通道采样时间
-#define ADC2_DMAITV             10      //ADC2 DMA扫描间隔时间（系统时钟）
+#define ADC2_DMAITV             0      //ADC2 DMA扫描间隔时间（系统时钟）
 // ... 其他代码保持不变 ...
 
 #define ADC2_DMAAMT             8       // ADC2 DMA 每个通道扫描次数(采样次数 n)
@@ -24,7 +24,7 @@
 #define ADC2_CH_BLOCK_SIZE      (ADC2_DMAAMT * 2 + 4) 
 
 // 关键修正：ADC2 DMA 缓冲区总大小 = 通道数 * 单通道块大小
-#define ADC2_DMASIZE            (ADC2_CH_NUM * ADC2_CH_BLOCK_SIZE) 
+#define ADC2_DMASIZE            (16 * ADC2_CH_BLOCK_SIZE) 
 
 // ADC2 初始化
 void ADC2_Init(void);

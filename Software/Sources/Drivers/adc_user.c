@@ -73,8 +73,9 @@ void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
   //  DMA_ADC2_SetAddress(pu8ADC2DMABuffer); //设置ADC DMA缓冲区地址
     DMA_ADC2_SetInterval(ADC2_DMAITV);  //设置ADC DMA扫描间隔时间（系统时钟）
     DMA_ADC2_SetChannels(0x000f);       //设置ADC DMA扫描通道
-    DMA_ADC2_SetRepeat4Times();         //设置ADC DMA时每个通道重复转换次数
+    DMA_ADC2_SetRepeat8Times();         //设置ADC DMA时每个通道重复转换次数
     DMA_ADC2_ClearFlag();               //清除ADC DMA中断标志
+    DMA_ADC2_SetIntPriority(0);
     DMA_ADC2_SetBusPriority(0);         //设置总线访问为最低优先级
     DMA_ADC2_Enable();                  //使能ADC DMA功能
     // // 1. 清除状态寄存器
@@ -114,8 +115,7 @@ void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
 //========================================================================
 void ADC2_DMA_Start(void)
 {
-    // bit7: 1=使能 ADC2 DMA
-    // bit6: 1=启动 ADC2 DMA
+    if (DMA_ADC2_CR & 0x40) return;
     DMA_ADC2_CR = 0xC0;
 }
 
@@ -181,11 +181,13 @@ uint16_t ADC2_GetAvgValue(uint8_t ch)
 // 返回: none
 // 注意: 在 main.c 中添加中断入口: void DMA_ADC2_IRQHandler(void) interrupt DMA_ADC2_VECTOR { ADC2_DMA_ISR(); }
 //========================================================================
-void DMA_ADC2_ISR_Handle(void* none) 
+void DMA_ADC2_ISR_Handle() interrupt DMA_ADC2_VECTOR
 {
     // 清除 DMA 状态
     DMA_ADC2_STA = 0;
 
     // 设置完成标志
     adc2_dma_done = 1;
+
+    return;
 }

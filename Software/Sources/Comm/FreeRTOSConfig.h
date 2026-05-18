@@ -160,14 +160,19 @@ extern uint32_t GetRunTimeCounterValue(void);
 
 
 /* 中断管理模式开关：1 为 RTOS 接管，0 为裸机模式 */
-#define configUSE_RTOS_DMA_ADC2    1
+#define configUSE_RTOS_DMA_ADC2    0
 #define configUSE_RTOS_DMA_SPI1    1
 #define configUSE_RTOS_DMA_SPI2    1
-#define configUSE_RTOS_DMA_SPI3    1
+#define configUSE_RTOS_DMA_SPI3    0
 #define configUSE_RTOS_P1          1  /* 示例：P1 使用裸机模式 */
 #define configUSE_RTOS_P4          1
 #define configUSE_RTOS_P6          1
 #define configUSE_RTOS_P8          1
 #define configUSE_RTOS_P5          1
 #define configUSE_RTOS_P2          1
+
+
+#define SIGNAL_SPI_DMA_DONE    (1 << 1) /* 位 1：SPI DMA传输完成 */
+#define SIGNAL_IMU_DATA_READY  (1 << 0)  /* 位 0：外部中断引脚触发 */
+#define SIGNAL_MOTOR_DATA_READY  (1 << 2)
 #endif /* FREERTOS_CONFIG_H */

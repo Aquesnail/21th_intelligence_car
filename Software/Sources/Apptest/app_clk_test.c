@@ -8,11 +8,11 @@
 extern void PWM_Test_Simple(void);
 void app_clk_test(void)
 {
-    uint16_t hue;
-    uint16_t breath_phase;
-    uint8_t r, g, b;
-    uint8_t breath;
-    uint8_t h_val;
+    uint16_t hue=0;
+    uint16_t breath_phase=0;
+    uint8_t r=0, g=0, b=0;
+    uint8_t breath=0;
+    uint8_t h_val=0;
 
     hue = 0;
     breath_phase = 0;

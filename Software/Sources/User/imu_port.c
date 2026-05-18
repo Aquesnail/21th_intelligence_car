@@ -18,8 +18,7 @@
 #pragma warning disable = 151
 
 #define FIFO_Packets 2
-#define SIGNAL_SPI_DMA_DONE    (1 << 1) /* 位 1：SPI DMA传输完成 */
-#define SIGNAL_IMU_DATA_READY  (1 << 0)  /* 位 0：外部中断引脚触发 */
+
 /* =======================================================
  * 外部变量定义（供icm42688.c使用）
  * ======================================================= */
@@ -173,7 +172,7 @@ void vIMUProcessTask(void *pvParameters) {
         /* 等待外部中断触发信号 */
         if (xTaskNotifyWait(0, SIGNAL_IMU_DATA_READY, &ulNotifiedValue, portMAX_DELAY) == pdTRUE) {
             if (ulNotifiedValue & SIGNAL_IMU_DATA_READY) {
-                
+                //P27=0;
                 /* 从 FIFO 中读取数据包 */
                 ICM42688_ReadFIFO(FIFO_RxBuffer);
                 ptr = FIFO_RxBuffer;
@@ -233,6 +232,7 @@ void vIMUProcessTask(void *pvParameters) {
                     fsync_time = Get_Tim9(); /* 记录 MCU 本地精密时间戳 */
                     taskEXIT_CRITICAL();
                 }
+                //P27=1;
             }
         }
     }

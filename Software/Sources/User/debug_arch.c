@@ -173,32 +173,7 @@ static void Debug_SendValuePacket(uint8_t id) {
         }
     }
 }
-static void Debug_SendHighFreqValuePacket(uint8_t id){
-    uint8_t len;
-    uint8_t temp_buf[4];
-    uint8_t* pData;
-    DebugPeriDesc_t* desc;
 
-    len = GetTypeSize(debugTable[id].type & DataType_Msk);
-    if(len > 0) {
-        pData = (uint8_t*)debugTable[id].addr;
-
-        if((debugTable[id].type & PeriType_Msk) != 0) {
-            desc = (DebugPeriDesc_t*)debugTable[id].addr;
-            if(desc && desc->read_cb) {
-                desc->read_cb(desc->peri_addr, temp_buf, len);
-                pData = temp_buf;
-            } else {
-                return;
-            }
-        }
-
-        if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
-            Debug_TxCore(id, debugTable[id].type, pData, len);
-            xSemaphoreGive(xLogMutex);
-        }
-    }
-}
 // 1. 底层核心函数：直接接收 va_list
 void vDebug_Log(const char* fmt, va_list args) {
     if (xLogMutex != NULL) {

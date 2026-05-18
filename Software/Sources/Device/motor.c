@@ -80,18 +80,6 @@ void motor_write_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t val1, motor
 /* 超时时间: 100ms = 100,000 ticks (Get_Tim9 为 1MHz) */
 #define MOTOR_READ_TIMEOUT  100000UL
 
-/* 等待 P2.0 电平翻转, 超时返回1, 成功返回0 */
-static uint8_t motor_wait_toggle(uint8_t pre_level)
-{
-    uint32_t start;
-    start = Get_Tim9();
-    while ((P2 & PIN_0) == pre_level) {
-        if ((Get_Tim9() - start) >= MOTOR_READ_TIMEOUT) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 /* 读单个寄存器: 发送命令帧 -> 等待电平翻转 -> 接收1个32bit数据 */
 motor_data_t motor_read_reg(uint8_t addr)

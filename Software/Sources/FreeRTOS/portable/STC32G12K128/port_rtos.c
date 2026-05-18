@@ -173,7 +173,7 @@ static void prvPortSetupTimerInterrupt( void )
 /*-----------------------------------------------------------*/
 
 /* 外部处理函数声明 */
-extern void DMA_ADC2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
+//extern void DMA_ADC2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 extern void DMA_SPI2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 extern void DMA_SPI1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 extern void DMA_SPI3_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
@@ -206,7 +206,7 @@ void __NAME##_ISR(void) { \
 }
 
 /* 实例化中断 */
-INSTALL_ISR_WRAPPER(DMA_ADC2, DMA_ADC2_ISR_Handle, configUSE_RTOS_DMA_ADC2)
+//INSTALL_ISR_WRAPPER(DMA_ADC2, DMA_ADC2_ISR_Handle, configUSE_RTOS_DMA_ADC2)
 INSTALL_ISR_WRAPPER(DMA_SPI2, DMA_SPI2_ISR_Handle, configUSE_RTOS_DMA_SPI2)
 INSTALL_ISR_WRAPPER(DMA_SPI1, DMA_SPI1_ISR_Handle, configUSE_RTOS_DMA_SPI1)
 INSTALL_ISR_WRAPPER(DMA_SPI3, DMA_SPI3_ISR_Handle, configUSE_RTOS_DMA_SPI3)
@@ -299,10 +299,10 @@ __asm { CSEG AT 013BH }
     __asm { JMP P2_ISR?? }
 #endif
 
-// DMA_ADC2 中断 (Vector 0263H)
-__asm { CSEG AT 0263H }
-#if ( configUSE_ROMHUGE == 0 )
-    __asm { JMP DMA_ADC2_ISR?_ }
-#else
-    __asm { JMP DMA_ADC2_ISR?? }
-#endif
+// // DMA_ADC2 中断 (Vector 0263H)
+// __asm { CSEG AT 0263H }
+// #if ( configUSE_ROMHUGE == 0 )
+//     __asm { JMP DMA_ADC2_ISR?_ }
+// #else
+//     __asm { JMP DMA_ADC2_ISR?? }
+// #endif
