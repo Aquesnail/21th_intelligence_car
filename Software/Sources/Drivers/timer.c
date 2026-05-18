@@ -89,15 +89,21 @@ uint16_t tim9_high_word=0;
 uint32_t Get_Tim9(){
     uint16_t low;
     uint32_t high;
-    
-    // 防止读取时刚好发生溢出的原子操作
+
     do {
         high = tim9_high_word;
         low = ((uint16_t)T9H << 8)+T9L;
     } while (high != tim9_high_word);
-    
+
+    /* 兜底：如果调用者在关中断状态下调用此函数，Timer9 溢出 ISR 无法触发，
+       tim9_high_word 不会更新，但硬件计数器已回绕。此时溢出标志仍置位，
+       手动补偿一个进位。 */
+    if (TIMER9_CheckFlag()) {
+        high++;
+    }
+
     return (high << 16) | low;
-    
+
 }
 
 void TIMER9_ISR(void) interrupt TMR9_TMR10_VECTOR

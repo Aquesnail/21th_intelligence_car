@@ -98,9 +98,9 @@ void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
     // // 5. 配置 ADC2 通道使能
     // // ADC2_0~ADC2_7 对应 P0.0~P0.7
     // // CHSW0: ADC7~ADC0 的使能位
-     DMA_ADC2_CHSW0 |= 0x0F;      // 使能 ADC2_0~ADC2_3 (0x0F = 0000 1111)
+    DMA_ADC2_CHSW0 |= 0x0F;      // 使能 ADC2_0~ADC2_3 (0x0F = 0000 1111)
     // // CHSW1: ADC15~ADC8 的使能位
-     DMA_ADC2_CHSW1 |= 0x00;      // 不使能 8~15 通道
+    DMA_ADC2_CHSW1 |= 0x00;      // 不使能 8~15 通道
 
     DMA_ADC2_Enable();                  //使能ADC DMA功能
     // 6. 清除 DMA 完成标志
@@ -125,7 +125,7 @@ void ADC2_DMA_Start(void)
 // 参数: none
 // 返回: 1=完成, 0=未完成
 //========================================================================
-bit ADC2_DMA_IsDone(void)
+uint8_t ADC2_DMA_IsDone(void)
 {
     return adc2_dma_done;
 }

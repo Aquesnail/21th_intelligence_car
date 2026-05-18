@@ -141,7 +141,7 @@ void Main_Control_Task(void *pvParameters)
     uint8_t i;
     motor_data_t tmp;
     uint32_t ulNotifiedValue;
-    
+    uint8_t adc_skip=0;
     (void)pvParameters;
 
     tmp.f = LEFT_SPEED_TARGET;
@@ -197,13 +197,21 @@ void Main_Control_Task(void *pvParameters)
 
                 //taskEXIT_CRITICAL();
             }
-            if (ADC2_DMA_IsDone()) {
-                ADC2_DMA_ClearFlag();
-                for (i = 0; i < ADC2_CH_NUM; i++) {
-                    adc_values[i] = ADC2_GetAvgValue(i);
+            //adc_skip++;
+            //if(adc_skip>=50){
+                if (ADC2_DMA_IsDone()) {
+                    
+                    ADC2_DMA_ClearFlag();
+                    for (i = 0; i < ADC2_CH_NUM; i++) {
+                        adc_values[i] = ADC2_GetAvgValue(i);
+                    }
+                    
+                        ADC2_DMA_Start();
+                        adc_skip=0;
+                    
+                    
                 }
-                ADC2_DMA_Start();
-            }
+           // }
         }
 
         /* --- ADC DMA 处理 (独立于电机信号) --- */

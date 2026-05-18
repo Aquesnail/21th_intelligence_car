@@ -24,7 +24,7 @@
 #define ADC2_CH_BLOCK_SIZE      (ADC2_DMAAMT * 2 + 4) 
 
 // 关键修正：ADC2 DMA 缓冲区总大小 = 通道数 * 单通道块大小
-#define ADC2_DMASIZE            (16 * ADC2_CH_BLOCK_SIZE) 
+#define ADC2_DMASIZE            (64 * ADC2_CH_BLOCK_SIZE) 
 
 // ADC2 初始化
 void ADC2_Init(void);
@@ -34,7 +34,7 @@ void ADC2_DMA_Init(uint8_t* adc2_dma_buffer);
 void ADC2_DMA_Start(void);
 
 // 检查 DMA 完成标志
-bit ADC2_DMA_IsDone(void);
+uint8_t ADC2_DMA_IsDone(void);
 void ADC2_DMA_ClearFlag(void);
 
 // 获取 ADC2 通道数据 (原始数据)

@@ -24,9 +24,9 @@ TaskHandle_t xMotorTaskHandle = NULL;
 /* SPI 单字节收发 (使用 SPI3) */
 uint8_t MOTOR_SPI_TxRx(uint8_t dat) {
     uint8_t rx_dat;
-    taskENTER_CRITICAL();
+    
     rx_dat = SPI3_WriteReadByte(dat);
-    taskEXIT_CRITICAL();
+    
     return rx_dat;
 }
 
