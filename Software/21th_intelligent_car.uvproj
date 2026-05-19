@@ -684,6 +684,26 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Comm\simple_queue.h</FilePath>
             </File>
+            <File>
+              <FileName>lpf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Comm\lpf.c</FilePath>
+            </File>
+            <File>
+              <FileName>lpf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Comm\lpf.h</FilePath>
+            </File>
+            <File>
+              <FileName>fuzzy_pid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Comm\fuzzy_pid.c</FilePath>
+            </File>
+            <File>
+              <FileName>fuzzy_pid.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Comm\fuzzy_pid.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

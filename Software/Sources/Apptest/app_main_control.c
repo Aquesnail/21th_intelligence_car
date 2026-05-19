@@ -9,12 +9,12 @@
 #include "spi3_user.h"
 #include <string.h>
 #include "imu_filter.h"
+#include "lpf.h"
 
 /* ================================================================
  * 速度目标值宏 (临时占位, 后续调整)
  * ================================================================ */
-#define LEFT_SPEED_TARGET   5.0f
-#define RIGHT_SPEED_TARGET  -5.0f
+
 
 /* ================================================================
  * TaskNotify 信号位定义
@@ -35,6 +35,10 @@ static uint16_t adc_values[ADC2_CH_NUM] = {0};
 static float    g_left_speed_actual  = 0.0f;
 static float    g_right_speed_actual = 0.0f;
 static uint32_t g_mech_state         = 0;
+
+/* 低通滤波器实例 (左右轮速度) */
+static Lpf_t g_lpf_left;
+static Lpf_t g_lpf_right;
 
 /* 速度目标 & 误差 */
 static motor_data_t g_left_speed_target  = {0};
@@ -141,12 +145,14 @@ void Main_Control_Task(void *pvParameters)
     uint8_t i;
     motor_data_t tmp;
     uint32_t ulNotifiedValue;
-    uint8_t adc_skip=0;
+    uint16_t raw;  /* TODO: 临时, ADC 尖峰过滤用 */
     (void)pvParameters;
-
+#define LEFT_SPEED_TARGET   0.0f
+#define RIGHT_SPEED_TARGET  0.0f
+#define ADC_SPIKE_THRESHOLD 50    /* TODO: 临时, ADC 尖峰丢弃阈值 */
     tmp.f = LEFT_SPEED_TARGET;
     g_left_speed_target = tmp;
-    tmp.f = RIGHT_SPEED_TARGET;
+    tmp.f = -RIGHT_SPEED_TARGET;
     g_right_speed_target = tmp;
 
 //    xLastWakeTime = xTaskGetTickCount();
@@ -180,42 +186,39 @@ void Main_Control_Task(void *pvParameters)
                 for (i = 0; i < 12; i++) {
                     spi_buffer[i] = MOTOR_SPI_TxRx(0xFFu);
                 }
-                
                 MOTOR_CS_SET();
-                // tmp = motor_spi_dat_handle(spi_buffer);
-                // g_left_speed_actual = tmp.f;
-                // tmp = motor_spi_dat_handle(spi_buffer + 4);
-                // g_right_speed_actual = tmp.f;
-                // tmp = motor_spi_dat_handle(spi_buffer + 8);
-                // g_mech_state = tmp.u32;
-                // MOTOR_CS_SET();
+                tmp = motor_spi_dat_handle(spi_buffer);
+                g_right_speed_actual = -lpf_update(&g_lpf_right, tmp.f);
+                tmp = motor_spi_dat_handle(spi_buffer + 4);
+                g_left_speed_actual = lpf_update(&g_lpf_left, tmp.f);
+                tmp = motor_spi_dat_handle(spi_buffer + 8);
+                g_mech_state = tmp.u32;
                 
-                // MOTOR_CS_RESET();
-                // motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
-                // motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
-                // MOTOR_CS_SET();
+                
+                MOTOR_CS_RESET();
+                motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
+                motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
+                MOTOR_CS_SET();
 
                 //taskEXIT_CRITICAL();
             }
-            //adc_skip++;
-            //if(adc_skip>=50){
-                if (ADC2_DMA_IsDone()) {
-                    
-                    ADC2_DMA_ClearFlag();
-                    for (i = 0; i < ADC2_CH_NUM; i++) {
-                        adc_values[i] = ADC2_GetAvgValue(i);
-                    }
-                    
-                        ADC2_DMA_Start();
-                        adc_skip=0;
-                    
-                    
-                }
-           // }
-        }
 
-        /* --- ADC DMA 处理 (独立于电机信号) --- */
-        
+            if (ADC2_DMA_IsDone()) {
+                    
+                ADC2_DMA_ClearFlag();
+                /*
+                 * TODO: 临时尖峰过滤 — 硬件队友修复电机干扰后删除
+                 *       新值与旧值差值超过阈值则丢弃, 保留上次值
+                 */
+                for (i = 0; i < ADC2_CH_NUM; i++) {
+                    raw = ADC2_GetAvgValue(i);
+                    adc_values[i] = raw;
+                }
+                
+                ADC2_DMA_Start();
+               
+            }
+        }
     }
 }
 
@@ -250,6 +253,10 @@ void Main_Control_Task_Init(void)
     // Debug_Register("R_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_error);
     // Debug_Register("Mech",  DBG_UINT32 | HIGH_FREQ_TYPE, &g_mech_state);
     g_stream_active = 0;
+
+    /* 初始化低通滤波器, 截止频率可在此修改 */
+    lpf_init_fc(&g_lpf_left,  400.0f, 0.002f);  /* fc=20Hz, dt=2ms(500Hz) */
+    lpf_init_fc(&g_lpf_right, 400.0f, 0.002f);
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
     // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
     // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
