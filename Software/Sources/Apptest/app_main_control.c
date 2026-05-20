@@ -115,6 +115,7 @@ static DebugPeriDesc_t g_fan_voltage_desc  = {REG_FAN_VOLTAGE, Motor_Reg_Read_Cb
  *   由 P2.0 中断 (500Hz) 通过 TaskNotify 触发
  *   连续读取 3 个 32bit 值: 左速 / 右速 / 机械状态
  * ================================================================ */
+
 void Motor_Data_Task(void *pvParameters)
 {
     motor_data_t dat;
@@ -195,6 +196,11 @@ uint8_t Motor_HandleCommand(const char* cmd)
     return 1;
 }
 
+static FuzzyPID pid_struct={0.0f};
+static float pid_output=0.0f;
+static float common_speed=10.0f;
+static motor_data_t speed_target_l={0};
+static motor_data_t speed_target_r={0};
 
 void Main_Control_Task(void *pvParameters)
 {
@@ -250,7 +256,9 @@ void Main_Control_Task(void *pvParameters)
                 g_mech_state = tmp.u32;
                 
                 Err_Angle=(Err_A_K*(adc_values[3]-adc_values[1])+Err_B_K*(adc_values[2]-adc_values[0]))/
-                (Err_A_K*(adc_values[3]+adc_values[1])+Err_B_K*(adc_values[2]+adc_values[0]));
+                (Err_A_K*(adc_values[3]+adc_values[1])+Err_B_K*(adc_values[2]+adc_values[0]))
+                *100.0f;
+                pid_output = FuzzyPID_Step(&pid_struct, Err_Angle, 0.002f);
                 //最右横向为1，最左横向为3，左中为2，右中为0
                 // MOTOR_CS_RESET();
                 // motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
@@ -325,6 +333,13 @@ void Main_Control_Task(void *pvParameters)
                         MOTOR_CS_SET();
                         g_reg_write_pending = 0;
                     }
+                    speed_target_l.f = pid_output*0.07 + common_speed;
+                    speed_target_r.f = -(-pid_output*0.07 + common_speed);
+                    MOTOR_CS_RESET();
+                    motor_write_reg(REG_A_SPEED_TARGET, speed_target_r);
+                    motor_write_reg(REG_B_SPEED_TARGET, speed_target_l);
+                    MOTOR_CS_SET();
+
                 }
                 
 
@@ -334,10 +349,7 @@ void Main_Control_Task(void *pvParameters)
             if (ADC2_DMA_IsDone()) {
                     
                 ADC2_DMA_ClearFlag();
-                /*
-                 * TODO: 临时尖峰过滤 — 硬件队友修复电机干扰后删除
-                 *       新值与旧值差值超过阈值则丢弃, 保留上次值
-                 */
+                
                 for (i = 0; i < ADC2_CH_NUM; i++) {
                     raw = ADC2_GetAvgValue(i);
                     adc_values[i] = (float)raw; //最右横向为1，最左横向为3，左中为2，右中为0
@@ -371,14 +383,16 @@ void Main_Control_Task_Init(void)
     Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[1]);
     Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[2]);
     Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[3]);
-
+    Debug_Register("pid_output", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
     /* 注册电机调试变量 */
     // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_actual);
     // Debug_Register("L_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_error);
     // Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_target);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
-    // Debug_Register("R_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_error);
+  //  Debug_Register("FKp", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kp0);
+   // Debug_Register("FKd", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kd0);
+  //  Debug_Register("FKi", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Ki0);
     // Debug_Register("Mech",  DBG_UINT32 | HIGH_FREQ_TYPE, &g_mech_state);
     g_stream_active = 0;
 
@@ -408,6 +422,18 @@ void Main_Control_Task_Init(void)
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
     ADC2_DMA_Start();
+
+    pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
+    pid_struct.ec_max = 100.0f; /* 根据实际误差变化率 */
+    pid_struct.Kp0 = 1.0f; /* 基础 Kp */
+    pid_struct.Ki0 = 0.0f; /* 基础 Ki */
+    pid_struct.Kd0 = 0.0f; /* 基础 Kd */
+    pid_struct.err_thresh = 10.0f; /* 积分分离阈值 */
+    pid_struct.integral = 0.0f;
+    pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
+    pid_struct.prev_error = 0.0f;
+    pid_struct.limit = 100.0f; /* 积分限幅 */
+    FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh); 
     //vTaskDelay(pdMS_TO_TICKS(10));
     
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */

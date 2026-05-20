@@ -5,7 +5,13 @@
 #pragma warning disable = 98
 #pragma warning disable = 91
 #include "motor.h"
+#include "config.h"
+
 extern void PWM_Test_Simple(void);
+extern volatile uint8_t g_p54_key_flag;
+extern uint8_t manual_control_flag;
+#define P54_LONG_PRESS_TICKS  40   /* 40 * 25ms = 1000ms */
+
 void app_clk_test(void)
 {
     uint16_t hue=0;
@@ -13,11 +19,37 @@ void app_clk_test(void)
     uint8_t r=0, g=0, b=0;
     uint8_t breath=0;
     uint8_t h_val=0;
+    uint8_t  btn_pressed = 0;
+    uint16_t btn_hold_cnt = 0;
 
     hue = 0;
     breath_phase = 0;
 
     for(;;){
+        /* ---- P5.4 按键检测 ---- */
+        if(g_p54_key_flag && !btn_pressed){
+            g_p54_key_flag = 0;
+            btn_pressed = 1;
+            btn_hold_cnt = 0;
+        }
+        if(btn_pressed){
+            if(!(P54 == 1)){       /* 按键仍在按下（低电平有效） */
+                btn_hold_cnt++;
+            } else {                   /* 按键已松开 */
+                if(btn_hold_cnt >= P54_LONG_PRESS_TICKS){
+                    /* 长按：复位 */
+                    IAP_CONTR &= 0x40;
+                    IAP_CONTR |= 0x20;
+                } else {
+                    manual_control_flag = !manual_control_flag;
+                    /* 短按：空位，填入你的函数 */
+
+                }
+                btn_pressed = 0;
+                btn_hold_cnt = 0;
+            }
+        }
+
         /* 三角波呼吸亮度: 0 -> 255 -> 0 */
         if(breath_phase < 256) {
             breath = (uint8_t)breath_phase;
@@ -43,7 +75,7 @@ void app_clk_test(void)
         // MOTOR_CS_SET();
         WS2812_SetColor(0, r, g, b);
         WS2812_Show();
-        
+
         hue++;
         breath_phase += 3;
         if(breath_phase >= 512) breath_phase = 0;

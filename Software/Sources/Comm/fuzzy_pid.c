@@ -23,26 +23,26 @@ void FuzzyPID_Init(FuzzyPID *pid,
 {
     /* 局部变量必须定义在开头 */
     int i, j;
-		int tmp_kp[7][5] = {
-            /* ec: NB  NS  ZO  PS  PB */
-            /* e NB */ { 6, 6, 6, 5, 4 },
-            /* e NM */ { 6, 5, 5, 4, 3 },
-            /* e NS */ { 5, 4, 4, 3, 2 },
-            /* e ZO */ { 4, 3, 3, 3, 2 },
-            /* e PS */ { 2, 3, 4, 4, 5 },
-            /* e PM */ { 3, 4, 5, 5, 6 },
-            /* e PB */ { 4, 5, 6, 6, 6 }
-        };
-		int tmp_kd[7][5] = {
-            /* ec: NB  NS  ZO  PS  PB */
-            /* e NB */ { 2, 3, 4, 3, 2 },
-            /* e NM */ { 2, 4, 5, 4, 2 },
-            /* e NS */ { 3, 5, 6, 5, 3 },
-            /* e ZO */ { 3, 5, 6, 5, 3 },
-            /* e PS */ { 3, 5, 6, 5, 3 },
-            /* e PM */ { 2, 4, 5, 4, 2 },
-            /* e PB */ { 2, 3, 4, 3, 2 }
-        };
+	int tmp_kp[7][5] = {
+        /* ec:         NB        NS        ZO        PS        PB    */
+        /* e NB */ { FUZZY_PB, FUZZY_PB, FUZZY_PB, FUZZY_PS, FUZZY_PS },
+        /* e NM */ { FUZZY_PB, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PM },
+        /* e NS */ { FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PM, FUZZY_NS },
+        /* e ZO */ { FUZZY_PS, FUZZY_PM, FUZZY_PM, FUZZY_PM, FUZZY_NS },
+        /* e PS */ { FUZZY_NS, FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_PS },
+        /* e PM */ { FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PB },
+        /* e PB */ { FUZZY_PS, FUZZY_PS, FUZZY_PB, FUZZY_PB, FUZZY_PB }
+    };
+	int tmp_kd[7][5] = {
+        /* ec:         NB        NS        ZO        PS        PB    */
+        /* e NB */ { FUZZY_NS, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_NS },
+        /* e NM */ { FUZZY_NS, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_NS },
+        /* e NS */ { FUZZY_PM, FUZZY_PS, FUZZY_PB, FUZZY_PS, FUZZY_PM },
+        /* e ZO */ { FUZZY_PM, FUZZY_PS, FUZZY_PB, FUZZY_PS, FUZZY_PM },
+        /* e PS */ { FUZZY_PM, FUZZY_PS, FUZZY_PB, FUZZY_PS, FUZZY_PM },
+        /* e PM */ { FUZZY_NS, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_NS },
+        /* e PB */ { FUZZY_NS, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_NS }
+    };
     /* ---- 保存基础参数 ---- */
     pid->Kp0 = kp0;
     pid->Ki0 = ki0;
@@ -52,28 +52,28 @@ void FuzzyPID_Init(FuzzyPID *pid,
     pid->err_thresh = err_thresh;
 
     /* ---- 输出单点系数（可根据需求修改） ---- */
-    /* 对应 NB(0), NM(1), NS(2), ZO(3), PS(4), PM(5), PB(6) */
-    pid->kp_singletons[0] = 0.5f;   /* NB：大幅减小Kp */
-    pid->kp_singletons[1] = 0.7f;
-    pid->kp_singletons[2] = 0.9f;
-    pid->kp_singletons[3] = 1.0f;   /* ZO：保持基础值 */
-    pid->kp_singletons[4] = 1.1f;
-    pid->kp_singletons[5] = 1.3f;
-    pid->kp_singletons[6] = 1.5f;   /* PB：大幅增大Kp */
+    /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
+    pid->kp_singletons[FUZZY_NB] = 0.5f;
+    pid->kp_singletons[FUZZY_NM] = 0.7f;
+    pid->kp_singletons[FUZZY_NS] = 0.9f;
+    pid->kp_singletons[FUZZY_ZO] = 1.0f;
+    pid->kp_singletons[FUZZY_PS] = 1.1f;
+    pid->kp_singletons[FUZZY_PM] = 1.3f;
+    pid->kp_singletons[FUZZY_PB] = 1.5f;
 
-    pid->kd_singletons[0] = 0.3f;   /* NB：大幅减小Kd */
-    pid->kd_singletons[1] = 0.6f;
-    pid->kd_singletons[2] = 0.8f;
-    pid->kd_singletons[3] = 1.0f;
-    pid->kd_singletons[4] = 1.2f;
-    pid->kd_singletons[5] = 1.5f;
-    pid->kd_singletons[6] = 1.8f;   /* PB：大幅增大Kd */
+    pid->kd_singletons[FUZZY_NB] = 0.3f;
+    pid->kd_singletons[FUZZY_NM] = 0.6f;
+    pid->kd_singletons[FUZZY_NS] = 0.8f;
+    pid->kd_singletons[FUZZY_ZO] = 1.0f;
+    pid->kd_singletons[FUZZY_PS] = 1.2f;
+    pid->kd_singletons[FUZZY_PM] = 1.5f;
+    pid->kd_singletons[FUZZY_PB] = 1.8f;
 
     /* ---- 填写规则表 (语言值索引 0~6) ---- */
     /* Kp修正系数规则表，行:e 列:ec，ec顺序: NB,NS,ZO,PS,PB */
     /* 原则：大偏差时Kp大(快速消除误差)；小偏差时Kp适中 */
     {
-        
+
         for (i = 0; i < 7; i++)
             for (j = 0; j < 5; j++)
                 pid->rule_kp[i][j] = tmp_kp[i][j];
@@ -82,7 +82,7 @@ void FuzzyPID_Init(FuzzyPID *pid,
     /* Kd修正系数规则表，原则：大偏差且变化快时Kd不宜过大防振荡，
        稳态附近若变化快则增大Kd抑制超调 */
     {
-        
+
         for (i = 0; i < 7; i++)
             for (j = 0; j < 5; j++)
                 pid->rule_kd[i][j] = tmp_kd[i][j];
@@ -157,11 +157,6 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float dt)
     for (i = 0; i < 5; i++) {
         centers_ec[i] = -1.0f + i * (2.0f / 4.0f);
     }
-		//-1.0f：归一化后的论域左边界，对应最小误差（负大，NB）。
-
-//2.0f：归一化论域总宽度，即 (+1) - (-1) = 2。
-
-//6.0f：等于 (模糊集个数 - 1)，即 7 - 1 = 6。
     half_width_ec = 1.0f;         /* 5个集合，半宽=间距保证重叠 */
     fuzzify(ec, pid->ec_max, 5, centers_ec, half_width_ec, mu_ec);
 
@@ -179,12 +174,12 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float dt)
     if (error > pid->err_thresh || error < -pid->err_thresh) {
         ki = 0.0f;
         /* 也可选清零积分项，保留上次值可能导致突变，这里选择冻结 */
-        /* pid->integral = 0.0f; */ /* 如需强制清零可取消注释 */
+        pid->integral = 0.0f;  /* 如需强制清零可取消注释 */
     } else {
         ki = pid->Ki0;
         pid->integral += error * dt;
         /* 积分限幅 (可选) */
-        /* if (pid->integral >  LIMIT) pid->integral =  LIMIT; */
+         if (pid->integral >  pid->limit) pid->integral =  pid->limit;
     }
 
     /* 7. 位置式PID输出 */
@@ -231,10 +226,10 @@ static void fuzzify(float x, float x_max, int num_sets,
     /* 边界处理：若输入超出归一化范围，强制最外侧隶属度为1 */
     if (x_norm <= -1.0f) {
         for (i = 0; i < num_sets; i++) mus[i] = 0.0f;
-        mus[0] = 1.0f;  /* NB */
+        mus[FUZZY_NB] = 1.0f;
     } else if (x_norm >= 1.0f) {
         for (i = 0; i < num_sets; i++) mus[i] = 0.0f;
-        mus[num_sets-1] = 1.0f;  /* PB */
+        mus[num_sets-1] = 1.0f;  /* FUZZY_PB */
     }
 }
 

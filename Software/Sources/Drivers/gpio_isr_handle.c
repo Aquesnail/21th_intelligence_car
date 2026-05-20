@@ -6,6 +6,7 @@
  
 extern uint32_t g_key_ids[5];
 extern void key_isr_handler(uint32_t key_id);
+volatile uint8_t g_p54_key_flag = 0;
 
 extern void IMU_INT1_ISR_Handle( BaseType_t* xHigherPriorityTaskWoken);
 
@@ -25,9 +26,9 @@ void P4_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     uint8_t intf;
 
     intf = CheckP4nFlag(PIN_ALL);       //读取中断请求标志
-    if(intf & PIN_0){
-        key_isr_handler(g_key_ids[0]);
-    }
+    // if(intf & PIN_0){
+    //     key_isr_handler(g_key_ids[0]);
+    // }
     ClearP4nFlag(PIN_ALL);       
 }
 void P5_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
@@ -38,9 +39,7 @@ void P5_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
         IMU_INT1_ISR_Handle(xHigherPriorityTaskWoken);
     }
     if(intf & PIN_4){
-        //CLK_MCLK_HIRC();                    //选择内部高精度HIRC作为主时钟
-        IAP_CONTR &= 0x40;
-        IAP_CONTR |= 0x20;
+        g_p54_key_flag = 1;
     }
     ClearP5nFlag(PIN_ALL);       
 }
@@ -51,11 +50,11 @@ void P6_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
     uint8_t intf;
 
     intf = CheckP6nFlag(PIN_ALL);       //读取中断请求标志
-    if(intf & PIN_5){
-        key_isr_handler(g_key_ids[1]);
-    }else if(intf & PIN_7){
-        key_isr_handler(g_key_ids[2]);
-    }
+    // if(intf & PIN_5){
+    //     key_isr_handler(g_key_ids[1]);
+    // }else if(intf & PIN_7){
+    //     key_isr_handler(g_key_ids[2]);
+    // }
     ClearP6nFlag(PIN_ALL);       
 }
 
@@ -63,12 +62,12 @@ void P6_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){
 void P8_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken){ 
     uint8_t intf;
 
-    intf = CheckP8nFlag(PIN_ALL);       //读取中断请求标志
-    if(intf & PIN_4){
-        key_isr_handler(g_key_ids[3]);
-    }else if(intf & PIN_6){
-        key_isr_handler(g_key_ids[4]);
-    }
+    // intf = CheckP8nFlag(PIN_ALL);       //读取中断请求标志
+    // if(intf & PIN_4){
+    //     key_isr_handler(g_key_ids[3]);
+    // }else if(intf & PIN_6){
+    //     key_isr_handler(g_key_ids[4]);
+    // }
     ClearP8nFlag(PIN_ALL);       
 }
 

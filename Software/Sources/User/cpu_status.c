@@ -17,14 +17,14 @@ void ConfigureTimeForRunTimeStats(void)
     // 2. 配置 Prescaler 和 Period
     // 3. 启动定时器: HAL_TIM_Base_Start(&htim2);
     // 注意：这里仅仅启动计数即可，不需要开启更新中断，除非定时器位数不够需要溢出处理
-    TIMER11_Init();
+    //TIMER9_Init();
     ulHighFrequencyTimerTicks = 0;
 }
 void TimDisable(void){
-  T11H = 0x00;
-  T11L = 0x00;
+  T9H = 0x00;
+  T9L = 0x00;
   ulHighFrequencyTimerTicks = 0;
-  TIMER11_Stop();
+  TIMER9_Stop();
 }
 
 
@@ -39,10 +39,10 @@ uint32_t GetRunTimeCounterValue(void)
     EA = 0;
 
     u16High = g_u16OverflowCount;
-    u16Low  = ((uint16_t)T11H << 8) | T11L;
+    u16Low  = ((uint16_t)T9H << 8) | T9L;
 
     /* 如果定时器溢出标志置位但 ISR 还未执行, 手动补偿 */
-    if (TIMER11_CheckFlag() && u16Low < 0x8000u) {
+    if (TIMER9_CheckFlag() && u16Low < 0x8000u) {
         u16High++;
     }
 
@@ -59,7 +59,7 @@ uint8_t CPUStatus_HandleCommand(const char* cmd) {
       return 1;
     }else if(strcmp(cmd,"cpuOff") == 0){
       taskbit = 0;
-      TimDisable();
+      //TimDisable();
       vTaskSuspend(vTaskMonitor_Handle);
       Debug_Log("CPU_OFF");
       return 1;

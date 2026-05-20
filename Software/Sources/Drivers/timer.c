@@ -38,7 +38,7 @@ void TIMER11_Init(void)
 
     TIMER11_TimerMode();                //设置定时器11为定时模式
     TIMER11_12TMode();                  //设置定时器11为12T模式
-    TIMER11_EnableInt();                //使能定时器11中断
+    TIMER11_EnableInt();                //使能定时器11中断              //设置定时器11中断优先级为高
     TIMER11_SetPrescale(T11_PSCR);      //设置定时器11的8位预分频
     TIMER11_SetReload16(T11_RELOAD);    //设置定时器11的16位重载值
     TIMER11_Run();                      //定时器11开始运行
@@ -56,7 +56,7 @@ void TIMER9_Init(void)
     TIMER9_12TMode();                   //设置定时器9为12T模式
    // TIMER9_EnableCLKO();                //使能定时器9时钟输出功能
     TIMER9_EnableInt();
-    TIMER9_SetIntPriority(1);
+    TIMER9_SetIntPriority(2);
     TIMER9_SetPrescale(T9_PSCR);        //设置定时器9的8位预分频
     TIMER9_SetReload16(T9_RELOAD);      //设置定时器9的16位重载值
     TIMER9_Run();                       //定时器9开始运行
@@ -110,6 +110,7 @@ void TIMER9_ISR(void) interrupt TMR9_TMR10_VECTOR
 {
     if(TIMER9_CheckFlag()){
         tim9_high_word++;
+        g_u16OverflowCount++;
         TIMER9_ClearFlag();
     }
 
@@ -124,7 +125,7 @@ void TIMER11_ISR(void) interrupt TMR11_VECTOR
 {
     //<<AICUBE_USER_TIMER11_ISR_CODE1_BEGIN>>
     TIMER11_ClearFlag();
-    g_u16OverflowCount++;
+    
     //<<AICUBE_USER_TIMER11_ISR_CODE1_END>>
 }
 

@@ -244,7 +244,7 @@ void vIMUProcessTask(void *pvParameters) {
 extern UserParams_t *UserParams;
 
 void IMU_Init() {
-    xTaskCreate(vIMUProcessTask, "IMU", 728, NULL, tskIDLE_PRIORITY + 4, NULL);
+    xTaskCreate(vIMUProcessTask, "IMU", 728-500, NULL, tskIDLE_PRIORITY + 4, NULL);
 
 		//Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
     //Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));

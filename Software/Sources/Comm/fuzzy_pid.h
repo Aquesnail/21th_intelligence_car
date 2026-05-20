@@ -1,6 +1,17 @@
 #ifndef FUZZY_PID_H
 #define FUZZY_PID_H
 
+/* 模糊语言值枚举 (前缀防混用) */
+typedef enum {
+    FUZZY_NB = 0,
+    FUZZY_NM = 1,
+    FUZZY_NS = 2,
+    FUZZY_ZO = 3,
+    FUZZY_PS = 4,
+    FUZZY_PM = 5,
+    FUZZY_PB = 6
+} Fuzzy_LV;
+
 /* 模糊PID控制器结构体 */
 typedef struct {
     /* ---------- 基础PID参数 ---------- */
@@ -25,6 +36,7 @@ typedef struct {
     float setpoint;               /* 目标值(循迹一般设为0) */
     float prev_error;             /* 上一次误差 */
     float integral;               /* 积分项 */
+    float limit;
 } FuzzyPID;
 
 #ifdef __cplusplus
