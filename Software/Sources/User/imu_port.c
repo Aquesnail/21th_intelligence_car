@@ -18,7 +18,8 @@
 #pragma warning disable = 151
 
 #define FIFO_Packets 2
-
+#define SIGNAL_SPI_DMA_DONE    (1 << 1) /* 位 1：SPI DMA传输完成 */
+#define SIGNAL_IMU_DATA_READY  (1 << 0)  /* 位 0：外部中断引脚触发 */
 /* =======================================================
  * 外部变量定义（供icm42688.c使用）
  * ======================================================= */
@@ -48,9 +49,9 @@ void IMU_INT1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 /* SPI单字节收发 */
 uint8_t ICM42688_SPI_TxRx(uint8_t dat) {
     uint8_t rx_dat;
-    
+    taskENTER_CRITICAL();
     rx_dat = SPI1_WriteReadByte(dat);
-
+    taskEXIT_CRITICAL();
     return rx_dat;
 }
 
@@ -172,7 +173,7 @@ void vIMUProcessTask(void *pvParameters) {
         /* 等待外部中断触发信号 */
         if (xTaskNotifyWait(0, SIGNAL_IMU_DATA_READY, &ulNotifiedValue, portMAX_DELAY) == pdTRUE) {
             if (ulNotifiedValue & SIGNAL_IMU_DATA_READY) {
-                //P27=0;
+                
                 /* 从 FIFO 中读取数据包 */
                 ICM42688_ReadFIFO(FIFO_RxBuffer);
                 ptr = FIFO_RxBuffer;
@@ -225,12 +226,13 @@ void vIMUProcessTask(void *pvParameters) {
                 /* -----------------------------------------------------------
                  * 4. FSYNC 信号发生器 (由任务模拟 200Hz 频率)
                  * ----------------------------------------------------------- */
-                if(++tt >= 5) {
+                if(++tt >= 5) { /* 注意：需根据你的任务调用频率计算此处阈值 */
                     tt = 0;
-                    P50 = 0;
-                    fsync_time = Get_Tim9();
+                    taskENTER_CRITICAL();
+                    P50 = 0;             /* 翻转引脚发出边沿信号给 FSYNC 引脚 */
+                    fsync_time = Get_Tim9(); /* 记录 MCU 本地精密时间戳 */
+                    taskEXIT_CRITICAL();
                 }
-                //P27=1;
             }
         }
     }
@@ -257,9 +259,9 @@ void IMU_Init() {
   //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
  //   Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
  //   Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
-    Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
-    Debug_Register("gx", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gx));
-    Debug_Register("gy", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gy));
+ //   Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
+ //   Debug_Register("gx", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gx));
+ //   Debug_Register("gy", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gy));
     Debug_Register("bias_gy", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gy));
     Debug_Register("bias_gz", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gz));
 }

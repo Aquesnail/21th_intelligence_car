@@ -24,4 +24,6 @@
 #define REG_B_PID_SPEED_KD              0x2Fu
 #define REG_B_PID_SPEED_INTEGRAL_LIMIT  0x40u
 
+#define REG_FAN_VOLTAGE                0x2Bu
+
 #endif

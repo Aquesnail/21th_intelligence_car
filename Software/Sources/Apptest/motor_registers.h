@@ -43,6 +43,7 @@ extern "C" {
 #define Motor_B_pid_q_ki            0x28u    /* Q轴PID积分系数 */
 #define Motor_B_pid_q_kd            0x29u    /* Q轴PID微分系数 */
 #define Motor_B_adc_full_scale      0x2Au    /* ADC满量程值 */
+#define Motor_Fan_Voltage           0x2Bu    /* 风扇控制寄存器  */
 
 /* =============================================================================
  * 寄存器组基地址 (用于偏移计算)

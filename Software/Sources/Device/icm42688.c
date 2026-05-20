@@ -200,7 +200,7 @@ uint8_t ICM42688_Init(void) {
 #else
         | TMST_DELTA_EN_DISABLE
 #endif
-
+             
              | TMST_FSYNC_EN_ENABLE
              | TMST_TO_REGS_EN_DISABLE
              | 0x20;
@@ -331,16 +331,15 @@ void ICM42688_FIFO_Data_Handle(ICM42688_Pack16_t *dat, uint8_t *ptr){
     dat->sensor.dat.sample_time = (float)(raw_timestamp) / 1000000.0f;
 #else
     if ((ptr[0] & 0x0C) == 0x0C) {
-        dat->sensor.dat.sample_time = 1000e-6;
-        raw_timestamp_last = raw_timestamp;
+        dat->sensor.dat.sample_time = 1000e-6; // 主任务中会被覆盖，这里给个安全值
     } else {
         dat->sensor.dat.sample_time = (float)(raw_timestamp - raw_timestamp_last) / 1000000.0f;
         raw_timestamp_last = raw_timestamp;
     }
 #endif
-
+    
     dat->sensor.dat.temp = (raw_temp / 2.07f) + 25.0f;
-
+    
 }
 
 /* =======================================================

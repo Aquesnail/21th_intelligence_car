@@ -23,7 +23,26 @@ void FuzzyPID_Init(FuzzyPID *pid,
 {
     /* 局部变量必须定义在开头 */
     int i, j;
-
+		int tmp_kp[7][5] = {
+            /* ec: NB  NS  ZO  PS  PB */
+            /* e NB */ { 6, 6, 6, 5, 4 },
+            /* e NM */ { 6, 5, 5, 4, 3 },
+            /* e NS */ { 5, 4, 4, 3, 2 },
+            /* e ZO */ { 4, 3, 3, 3, 2 },
+            /* e PS */ { 2, 3, 4, 4, 5 },
+            /* e PM */ { 3, 4, 5, 5, 6 },
+            /* e PB */ { 4, 5, 6, 6, 6 }
+        };
+		int tmp_kd[7][5] = {
+            /* ec: NB  NS  ZO  PS  PB */
+            /* e NB */ { 2, 3, 4, 3, 2 },
+            /* e NM */ { 2, 4, 5, 4, 2 },
+            /* e NS */ { 3, 5, 6, 5, 3 },
+            /* e ZO */ { 3, 5, 6, 5, 3 },
+            /* e PS */ { 3, 5, 6, 5, 3 },
+            /* e PM */ { 2, 4, 5, 4, 2 },
+            /* e PB */ { 2, 3, 4, 3, 2 }
+        };
     /* ---- 保存基础参数 ---- */
     pid->Kp0 = kp0;
     pid->Ki0 = ki0;
@@ -54,16 +73,7 @@ void FuzzyPID_Init(FuzzyPID *pid,
     /* Kp修正系数规则表，行:e 列:ec，ec顺序: NB,NS,ZO,PS,PB */
     /* 原则：大偏差时Kp大(快速消除误差)；小偏差时Kp适中 */
     {
-        int tmp_kp[7][5] = {
-            /* ec: NB  NS  ZO  PS  PB */
-            /* e NB */ { 6, 6, 6, 5, 4 },
-            /* e NM */ { 6, 5, 5, 4, 3 },
-            /* e NS */ { 5, 4, 4, 3, 2 },
-            /* e ZO */ { 4, 3, 3, 3, 2 },
-            /* e PS */ { 2, 3, 4, 4, 5 },
-            /* e PM */ { 3, 4, 5, 5, 6 },
-            /* e PB */ { 4, 5, 6, 6, 6 }
-        };
+        
         for (i = 0; i < 7; i++)
             for (j = 0; j < 5; j++)
                 pid->rule_kp[i][j] = tmp_kp[i][j];
@@ -72,16 +82,7 @@ void FuzzyPID_Init(FuzzyPID *pid,
     /* Kd修正系数规则表，原则：大偏差且变化快时Kd不宜过大防振荡，
        稳态附近若变化快则增大Kd抑制超调 */
     {
-        int tmp_kd[7][5] = {
-            /* ec: NB  NS  ZO  PS  PB */
-            /* e NB */ { 2, 3, 4, 3, 2 },
-            /* e NM */ { 2, 4, 5, 4, 2 },
-            /* e NS */ { 3, 5, 6, 5, 3 },
-            /* e ZO */ { 3, 5, 6, 5, 3 },
-            /* e PS */ { 3, 5, 6, 5, 3 },
-            /* e PM */ { 2, 4, 5, 4, 2 },
-            /* e PB */ { 2, 3, 4, 3, 2 }
-        };
+        
         for (i = 0; i < 7; i++)
             for (j = 0; j < 5; j++)
                 pid->rule_kd[i][j] = tmp_kd[i][j];
@@ -156,6 +157,11 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float dt)
     for (i = 0; i < 5; i++) {
         centers_ec[i] = -1.0f + i * (2.0f / 4.0f);
     }
+		//-1.0f：归一化后的论域左边界，对应最小误差（负大，NB）。
+
+//2.0f：归一化论域总宽度，即 (+1) - (-1) = 2。
+
+//6.0f：等于 (模糊集个数 - 1)，即 7 - 1 = 6。
     half_width_ec = 1.0f;         /* 5个集合，半宽=间距保证重叠 */
     fuzzify(ec, pid->ec_max, 5, centers_ec, half_width_ec, mu_ec);
 

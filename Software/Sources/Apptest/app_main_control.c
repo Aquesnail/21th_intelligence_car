@@ -10,6 +10,7 @@
 #include <string.h>
 #include "imu_filter.h"
 #include "lpf.h"
+#include "fuzzy_pid.h"
 
 /* ================================================================
  * 速度目标值宏 (临时占位, 后续调整)
@@ -29,7 +30,7 @@
 static uint8_t xdata adc_dma_buf[ADC2_DMASIZE] = {0};
 
 /* ADC 各通道采样值 */
-static uint16_t adc_values[ADC2_CH_NUM] = {0};
+static float adc_values[ADC2_CH_NUM] = {0};
 
 /* 电机数据 (500Hz stream 推送) */
 static float    g_left_speed_actual  = 0.0f;
@@ -49,8 +50,19 @@ static float g_right_speed_error = 0.0f;
 /* PID 参数访问互斥锁 (非0=正在进行PID读写, Main_Control需跳过电机写入) */
 static volatile uint8_t g_pid_access_locked = 0;
 
+/* PID 参数延迟写入 (回调只置标志, Main_Control 安全点执行 SPI 写入, 避免竞态) */
+static volatile uint8_t g_reg_write_pending = 0;
+static uint8_t          g_reg_write_addr;
+static motor_data_t     g_reg_write_value;
+
+/* 手动模式超时保护 (3s 无指令自动刹车) */
+static TickType_t g_last_manual_cmd_tick = 0;
+static uint8_t    g_manual_cmd_received  = 0;
+
 /* Stream 模式状态位 (0=已关闭, 1=已开启) */
 static volatile uint8_t g_stream_active = 0;
+
+
 
 /* 任务句柄 */
 TaskHandle_t xMotorDataTaskHandle    = NULL;
@@ -75,16 +87,12 @@ static void Motor_Reg_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 
 static void Motor_Reg_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
-    float f;
-    motor_data_t val;
     (void)len;
-    memcpy(&f, pData, sizeof(float));
-    val.f = f;
-
-    MOTOR_CS_RESET();
-    motor_write_reg((uint8_t)peri_addr, val);
-    MOTOR_CS_SET();
-   
+    memcpy(&g_reg_write_value.u32, pData, sizeof(uint32_t));
+    g_reg_write_addr = (uint8_t)peri_addr;
+    g_reg_write_pending = 1;
+    g_last_manual_cmd_tick = xTaskGetTickCount();
+    g_manual_cmd_received = 1;
 }
 
 /* PID 参数外设描述符 (Motor A / 左电机) */
@@ -98,6 +106,9 @@ static DebugPeriDesc_t g_pid_b_kp_desc   = {REG_B_PID_SPEED_KP,             Moto
 static DebugPeriDesc_t g_pid_b_ki_desc   = {REG_B_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_b_kd_desc   = {REG_B_PID_SPEED_KD,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_b_ilim_desc = {REG_B_PID_SPEED_INTEGRAL_LIMIT, Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
+static DebugPeriDesc_t g_right_speed_desc = {REG_A_SPEED_TARGET, Motor_Reg_Read_Cb,Motor_Reg_Write_Cb}; // 只写当前右轮速度
+static DebugPeriDesc_t g_left_speed_desc  = {REG_B_SPEED_TARGET,Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 只写当前左轮速度
+static DebugPeriDesc_t g_fan_voltage_desc  = {REG_FAN_VOLTAGE, Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 风扇控制寄存器
 
 /* ================================================================
  * Motor_Data_Task
@@ -140,6 +151,51 @@ motor_data_t motor_spi_dat_handle(uint8_t* buffer)
  *   3. 计算速度误差供上位机监测
  * ================================================================ */
 uint8_t spi_buffer[12];
+float left_speed_target = 0.0f;
+float right_speed_target = 0.0f;
+uint8_t manual_control_flag = 1;
+
+float Err_A_K=1.0f;
+float Err_B_K=1.0f;
+float Err_Angle=0.0f;
+
+/* 驾驶方向命令 (标志位方式, Main_Control 安全点执行) */
+#define DRIVE_STOP     0
+#define DRIVE_FORWARD  1
+#define DRIVE_BACKWARD 2
+#define DRIVE_LEFT     3
+#define DRIVE_RIGHT    4
+float  drive_speed  = 10.0f;
+
+static volatile uint8_t g_drive_direction = DRIVE_STOP;
+
+uint8_t Motor_HandleCommand(const char* cmd)
+{
+    if (strcmp(cmd, "forward") == 0) {
+        g_drive_direction = DRIVE_FORWARD;
+        Debug_Log("MOTOR_FWD");
+    } else if (strcmp(cmd, "backward") == 0) {
+        g_drive_direction = DRIVE_BACKWARD;
+        Debug_Log("MOTOR_BCK");
+    } else if (strcmp(cmd, "left") == 0) {
+        g_drive_direction = DRIVE_LEFT;
+        Debug_Log("MOTOR_LFT");
+    } else if (strcmp(cmd, "right") == 0) {
+        g_drive_direction = DRIVE_RIGHT;
+        Debug_Log("MOTOR_RGT");
+    } else if (strcmp(cmd, "stop") == 0) {
+        g_drive_direction = DRIVE_STOP;
+        Debug_Log("MOTOR_STP");
+    } else {
+        return 0;
+    }
+    /* 刷新手动模式超时计时 */
+    g_last_manual_cmd_tick = xTaskGetTickCount();
+    g_manual_cmd_received = 1;
+    return 1;
+}
+
+
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
@@ -147,13 +203,9 @@ void Main_Control_Task(void *pvParameters)
     uint32_t ulNotifiedValue;
     uint16_t raw;  /* TODO: 临时, ADC 尖峰过滤用 */
     (void)pvParameters;
-#define LEFT_SPEED_TARGET   0.0f
-#define RIGHT_SPEED_TARGET  0.0f
-#define ADC_SPIKE_THRESHOLD 50    /* TODO: 临时, ADC 尖峰丢弃阈值 */
-    tmp.f = LEFT_SPEED_TARGET;
-    g_left_speed_target = tmp;
-    tmp.f = -RIGHT_SPEED_TARGET;
-    g_right_speed_target = tmp;
+
+
+    
 
 //    xLastWakeTime = xTaskGetTickCount();
     vTaskDelay(pdMS_TO_TICKS(100)); /* 启动后延时 100ms 等待系统稳定 */
@@ -181,7 +233,10 @@ void Main_Control_Task(void *pvParameters)
         if (ulNotifiedValue & SIGNAL_MOTOR_DATA_READY) {
             if (g_stream_active) {
                 //taskENTER_CRITICAL();
-                
+                // tmp.f = left_speed_target;
+                // g_left_speed_target = tmp;
+                // tmp.f = -right_speed_target;
+                // g_right_speed_target = tmp;
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
                     spi_buffer[i] = MOTOR_SPI_TxRx(0xFFu);
@@ -194,11 +249,84 @@ void Main_Control_Task(void *pvParameters)
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
                 
+                Err_Angle=(Err_A_K*(adc_values[3]-adc_values[1])+Err_B_K*(adc_values[2]-adc_values[0]))/
+                (Err_A_K*(adc_values[3]+adc_values[1])+Err_B_K*(adc_values[2]+adc_values[0]));
+                //最右横向为1，最左横向为3，左中为2，右中为0
+                // MOTOR_CS_RESET();
+                // motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
+                // motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
+                // MOTOR_CS_SET();
+
+                /* 处理 Debug 系统延迟的 PID 参数写入 / 手动模式超时保护 / 驾驶指令 */
+                if(manual_control_flag){
+                    /* 3s 无指令自动刹车 */
+                    if (g_manual_cmd_received &&
+                        (xTaskGetTickCount() - g_last_manual_cmd_tick) >= pdMS_TO_TICKS(3000)) {
+                        tmp.f = 0.0f;
+                        MOTOR_CS_RESET();
+                        motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                        motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        MOTOR_CS_SET();
+                        g_reg_write_pending = 0;
+                        g_drive_direction = DRIVE_STOP;
+                        g_last_manual_cmd_tick = xTaskGetTickCount();
+                    }
+
+                    /* 执行驾驶指令 (标志位 -> 电机写入) */
+                    if (g_drive_direction != DRIVE_STOP) {
+                        MOTOR_CS_RESET();
+                        if (g_drive_direction == DRIVE_FORWARD) {
+                            tmp.f = -drive_speed;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = drive_speed;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        } else if (g_drive_direction == DRIVE_BACKWARD) {
+                            tmp.f = drive_speed;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = -drive_speed;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        } else if (g_drive_direction == DRIVE_LEFT) {
+                            tmp.f = -drive_speed;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = -drive_speed;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        } else if (g_drive_direction == DRIVE_RIGHT) {
+                            tmp.f = drive_speed;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = drive_speed;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        }
+                        MOTOR_CS_SET();
+                    }else{
+                            tmp.f = 0.0f;
+                            MOTOR_CS_RESET();
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                            MOTOR_CS_SET();
+                    }
+                    if (g_reg_write_pending) {
+                        if(g_reg_write_addr == REG_A_SPEED_TARGET){
+                            g_reg_write_value.f = -g_reg_write_value.f;
+                        }
+                        MOTOR_CS_RESET();
+                        motor_write_reg(g_reg_write_addr, g_reg_write_value);
+                        MOTOR_CS_SET();
+                        g_reg_write_pending = 0;
+                    }
+                    
+                }else{
+                    if (g_reg_write_pending) {
+                        if(g_reg_write_addr == REG_A_SPEED_TARGET || g_reg_write_addr == REG_B_SPEED_TARGET){
+                           g_reg_write_value.f=0.0f;
+                           g_reg_write_value.f=0.0f;
+                        }
+                        MOTOR_CS_RESET();
+                        motor_write_reg(g_reg_write_addr, g_reg_write_value);
+                        MOTOR_CS_SET();
+                        g_reg_write_pending = 0;
+                    }
+                }
                 
-                MOTOR_CS_RESET();
-                motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
-                motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
-                MOTOR_CS_SET();
 
                 //taskEXIT_CRITICAL();
             }
@@ -212,7 +340,7 @@ void Main_Control_Task(void *pvParameters)
                  */
                 for (i = 0; i < ADC2_CH_NUM; i++) {
                     raw = ADC2_GetAvgValue(i);
-                    adc_values[i] = raw;
+                    adc_values[i] = (float)raw; //最右横向为1，最左横向为3，左中为2，右中为0
                 }
                 
                 ADC2_DMA_Start();
@@ -239,10 +367,10 @@ void Main_Control_Task_Init(void)
     motor_data_t tmp;
 
     /* 注册 ADC 调试变量 */
-    Debug_Register("adc0", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[0]);
-    Debug_Register("adc1", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[1]);
-    Debug_Register("adc2", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[2]);
-    Debug_Register("adc3", DBG_UINT16 | HIGH_FREQ_TYPE, &adc_values[3]);
+    Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[0]);
+    Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[1]);
+    Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[2]);
+    Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[3]);
 
     /* 注册电机调试变量 */
     // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
@@ -258,14 +386,23 @@ void Main_Control_Task_Init(void)
     lpf_init_fc(&g_lpf_left,  400.0f, 0.002f);  /* fc=20Hz, dt=2ms(500Hz) */
     lpf_init_fc(&g_lpf_right, 400.0f, 0.002f);
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
-    // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
-    // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
-    // Debug_Register("A_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kd_desc);
-    // Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
-    // Debug_Register("B_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kp_desc);
-    // Debug_Register("B_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ki_desc);
-    // Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
-    // Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
+    Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &Err_A_K);
+    Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &Err_B_K);
+    Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
+    Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
+    Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
+    Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
+    Debug_Register("A_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kd_desc);
+    Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
+    Debug_Register("B_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kp_desc);
+    Debug_Register("B_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ki_desc);
+    Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
+    Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
+    Debug_Register("R_Speed", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_right_speed_desc);
+    Debug_Register("L_Speed", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_left_speed_desc);
+    Debug_Register("Fan_Voltage", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_fan_voltage_desc);
+    Debug_Register("Drive_Spd", DBG_FLOAT | STATIC_TYPE, &drive_speed);
+    
 
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
@@ -276,7 +413,7 @@ void Main_Control_Task_Init(void)
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */
     /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */
   //  xTaskCreate(Motor_Data_Task, "motor_data", 512, NULL, tskIDLE_PRIORITY + 1, &xMotorDataTaskHandle);
-
+    
     /* 创建 Main_Control_Task (低优先级, 2ms 周期) */
      xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 3, &xMainControlTaskHandle);
 }
