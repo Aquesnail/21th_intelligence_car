@@ -11,7 +11,7 @@ extern void PWM_Test_Simple(void);
 extern volatile uint8_t g_p54_key_flag;
 extern uint8_t manual_control_flag;
 #define P54_LONG_PRESS_TICKS  40   /* 40 * 25ms = 1000ms */
-
+extern void Change_Maunal();
 void app_clk_test(void)
 {
     uint16_t hue=0;
@@ -41,9 +41,8 @@ void app_clk_test(void)
                     IAP_CONTR &= 0x40;
                     IAP_CONTR |= 0x20;
                 } else {
-                    manual_control_flag = !manual_control_flag;
-                    /* 短按：空位，填入你的函数 */
-
+                    /* 短按：切换手动模式 */
+                    Change_Maunal();
                 }
                 btn_pressed = 0;
                 btn_hold_cnt = 0;

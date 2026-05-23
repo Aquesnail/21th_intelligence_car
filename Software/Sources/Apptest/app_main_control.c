@@ -198,10 +198,29 @@ uint8_t Motor_HandleCommand(const char* cmd)
 
 static FuzzyPID pid_struct={0.0f};
 static float pid_output=0.0f;
-static float common_speed=10.0f;
+static float common_speed=30.0f;
+static float pid_output_k = 0.12f;
 static motor_data_t speed_target_l={0};
 static motor_data_t speed_target_r={0};
-
+void Change_Maunal(){
+    motor_data_t tmp;
+    tmp.f = 1.5;
+	if(manual_control_flag){
+        manual_control_flag=0;
+        tmp.f = 1.5f;
+        MOTOR_CS_RESET();
+        motor_write_reg(REG_FAN_VOLTAGE, tmp);
+        MOTOR_CS_SET();
+       // Debug_Log("Auto Mode");
+    }else{
+        manual_control_flag=1;
+        tmp.f = 0.0f;
+        MOTOR_CS_RESET();
+        motor_write_reg(REG_FAN_VOLTAGE, tmp);
+        MOTOR_CS_SET();
+      //  Debug_Log("Manual Mode");
+    }
+}
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
@@ -264,7 +283,7 @@ void Main_Control_Task(void *pvParameters)
                 // motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
                 // motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
                 // MOTOR_CS_SET();
-
+								
                 /* 处理 Debug 系统延迟的 PID 参数写入 / 手动模式超时保护 / 驾驶指令 */
                 if(manual_control_flag){
                     /* 3s 无指令自动刹车 */
@@ -333,8 +352,8 @@ void Main_Control_Task(void *pvParameters)
                         MOTOR_CS_SET();
                         g_reg_write_pending = 0;
                     }
-                    speed_target_l.f = pid_output*0.07 + common_speed;
-                    speed_target_r.f = -(-pid_output*0.07 + common_speed);
+                    speed_target_l.f = pid_output*0.12 + common_speed;
+                    speed_target_r.f = -(-pid_output*0.12 + common_speed);
                     MOTOR_CS_RESET();
                     motor_write_reg(REG_A_SPEED_TARGET, speed_target_r);
                     motor_write_reg(REG_B_SPEED_TARGET, speed_target_l);
@@ -386,6 +405,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("pid_output", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
     /* 注册电机调试变量 */
     // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
+    Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
+    Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_r.f));
     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_actual);
     // Debug_Register("L_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_error);
     // Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_target);
@@ -403,6 +424,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &Err_A_K);
     Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &Err_B_K);
     Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
+    Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
     Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
     Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
     Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
@@ -412,12 +434,10 @@ void Main_Control_Task_Init(void)
     Debug_Register("B_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ki_desc);
     Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
     Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
-    Debug_Register("R_Speed", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_right_speed_desc);
-    Debug_Register("L_Speed", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_left_speed_desc);
+    Debug_Register("pid_output_k", DBG_FLOAT | STATIC_TYPE, &pid_output_k);
     Debug_Register("Fan_Voltage", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_fan_voltage_desc);
     Debug_Register("Drive_Spd", DBG_FLOAT | STATIC_TYPE, &drive_speed);
     
-
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
