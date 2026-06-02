@@ -1,6 +1,5 @@
 #include "fuzzy_pid.h"
 #include <string.h>   /* memset */
-
 /* 内部辅助函数：计算三角形隶属度 */
 static void fuzzify(float x, float x_max, int num_sets,
                     const float centers[], float half_width,
@@ -23,25 +22,26 @@ void FuzzyPID_Init(FuzzyPID *pid,
 {
     /* 局部变量必须定义在开头 */
     int i, j;
-	int tmp_kp[7][5] = {
-        /* ec:         NB        NS        ZO        PS        PB    */
-        /* e NB */ { FUZZY_PB, FUZZY_PB, FUZZY_PB, FUZZY_PS, FUZZY_PS },
-        /* e NM */ { FUZZY_PB, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PM },
-        /* e NS */ { FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PM, FUZZY_NS },
-        /* e ZO */ { FUZZY_PS, FUZZY_PM, FUZZY_PM, FUZZY_PM, FUZZY_NS },
-        /* e PS */ { FUZZY_NS, FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_PS },
-        /* e PM */ { FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PB },
-        /* e PB */ { FUZZY_PS, FUZZY_PS, FUZZY_PB, FUZZY_PB, FUZZY_PB }
+int tmp_kp[7][5] = {
+        /* ec:          NB        NS        ZO        PS        PB    */
+        /* e NB */ { FUZZY_PB, FUZZY_PM, FUZZY_PM, FUZZY_PS, FUZZY_ZO }, // 大偏差,向外飞时Kp极大;向回冲时Kp减小防过冲
+        /* e NM */ { FUZZY_PB, FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_ZO },
+        /* e NS */ { FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_ZO, FUZZY_ZO },
+        /* e ZO */ { FUZZY_PM, FUZZY_PS, FUZZY_ZO, FUZZY_PS, FUZZY_PM }, // 中央直道: ec大说明正在偏离,加大Kp; ec小说明稳定,Kp给最小
+        /* e PS */ { FUZZY_ZO, FUZZY_ZO, FUZZY_PS, FUZZY_PS, FUZZY_PM },
+        /* e PM */ { FUZZY_ZO, FUZZY_PS, FUZZY_PS, FUZZY_PM, FUZZY_PB },
+        /* e PB */ { FUZZY_ZO, FUZZY_PS, FUZZY_PM, FUZZY_PM, FUZZY_PB }
     };
-	int tmp_kd[7][5] = {
-        /* ec:         NB        NS        ZO        PS        PB    */
-        /* e NB */ { FUZZY_NS, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_NS },
-        /* e NM */ { FUZZY_NS, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_NS },
-        /* e NS */ { FUZZY_PM, FUZZY_PS, FUZZY_PB, FUZZY_PS, FUZZY_PM },
-        /* e ZO */ { FUZZY_PM, FUZZY_PS, FUZZY_PB, FUZZY_PS, FUZZY_PM },
-        /* e PS */ { FUZZY_PM, FUZZY_PS, FUZZY_PB, FUZZY_PS, FUZZY_PM },
-        /* e PM */ { FUZZY_NS, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_NS },
-        /* e PB */ { FUZZY_NS, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_NS }
+
+    int tmp_kd[7][5] = {
+        /* ec:          NB        NS        ZO        PS        PB    */
+        /* e NB */ { FUZZY_PB, FUZZY_PM, FUZZY_ZO, FUZZY_PM, FUZZY_PB }, // 误差大且趋势加剧(NB/PB),加大阻尼阻碍其继续跑偏
+        /* e NM */ { FUZZY_PB, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_PB },
+        /* e NS */ { FUZZY_PM, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_PM },
+        /* e ZO */ { FUZZY_PB, FUZZY_PM, FUZZY_ZO, FUZZY_PM, FUZZY_PB }, // 中央直道: 突变时(NB/PB)强力刹车防止冲过头; 稳定时(ZO)减小阻尼防噪声
+        /* e PS */ { FUZZY_PM, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_PM },
+        /* e PM */ { FUZZY_PB, FUZZY_PM, FUZZY_PS, FUZZY_PM, FUZZY_PB },
+        /* e PB */ { FUZZY_PB, FUZZY_PM, FUZZY_ZO, FUZZY_PM, FUZZY_PB }
     };
     /* ---- 保存基础参数 ---- */
     pid->Kp0 = kp0;
@@ -53,20 +53,20 @@ void FuzzyPID_Init(FuzzyPID *pid,
 
     /* ---- 输出单点系数（可根据需求修改） ---- */
     /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
-    pid->kp_singletons[FUZZY_NB] = 0.5f;
-    pid->kp_singletons[FUZZY_NM] = 0.7f;
-    pid->kp_singletons[FUZZY_NS] = 0.9f;
-    pid->kp_singletons[FUZZY_ZO] = 1.0f;
-    pid->kp_singletons[FUZZY_PS] = 1.1f;
-    pid->kp_singletons[FUZZY_PM] = 1.3f;
-    pid->kp_singletons[FUZZY_PB] = 1.5f;
+    pid->kp_singletons[FUZZY_NB] = 5.4f;
+    pid->kp_singletons[FUZZY_NM] = 3.6f;
+    pid->kp_singletons[FUZZY_NS] = 0.8f;
+    pid->kp_singletons[FUZZY_ZO] = 0.3f;
+    pid->kp_singletons[FUZZY_PS] = 0.8f;
+    pid->kp_singletons[FUZZY_PM] = 3.6f;
+    pid->kp_singletons[FUZZY_PB] = 5.4f ;
 
-    pid->kd_singletons[FUZZY_NB] = 0.3f;
-    pid->kd_singletons[FUZZY_NM] = 0.6f;
-    pid->kd_singletons[FUZZY_NS] = 0.8f;
+    pid->kd_singletons[FUZZY_NB] = 1.8f;
+    pid->kd_singletons[FUZZY_NM] = 1.6f;
+    pid->kd_singletons[FUZZY_NS] = 1.2f;
     pid->kd_singletons[FUZZY_ZO] = 1.0f;
     pid->kd_singletons[FUZZY_PS] = 1.2f;
-    pid->kd_singletons[FUZZY_PM] = 1.5f;
+    pid->kd_singletons[FUZZY_PM] = 1.6f;
     pid->kd_singletons[FUZZY_PB] = 1.8f;
 
     /* ---- 填写规则表 (语言值索引 0~6) ---- */
@@ -92,6 +92,10 @@ void FuzzyPID_Init(FuzzyPID *pid,
     pid->setpoint = 0.0f;   /* 循迹通常目标偏差为0 */
     pid->prev_error = 0.0f;
     pid->integral = 0.0f;
+
+    /* ---- 初始化 ec 低通滤波器 (fc=50Hz, dt=0.002s, alpha=0.4665) ---- */
+    /* alpha = 1 - exp(-2*PI*50*0.002) ≈ 0.4665, 预计算避免依赖 math.h */
+    lpf_init(&pid->ec_lpf, 0.4665f);
 }
 
 /**
@@ -102,16 +106,17 @@ void FuzzyPID_Reset(FuzzyPID *pid)
     if (pid != NULL) {
         pid->prev_error = 0.0f;
         pid->integral = 0.0f;
+        lpf_reset(&pid->ec_lpf, 0.0f);
     }
 }
 
 /**
  * 每一步调用的PID计算函数
  * measurement: 当前传感器获得的实际值（如赛道中心偏差）
- * dt:         距离上次调用的时间间隔(>0)
  * 返回：控制量（如转向PWM）
+ * 注：采样周期固定为500Hz，使用宏 FUZZY_PID_SAMPLE_FREQ / FUZZY_PID_DT
  */
-float FuzzyPID_Step(FuzzyPID *pid, float measurement, float dt)
+float FuzzyPID_Step(FuzzyPID *pid, float measurement)
 {
     /* 所有局部变量必须在此处声明 */
     float error, ec;
@@ -128,15 +133,18 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float dt)
     float half_width_ec;
     int i;
 
+    /* NaN 防护：传感器未就绪时直接返回 0 */
+    if (measurement != measurement) {
+        return 0.0f;
+    }
+
     /* 1. 计算基本误差及变化率 */
     error = pid->setpoint - measurement;               /* 循迹一般 setpoint=0 */
 
-    /* 防除零 */
-    if (dt <= 1.0e-6f) {
-        ec = 0.0f;
-    } else {
-        ec = (error - pid->prev_error) / dt;
-    }
+    /* 用乘法替代浮点除法: ec = Δerror / dt = Δerror * freq */
+    ec = (error - pid->prev_error) * FUZZY_PID_SAMPLE_FREQ;
+    /* 50Hz低通滤波平滑ec */
+    ec = lpf_update(&pid->ec_lpf, ec);
     pid->prev_error = error;
 
     /* 2. 限幅到模糊域内 */
@@ -177,7 +185,7 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float dt)
         pid->integral = 0.0f;  /* 如需强制清零可取消注释 */
     } else {
         ki = pid->Ki0;
-        pid->integral += error * dt;
+        pid->integral += error * FUZZY_PID_DT; /* 积分累加: ∫e·dt ≈ Σe·Δt */
         /* 积分限幅 (可选) */
          if (pid->integral >  pid->limit) pid->integral =  pid->limit;
     }

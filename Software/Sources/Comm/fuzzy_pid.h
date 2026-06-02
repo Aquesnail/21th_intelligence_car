@@ -1,6 +1,12 @@
 #ifndef FUZZY_PID_H
 #define FUZZY_PID_H
 
+#include "lpf.h"
+
+/* 采样频率相关宏：500Hz固定频率，用乘法替代浮点除法 */
+#define FUZZY_PID_SAMPLE_FREQ  500.0f   /* 采样频率(Hz)，用于 ec = Δerror * freq */
+#define FUZZY_PID_DT           0.002f   /* 采样周期 = 1/500，用于积分累加 */
+
 /* 模糊语言值枚举 (前缀防混用) */
 typedef enum {
     FUZZY_NB = 0,
@@ -36,7 +42,8 @@ typedef struct {
     float setpoint;               /* 目标值(循迹一般设为0) */
     float prev_error;             /* 上一次误差 */
     float integral;               /* 积分项 */
-    float limit;
+    float limit;                  /* 积分限幅 */
+    Lpf_t ec_lpf;                 /* 50Hz低通滤波, 用于ec平滑 */
 } FuzzyPID;
 
 #ifdef __cplusplus
@@ -49,7 +56,7 @@ void FuzzyPID_Init(FuzzyPID *pid,
                    float e_max, float ec_max, float err_thresh);
 
 /* 执行一次PID计算，输入实际值，返回控制量 */
-float FuzzyPID_Step(FuzzyPID *pid, float measurement, float dt);
+float FuzzyPID_Step(FuzzyPID *pid, float measurement);
 
 /* 重置控制器状态 */
 void FuzzyPID_Reset(FuzzyPID *pid);
