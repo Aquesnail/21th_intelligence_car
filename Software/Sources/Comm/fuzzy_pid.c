@@ -55,19 +55,19 @@ int tmp_kp[7][5] = {
     /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
     pid->kp_singletons[FUZZY_NB] = 5.4f;
     pid->kp_singletons[FUZZY_NM] = 3.6f;
-    pid->kp_singletons[FUZZY_NS] = 0.8f;
-    pid->kp_singletons[FUZZY_ZO] = 0.3f;
-    pid->kp_singletons[FUZZY_PS] = 0.8f;
+    pid->kp_singletons[FUZZY_NS] = 0.4f;
+    pid->kp_singletons[FUZZY_ZO] = 0.2f;
+    pid->kp_singletons[FUZZY_PS] = 0.4f;
     pid->kp_singletons[FUZZY_PM] = 3.6f;
     pid->kp_singletons[FUZZY_PB] = 5.4f ;
 
-    pid->kd_singletons[FUZZY_NB] = 1.8f;
-    pid->kd_singletons[FUZZY_NM] = 1.6f;
-    pid->kd_singletons[FUZZY_NS] = 1.2f;
+    pid->kd_singletons[FUZZY_NB] = 1.0f;
+    pid->kd_singletons[FUZZY_NM] = 1.0f;
+    pid->kd_singletons[FUZZY_NS] = 1.0f;
     pid->kd_singletons[FUZZY_ZO] = 1.0f;
-    pid->kd_singletons[FUZZY_PS] = 1.2f;
-    pid->kd_singletons[FUZZY_PM] = 1.6f;
-    pid->kd_singletons[FUZZY_PB] = 1.8f;
+    pid->kd_singletons[FUZZY_PS] = 1.0f;
+    pid->kd_singletons[FUZZY_PM] = 1.0f;
+    pid->kd_singletons[FUZZY_PB] = 1.0f;
 
     /* ---- 填写规则表 (语言值索引 0~6) ---- */
     /* Kp修正系数规则表，行:e 列:ec，ec顺序: NB,NS,ZO,PS,PB */
@@ -92,10 +92,11 @@ int tmp_kp[7][5] = {
     pid->setpoint = 0.0f;   /* 循迹通常目标偏差为0 */
     pid->prev_error = 0.0f;
     pid->integral = 0.0f;
+    pid->limit    = 100.0f;   /* 积分限幅默认值 */
 
     /* ---- 初始化 ec 低通滤波器 (fc=50Hz, dt=0.002s, alpha=0.4665) ---- */
     /* alpha = 1 - exp(-2*PI*50*0.002) ≈ 0.4665, 预计算避免依赖 math.h */
-    lpf_init(&pid->ec_lpf, 0.4665f);
+    lpf_init_fc(&pid->ec_lpf, 20.0f, 0.002f);
 }
 
 /**
@@ -133,8 +134,13 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
     float half_width_ec;
     int i;
 
-    /* NaN 防护：传感器未就绪时直接返回 0 */
-    if (measurement != measurement) {
+    /* NaN/Inf 防护：传感器未就绪或数值异常时直接返回 0
+     * C89 兼容写法：利用 Inf > 极大值、NaN 所有比较都是 false 的特性
+     * measurement != measurement 仅在 NaN 时为 true（IEEE 754）
+     * 极大值检测覆盖 Inf（Inf > 1e10 为 true）*/
+    if (measurement != measurement ||
+        measurement >  1.0e10f ||
+        measurement < -1.0e10f) {
         return 0.0f;
     }
 
@@ -142,9 +148,14 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
     error = pid->setpoint - measurement;               /* 循迹一般 setpoint=0 */
 
     /* 用乘法替代浮点除法: ec = Δerror / dt = Δerror * freq */
-    ec = (error - pid->prev_error) * FUZZY_PID_SAMPLE_FREQ;
+    ec = (error - pid->prev_error) * 0;
     /* 50Hz低通滤波平滑ec */
     ec = lpf_update(&pid->ec_lpf, ec);
+    /* 防 LPF 状态被 Inf/NaN 永久污染: 一旦检测到异常即重置滤波器 */
+    if (ec != ec || ec > 1.0e10f || ec < -1.0e10f) {
+        lpf_reset(&pid->ec_lpf, 0.0f);
+        ec = 0.0f;
+    }
     pid->prev_error = error;
 
     /* 2. 限幅到模糊域内 */
@@ -186,8 +197,9 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
     } else {
         ki = pid->Ki0;
         pid->integral += error * FUZZY_PID_DT; /* 积分累加: ∫e·dt ≈ Σe·Δt */
-        /* 积分限幅 (可选) */
+        /* 积分限幅 (双向) */
          if (pid->integral >  pid->limit) pid->integral =  pid->limit;
+         if (pid->integral < -pid->limit) pid->integral = -pid->limit;
     }
 
     /* 7. 位置式PID输出 */

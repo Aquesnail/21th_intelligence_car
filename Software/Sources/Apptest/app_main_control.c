@@ -245,6 +245,7 @@ void Main_Control_Task(void *pvParameters)
     motor_data_t tmp;
     uint32_t ulNotifiedValue;
     uint16_t raw;  /* TODO: 临时, ADC 尖峰过滤用 */
+    float numerator, denominator;  /* Err_Angle 计算中间变量 */
     (void)pvParameters;
 
 
@@ -293,9 +294,15 @@ void Main_Control_Task(void *pvParameters)
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
                
-                Err_Angle=(sqrt_negative(Err_A_K*(adc_values[3]-adc_values[1])+Err_B_K*(adc_values[2]-adc_values[0])))/
-                (sqrt_negative(Err_C_K*(adc_values[3]+adc_values[1]))+sqrt_negative(Err_D_K*(adc_values[2]+adc_values[0])))
-                *100.0f;
+                numerator   = sqrt_negative(Err_A_K*(adc_values[3]-adc_values[1])+Err_B_K*(adc_values[2]-adc_values[0]));
+                denominator = sqrt_negative(Err_C_K*(adc_values[3]+adc_values[1]))
+                            + sqrt_negative(Err_D_K*(adc_values[2]+adc_values[0]));
+                /* 防除零: ADC 全为 0 时分母趋近 0, 产生 Inf/NaN 污染 LPF */
+                if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
+                    Err_Angle = 0.0f;
+                } else {
+                    Err_Angle = numerator / denominator * 100.0f;
+                }
                 pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
                 //最右横向为1，最左横向为3，左中为2，右中为0
                 // MOTOR_CS_RESET();
