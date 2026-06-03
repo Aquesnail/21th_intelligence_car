@@ -207,6 +207,7 @@ static float pid_output_k = 0.10f;
 static motor_data_t speed_target_l={0};
 static motor_data_t speed_target_r={0};
 static float speed_target_r_nagtive=0.0f;
+static float numerator, denominator;
 #define spd_limit 150.0f
 void Change_Maunal(){
     motor_data_t tmp;
@@ -248,7 +249,6 @@ void Main_Control_Task(void *pvParameters)
     (void)pvParameters;
 
 
-    
 
 //    xLastWakeTime = xTaskGetTickCount();
     vTaskDelay(pdMS_TO_TICKS(100)); /* 启动后延时 100ms 等待系统稳定 */
@@ -293,9 +293,13 @@ void Main_Control_Task(void *pvParameters)
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
                
-                Err_Angle=(sqrt_negative(Err_A_K*(adc_values[3]-adc_values[1])+Err_B_K*(adc_values[2]-adc_values[0])))/
-                (sqrt_negative(Err_C_K*(adc_values[3]+adc_values[1]))+sqrt_negative(Err_D_K*(adc_values[2]+adc_values[0])))
-                *100.0f;
+                numerator = sqrt_negative(Err_A_K*(adc_values[3]-adc_values[1])+Err_B_K*(adc_values[2]-adc_values[0]));
+                denominator = sqrt_negative(Err_C_K*(adc_values[3]+adc_values[1]))+sqrt_negative(Err_D_K*(adc_values[2]+adc_values[0]));
+                if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
+                    Err_Angle = 0.0f;
+                } else {
+                    Err_Angle = numerator / denominator * 100.0f;
+                }
                 pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
                 //最右横向为1，最左横向为3，左中为2，右中为0
                 // MOTOR_CS_RESET();
@@ -517,5 +521,5 @@ void Main_Control_Task_Init(void)
   //  xTaskCreate(Motor_Data_Task, "motor_data", 512, NULL, tskIDLE_PRIORITY + 1, &xMotorDataTaskHandle);
     
     /* 创建 Main_Control_Task (低优先级, 2ms 周期) */
-     xTaskCreate(Main_Control_Task, "main_control", 1024, NULL, tskIDLE_PRIORITY + 3, &xMainControlTaskHandle);
+     xTaskCreate(Main_Control_Task, "main_control", 1224, NULL, tskIDLE_PRIORITY + 3, &xMainControlTaskHandle);
 }

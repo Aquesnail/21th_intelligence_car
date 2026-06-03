@@ -96,6 +96,7 @@ int tmp_kp[7][5] = {
     /* ---- 初始化 ec 低通滤波器 (fc=50Hz, dt=0.002s, alpha=0.4665) ---- */
     /* alpha = 1 - exp(-2*PI*50*0.002) ≈ 0.4665, 预计算避免依赖 math.h */
     lpf_init(&pid->ec_lpf, 0.4665f);
+    
 }
 
 /**
