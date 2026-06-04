@@ -29,7 +29,7 @@ typedef struct {
     /* ---------- 模糊域参数 ---------- */
     float e_max;                  /* 误差输入最大幅值 */
     float ec_max;                 /* 误差变化率最大幅值 */
-
+    float ec_dead_zone;              /* 误差变化率死区，|ec|<此值视为0 */
     /* ---------- 输出单点(修正系数) ---------- */
     float kp_singletons[7];       /* NB,NM,NS,ZO,PS,PM,PB 对应的 Kp 系数 */
     float kd_singletons[7];       /* Kd 系数 */

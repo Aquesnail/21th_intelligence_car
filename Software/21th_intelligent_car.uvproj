@@ -295,7 +295,7 @@
             <WarningLevel>2</WarningLevel>
             <DataOverlaying>1</DataOverlaying>
             <OverlayString></OverlayString>
-            <MiscControls></MiscControls>
+            <MiscControls>REMOVEUNUSED</MiscControls>
             <DisableWarningNumbers>16,57</DisableWarningNumbers>
             <LinkerCmdFile></LinkerCmdFile>
             <Assign></Assign>
@@ -1005,31 +1005,6 @@
               <FilePath>.\Sources\Device\beep.h</FilePath>
             </File>
             <File>
-              <FileName>key.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Device\key.c</FilePath>
-            </File>
-            <File>
-              <FileName>key.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Device\key.h</FilePath>
-            </File>
-            <File>
-              <FileName>key_port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Device\key_port.c</FilePath>
-            </File>
-            <File>
-              <FileName>storage_mgr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Device\storage_mgr.c</FilePath>
-            </File>
-            <File>
-              <FileName>storage_mgr.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Device\storage_mgr.h</FilePath>
-            </File>
-            <File>
               <FileName>motor.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Device\motor.c</FilePath>
@@ -1038,6 +1013,11 @@
               <FileName>motor.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Device\motor.h</FilePath>
+            </File>
+            <File>
+              <FileName>storage_mgr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Device\storage_mgr.c</FilePath>
             </File>
           </Files>
         </Group>

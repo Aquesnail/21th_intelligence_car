@@ -17,6 +17,7 @@
 typedef struct {
     float alpha;   /* 滤波系数 (0~1] */
     float output;  /* 当前滤波输出 */
+    float freq;    /* 采样频率 (Hz), 仅用于调试显示 */
 } Lpf_t;
 
 /*

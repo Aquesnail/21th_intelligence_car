@@ -12,6 +12,7 @@
 #include "lpf.h"
 #include "fuzzy_pid.h"
 
+#pragma warning disable = 174
 /* ================================================================
  * 速度目标值宏 (临时占位, 后续调整)
  * ================================================================ */
@@ -99,6 +100,7 @@ static void Motor_Reg_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     g_manual_cmd_received = 1;
 }
 
+/*用于将速度和pid解耦的结构体*/
 #define TRACK_WIDTH 11.0f
 typedef struct speed_controller{
     float radius;
@@ -126,6 +128,30 @@ static void Speed_Controller_Write_Cb(uint32_t peri_addr, void *pData, uint8_t l
     (void)len;
     memcpy((void*)(peri_addr), pData, sizeof(float));
     update_speed_controller(&g_speed_controller);
+    return;
+}
+
+/*服务于上位机的低通滤波调整器*/
+static void Lpf_Controller_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    Lpf_t* lpf_ptr;
+    (void)peri_addr;
+    (void)len;
+    lpf_ptr = (Lpf_t*)(peri_addr);
+    memcpy(pData, &lpf_ptr->freq, sizeof(float));
+    return;
+}
+
+static void Lpf_Controller_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+     float new_alpha;
+    Lpf_t* lpf_ptr;
+    (void)peri_addr;
+    (void)len;
+    memcpy(&new_alpha, pData, sizeof(float));
+    lpf_ptr = (Lpf_t*)(peri_addr); /* 假设频率紧跟在alpha后面 */
+    lpf_ptr->freq = new_alpha;
+    lpf_init_fc(lpf_ptr, new_alpha, FUZZY_PID_DT);
     return;
 }
 
@@ -196,6 +222,8 @@ float Err_A_K=0.6f;
 float Err_B_K=1.8f;
 float Err_C_K=3.0f;
 float Err_D_K=1.0f;
+uint16_t adc_dead_zone = 5;
+float adc_err_zone = 20.0f;
 float Err_Angle=0.0f;
 
 /* 驾驶方向命令 (标志位方式, Main_Control 安全点执行) */
@@ -280,6 +308,10 @@ void Main_Control_Task(void *pvParameters)
     motor_data_t tmp;
     uint32_t ulNotifiedValue;
     uint16_t raw;  /* TODO: 临时, ADC 尖峰过滤用 */
+    float Err_1;
+    float Err_2;
+    float Err_3;
+    float Err_4;
     (void)pvParameters;
     
 
@@ -326,10 +358,21 @@ void Main_Control_Task(void *pvParameters)
                 g_left_speed_actual = lpf_update(&g_lpf_left, tmp.f);
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
-               
-                
-                numerator = sqrt_negative(Err_A_K*(adc_values[2]-adc_values[0])+Err_B_K*(adc_values[3]-adc_values[1]));
-                denominator = sqrt_negative(Err_C_K*(adc_values[2]+adc_values[0]))+sqrt_negative(Err_D_K*(adc_values[3]+adc_values[1]));
+                if(adc_values[0]<adc_dead_zone) adc_values[0]=0;
+                if(adc_values[1]<adc_dead_zone) adc_values[1]=0;
+                if(adc_values[2]<adc_dead_zone) adc_values[2]=0;
+                if(adc_values[3]<adc_dead_zone) adc_values[3]=0;
+                Err_1 = (float)(adc_values[0] - adc_values[2]);
+                Err_2 = (float)(adc_values[1] - adc_values[3]);
+                Err_3 = (float)(adc_values[0] + adc_values[2]);
+                Err_4 = (float)(adc_values[1] + adc_values[3]);
+                if(Err_1 < adc_err_zone && Err_1 > -adc_err_zone) Err_1 = 0.0f;
+                if(Err_2 < adc_err_zone && Err_2 > -adc_err_zone) Err_2 = 0.0f;
+                if(Err_3 < adc_err_zone && Err_3 > -adc_err_zone) Err_3 = 0.0f;
+                if(Err_4 < adc_err_zone && Err_4 > -adc_err_zone) Err_4 = 0.0f;
+
+                numerator = sqrt_negative(Err_A_K*(Err_1)+Err_B_K*(Err_2));
+                denominator = sqrt_negative(Err_C_K*(Err_3))+sqrt_negative(Err_D_K*(Err_4));
                 if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
                     Err_Angle = 0.0f;
                 } else {
@@ -510,11 +553,14 @@ void Main_Control_Task_Init(void)
     /* 初始化低通滤波器, 截止频率可在此修改 */
     lpf_init_fc(&g_lpf_left,  400.0f, 0.002f);  /* fc=20Hz, dt=2ms(500Hz) */
     lpf_init_fc(&g_lpf_right, 400.0f, 0.002f);
+    
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
     Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &Err_A_K);
     Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &Err_B_K);
     Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &Err_C_K);
     Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &Err_D_K);
+    Debug_Register("ADC_DeadZone", DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
+    Debug_Register("ADC_ErrZone", DBG_FLOAT | STATIC_TYPE, &adc_err_zone);
     Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
     //Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
     Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
@@ -532,6 +578,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("FKp0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kp0);
     Debug_Register("FKi0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
     Debug_Register("FKd0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kd0);
+    Debug_Register("EC_DeadZone", DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_dead_zone);
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
     Debug_Register("Fec_max",   DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_max);
     Debug_Register("Ferr_thr",  DBG_FLOAT | STATIC_TYPE, &pid_struct.err_thresh);
@@ -571,9 +618,9 @@ void Main_Control_Task_Init(void)
     g_speed_controller.radius = 10.0f;
     g_speed_controller.straight_speed = 30.0f;
     g_speed_controller.controller_limit = 200.0f;  
-
+    update_speed_controller(&g_speed_controller);
     pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
-    pid_struct.ec_max = 100.0f; /* 根据实际误差变化率 */
+    pid_struct.ec_max = 30.0f; /* 根据实际误差变化率 */
     pid_struct.Kp0 = 3.4f; /* 基础 Kp */
     pid_struct.Ki0 = 0.0f; /* 基础 Ki */
     pid_struct.Kd0 = 1.0f; /* 基础 Kd */
@@ -581,7 +628,8 @@ void Main_Control_Task_Init(void)
     pid_struct.integral = 0.0f;
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
     pid_struct.prev_error = 0.0f;
-    pid_struct.limit = 100.0f; /* 积分限幅 */
+  //  pid_struct.limit = 100.0f; /* 积分限幅 */
+  //  pid_struct.ec_dead_zone = 0.5f; /* 误差变化率死区 (小于该值视为无变化) */
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh); 
     //vTaskDelay(pdMS_TO_TICKS(10));
     

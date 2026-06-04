@@ -9,6 +9,7 @@ void lpf_init(Lpf_t *f, float alpha)
 
 void lpf_init_fc(Lpf_t *f, float fc, float dt)
 {
+    f->freq = fc;
     f->alpha = 1.0f - (float)exp(-6.2831853 * fc * dt);
     f->output = 0.0f;
 }

@@ -49,7 +49,8 @@ int tmp_kp[7][5] = {
     pid->Kd0 = kd0;
     pid->e_max = e_max;
     pid->ec_max = ec_max;
-    pid->err_thresh = err_thresh; 
+    pid->err_thresh = err_thresh;
+    pid->ec_dead_zone = ec_max * 0.02f;  /* 死区默认为 ec_max 的 2% */
 
     /* ---- 输出单点系数（可根据需求  修改） ---- */
     /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
@@ -95,7 +96,7 @@ int tmp_kp[7][5] = {
 
     /* ---- 初始化 ec 低通滤波器 (fc=50Hz, dt=0.002s, alpha=0.4665) ---- */
     /* alpha = 1 - exp(-2*PI*50*0.002) ≈ 0.4665, 预计算避免依赖 math.h */
-    lpf_init(&pid->ec_lpf, 0.2265f);
+    lpf_init_fc(&pid->ec_lpf, 50.0f, FUZZY_PID_DT);
     
 }
 
@@ -148,11 +149,15 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
     ec = lpf_update(&pid->ec_lpf, ec);
     pid->prev_error = error;
 
-    /* 2. 限幅到模糊域内 */
+    /* 2. 限幅到模糊域内，并对 ec 做死区处理抑制小噪声 */
     if (error > pid->e_max)  error = pid->e_max;
     if (error < -pid->e_max) error = -pid->e_max;
     if (ec > pid->ec_max)    ec = pid->ec_max;
     if (ec < -pid->ec_max)   ec = -pid->ec_max;
+    /* ec 死区：|ec| < dead_zone 时视为 0，防止微分项放大微小噪声 */
+    if (ec > -pid->ec_dead_zone && ec < pid->ec_dead_zone) {
+        ec = 0.0f;
+    }
 
     /* 3. 模糊化：计算 error 的 7 个隶属度 */
     /* e 中心点：均匀分布 [-1,1] 映射到归一化 */
