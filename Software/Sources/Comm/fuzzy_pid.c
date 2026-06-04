@@ -49,25 +49,25 @@ int tmp_kp[7][5] = {
     pid->Kd0 = kd0;
     pid->e_max = e_max;
     pid->ec_max = ec_max;
-    pid->err_thresh = err_thresh;
+    pid->err_thresh = err_thresh; 
 
-    /* ---- 输出单点系数（可根据需求修改） ---- */
+    /* ---- 输出单点系数（可根据需求  修改） ---- */
     /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
-    pid->kp_singletons[FUZZY_NB] = 5.4f;
-    pid->kp_singletons[FUZZY_NM] = 3.6f;
-    pid->kp_singletons[FUZZY_NS] = 0.8f;
-    pid->kp_singletons[FUZZY_ZO] = 0.3f;
-    pid->kp_singletons[FUZZY_PS] = 0.8f;
-    pid->kp_singletons[FUZZY_PM] = 3.6f;
-    pid->kp_singletons[FUZZY_PB] = 5.4f ;
+    pid->kp_singletons[FUZZY_NB] = 1.0f;
+    pid->kp_singletons[FUZZY_NM] = 1.0f;
+    pid->kp_singletons[FUZZY_NS] = 1.0f;
+    pid->kp_singletons[FUZZY_ZO] = 1.0f;
+    pid->kp_singletons[FUZZY_PS] = 1.0f;
+    pid->kp_singletons[FUZZY_PM] = 1.0f;
+    pid->kp_singletons[FUZZY_PB] = 1.0f ;
 
-    pid->kd_singletons[FUZZY_NB] = 1.8f;
-    pid->kd_singletons[FUZZY_NM] = 1.6f;
-    pid->kd_singletons[FUZZY_NS] = 1.2f;
+    pid->kd_singletons[FUZZY_NB] = 1.0f;
+    pid->kd_singletons[FUZZY_NM] = 1.0f;
+    pid->kd_singletons[FUZZY_NS] = 1.0f;
     pid->kd_singletons[FUZZY_ZO] = 1.0f;
-    pid->kd_singletons[FUZZY_PS] = 1.2f;
-    pid->kd_singletons[FUZZY_PM] = 1.6f;
-    pid->kd_singletons[FUZZY_PB] = 1.8f;
+    pid->kd_singletons[FUZZY_PS] = 1.0f;
+    pid->kd_singletons[FUZZY_PM] = 1.0f;
+    pid->kd_singletons[FUZZY_PB] = 1.0f;
 
     /* ---- 填写规则表 (语言值索引 0~6) ---- */
     /* Kp修正系数规则表，行:e 列:ec，ec顺序: NB,NS,ZO,PS,PB */
@@ -95,7 +95,7 @@ int tmp_kp[7][5] = {
 
     /* ---- 初始化 ec 低通滤波器 (fc=50Hz, dt=0.002s, alpha=0.4665) ---- */
     /* alpha = 1 - exp(-2*PI*50*0.002) ≈ 0.4665, 预计算避免依赖 math.h */
-    lpf_init(&pid->ec_lpf, 0.4665f);
+    lpf_init(&pid->ec_lpf, 0.2265f);
     
 }
 
@@ -157,16 +157,17 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
     /* 3. 模糊化：计算 error 的 7 个隶属度 */
     /* e 中心点：均匀分布 [-1,1] 映射到归一化 */
     for (i = 0; i < 7; i++) {
-        centers_e[i] = -1.0f + i * (2.0f / 6.0f);
+        centers_e[i] = -1.0f + i * (2.0f / 6.0f); //2.0f/6.0f为间距
     }
-    half_width_e = 2.0f / 3.0f;   /* 保证相邻隶属度有足够重叠 */
+    half_width_e = 2.0f / 6.0f;   /* 保证相邻隶属度有足够重叠
+                                    重叠过多会导致模糊项耦合严重 */
     fuzzify(error, pid->e_max, 7, centers_e, half_width_e, mu_e);
 
     /* 4. 模糊化：计算 ec 的 5 个隶属度 */
     for (i = 0; i < 5; i++) {
         centers_ec[i] = -1.0f + i * (2.0f / 4.0f);
     }
-    half_width_ec = 1.0f;         /* 5个集合，半宽=间距保证重叠 */
+    half_width_ec = 2.0f / 4.0f;         /* 5个集合，半宽=间距保证重叠 */
     fuzzify(ec, pid->ec_max, 5, centers_ec, half_width_ec, mu_ec);
 
     /* 5. 模糊推理得到 Kp 和 Kd 的修正系数 */
@@ -188,7 +189,8 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
         ki = pid->Ki0;
         pid->integral += error * FUZZY_PID_DT; /* 积分累加: ∫e·dt ≈ Σe·Δt */
         /* 积分限幅 (可选) */
-         if (pid->integral >  pid->limit) pid->integral =  pid->limit;
+        if (pid->integral > pid->limit) pid->integral = pid->limit;
+        else if (pid->integral < -pid->limit) pid->integral = -pid->limit;
     }
 
     /* 7. 位置式PID输出 */
@@ -230,15 +232,6 @@ static void fuzzify(float x, float x_max, int num_sets,
         } else {
             mus[i] = 0.0f;
         }
-    }
-
-    /* 边界处理：若输入超出归一化范围，强制最外侧隶属度为1 */
-    if (x_norm <= -1.0f) {
-        for (i = 0; i < num_sets; i++) mus[i] = 0.0f;
-        mus[FUZZY_NB] = 1.0f;
-    } else if (x_norm >= 1.0f) {
-        for (i = 0; i < num_sets; i++) mus[i] = 0.0f;
-        mus[num_sets-1] = 1.0f;  /* FUZZY_PB */
     }
 }
 

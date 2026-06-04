@@ -66,6 +66,8 @@ static volatile uint8_t g_stream_active = 0;
 static uint8_t      g_auto_transition = 0;
 static TickType_t   g_auto_fan_tick   = 0;
 
+
+
 /* 任务句柄 */
 TaskHandle_t xMotorDataTaskHandle    = NULL;
 TaskHandle_t xMainControlTaskHandle = NULL;
@@ -97,6 +99,36 @@ static void Motor_Reg_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     g_manual_cmd_received = 1;
 }
 
+#define TRACK_WIDTH 11.0f
+typedef struct speed_controller{
+    float radius;
+    float straight_speed;
+    float controller_limit;
+    float controller_k;
+} speed_controller_t;
+void update_speed_controller(speed_controller_t* controller){
+   controller->controller_k = (controller->straight_speed * TRACK_WIDTH) / 
+   (2.0f * controller->radius * 2 * controller->controller_limit * 4.0f / 5.0f);
+}
+speed_controller_t g_speed_controller;
+
+static void Speed_Controller_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+        (void)peri_addr;
+        (void)len;
+        memcpy(pData, (void*)(peri_addr), sizeof(float));
+    return;
+}
+
+static void Speed_Controller_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    (void)peri_addr;
+    (void)len;
+    memcpy((void*)(peri_addr), pData, sizeof(float));
+    update_speed_controller(&g_speed_controller);
+    return;
+}
+
 /* PID 参数外设描述符 (Motor A / 左电机) */
 static DebugPeriDesc_t g_pid_a_kp_desc   = {REG_A_PID_SPEED_KP,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_ki_desc   = {REG_A_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
@@ -111,7 +143,9 @@ static DebugPeriDesc_t g_pid_b_ilim_desc = {REG_B_PID_SPEED_INTEGRAL_LIMIT, Moto
 static DebugPeriDesc_t g_right_speed_desc = {REG_A_SPEED_TARGET, Motor_Reg_Read_Cb,Motor_Reg_Write_Cb}; // 只写当前右轮速度
 static DebugPeriDesc_t g_left_speed_desc  = {REG_B_SPEED_TARGET,Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 只写当前左轮速度
 static DebugPeriDesc_t g_fan_voltage_desc  = {REG_FAN_VOLTAGE, Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 风扇控制寄存器
-
+static DebugPeriDesc_t g_speed_controller_limit_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb}; /* 速度控制器参数 (非寄存器映射) */
+static DebugPeriDesc_t g_speed_controller_radius_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
+static DebugPeriDesc_t g_speed_controller_straight_speed_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
 /* ================================================================
  * Motor_Data_Task
  *   由 P2.0 中断 (500Hz) 通过 TaskNotify 触发
@@ -247,7 +281,7 @@ void Main_Control_Task(void *pvParameters)
     uint32_t ulNotifiedValue;
     uint16_t raw;  /* TODO: 临时, ADC 尖峰过滤用 */
     (void)pvParameters;
-
+    
 
 
 //    xLastWakeTime = xTaskGetTickCount();
@@ -293,14 +327,19 @@ void Main_Control_Task(void *pvParameters)
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
                
-                numerator = sqrt_negative(Err_A_K*(adc_values[3]-adc_values[1])+Err_B_K*(adc_values[2]-adc_values[0]));
-                denominator = sqrt_negative(Err_C_K*(adc_values[3]+adc_values[1]))+sqrt_negative(Err_D_K*(adc_values[2]+adc_values[0]));
+                
+                numerator = sqrt_negative(Err_A_K*(adc_values[2]-adc_values[0])+Err_B_K*(adc_values[3]-adc_values[1]));
+                denominator = sqrt_negative(Err_C_K*(adc_values[2]+adc_values[0]))+sqrt_negative(Err_D_K*(adc_values[3]+adc_values[1]));
                 if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
                     Err_Angle = 0.0f;
                 } else {
                     Err_Angle = numerator / denominator * 100.0f;
                 }
                 pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
+
+                speed_target_l.f = pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed;
+                speed_target_r.f = -(-pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed);
+                speed_target_r_nagtive = -speed_target_r.f;
                 //最右横向为1，最左横向为3，左中为2，右中为0
                 // MOTOR_CS_RESET();
                 // motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
@@ -398,9 +437,7 @@ void Main_Control_Task(void *pvParameters)
 
                     /* 仅在过渡完成后写入电机速度目标 */
                     if (g_auto_transition == 2) {
-                        speed_target_l.f = pid_output*pid_output_k + common_speed;
-                        speed_target_r.f = -(-pid_output*pid_output_k + common_speed);
-                        speed_target_r_nagtive = -speed_target_r.f;
+                       
                         MOTOR_CS_RESET();
                         motor_write_reg(REG_A_SPEED_TARGET, speed_target_r);
                         motor_write_reg(REG_B_SPEED_TARGET, speed_target_l);
@@ -445,6 +482,9 @@ void Main_Control_Task_Init(void)
 {
     motor_data_t tmp;
 
+    g_speed_controller_limit_desc.peri_addr = (uint32_t)&(g_speed_controller.controller_limit);
+    g_speed_controller_radius_desc.peri_addr = (uint32_t)&(g_speed_controller.radius);
+    g_speed_controller_straight_speed_desc.peri_addr = (uint32_t)&(g_speed_controller.straight_speed);
     /* 注册 ADC 调试变量 */
     Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[0]);
     Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[1]);
@@ -459,7 +499,9 @@ void Main_Control_Task_Init(void)
     // Debug_Register("L_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_error);
     // Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_target);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
-  //  Debug_Register("FKp", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kp0);
+    
+    
+    //  Debug_Register("FKp", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kp0);
    // Debug_Register("FKd", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kd0);
   //  Debug_Register("FKi", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Ki0);
     // Debug_Register("Mech",  DBG_UINT32 | HIGH_FREQ_TYPE, &g_mech_state);
@@ -474,7 +516,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &Err_C_K);
     Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &Err_D_K);
     Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
-    Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
+    //Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
     Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
     // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
     // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
@@ -484,7 +526,7 @@ void Main_Control_Task_Init(void)
     // Debug_Register("B_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ki_desc);
     // Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
     // Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
-    Debug_Register("pid_output_k", DBG_FLOAT | STATIC_TYPE, &pid_output_k);
+   // Debug_Register("pid_output_k", DBG_FLOAT | STATIC_TYPE, &pid_output_k);
     Debug_Register("Fan_Voltage", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_fan_voltage_desc);
     Debug_Register("Drive_Spd", DBG_FLOAT | STATIC_TYPE, &drive_speed);
     Debug_Register("FKp0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kp0);
@@ -494,14 +536,41 @@ void Main_Control_Task_Init(void)
     Debug_Register("Fec_max",   DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_max);
     Debug_Register("Ferr_thr",  DBG_FLOAT | STATIC_TYPE, &pid_struct.err_thresh);
    // Debug_Register("Fintegral", DBG_FLOAT | STATIC_TYPE, &pid_struct.integral);
-    Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
+   // Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
     Debug_Register("Flimit",    DBG_FLOAT | STATIC_TYPE, &pid_struct.limit);
    // Debug_Register("Fprev_err", DBG_FLOAT | STATIC_TYPE, &pid_struct.prev_error);
+    Debug_Register("Crtl_Limit", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_limit_desc));
+    Debug_Register("Crtl_Radius", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_radius_desc));
+    Debug_Register("Crtl_ComSpd", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_straight_speed_desc));
 
+    Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_controller.straight_speed);
+    Debug_Register("Crtl_K", DBG_FLOAT | STATIC_TYPE, &g_speed_controller.controller_k);
+
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NB]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_ZO]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PB]);
+
+    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_NB]);
+    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_NM]);
+    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_NS]);
+    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_ZO]);
+    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PS]);
+    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PM]);
+    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PB]);
+
+   // Debug_Register("FKi0", DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
     ADC2_DMA_Start();
+
+    g_speed_controller.radius = 10.0f;
+    g_speed_controller.straight_speed = 30.0f;
+    g_speed_controller.controller_limit = 200.0f;  
 
     pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
     pid_struct.ec_max = 100.0f; /* 根据实际误差变化率 */
