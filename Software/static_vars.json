@@ -1,48 +1,46 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-01T20:10:26.429409",
+  "timestamp": "2026-06-04T21:38:58.991291",
   "vars": [
     {
       "id": 0,
       "name": "imu_k",
       "type": 6,
-      "addr": 9444,
-      "value": 1.0666699409484863
+      "addr": 11594,
+      "value": 1.0530427694320679,
+      "isPeri": false
     },
     {
       "id": 4,
       "name": "Kp",
       "type": 6,
-      "addr": 9243,
-      "value": 1.2100000476837158
+      "addr": 11820,
+      "value": 1.2000000476837158,
+      "isPeri": false
     },
     {
       "id": 5,
       "name": "Ki",
       "type": 6,
-      "addr": 9247,
-      "value": 0.0020000000949949026
+      "addr": 11824,
+      "value": 0.0020000000949949026,
+      "isPeri": false
     },
     {
       "id": 6,
-      "name": "bias_gx",
+      "name": "bias_gy",
       "type": 6,
-      "addr": 9251,
-      "value": -0.0013164726551622152
+      "addr": 11832,
+      "value": -0.018902761861681938,
+      "isPeri": false
     },
     {
       "id": 7,
-      "name": "bias_gy",
-      "type": 6,
-      "addr": 9255,
-      "value": -0.01124943420290947
-    },
-    {
-      "id": 8,
       "name": "bias_gz",
       "type": 6,
-      "addr": 9259,
-      "value": 0.00871249008923769
+      "addr": 11836,
+      "value": 0.0030268183909356594,
+      "isPeri": false
     }
   ]
 }

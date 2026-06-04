@@ -25,7 +25,7 @@ typedef struct {
 
     /* ---------- 积分分离 ---------- */
     float err_thresh;             /* 积分分离阈值，|error|>此值时 Ki=0 */
-
+    float kd_err_thresh;          /* Kd积分分离阈值*/
     /* ---------- 模糊域参数 ---------- */
     float e_max;                  /* 误差输入最大幅值 */
     float ec_max;                 /* 误差变化率最大幅值 */
@@ -44,6 +44,8 @@ typedef struct {
     float integral;               /* 积分项 */
     float limit;                  /* 积分限幅 */
     Lpf_t ec_lpf;                 /* 50Hz低通滤波, 用于ec平滑 */
+
+    float temp_ec;
 } FuzzyPID;
 
 #ifdef __cplusplus

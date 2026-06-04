@@ -172,6 +172,7 @@ static DebugPeriDesc_t g_fan_voltage_desc  = {REG_FAN_VOLTAGE, Motor_Reg_Read_Cb
 static DebugPeriDesc_t g_speed_controller_limit_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb}; /* 速度控制器参数 (非寄存器映射) */
 static DebugPeriDesc_t g_speed_controller_radius_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
 static DebugPeriDesc_t g_speed_controller_straight_speed_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
+static DebugPeriDesc_t g_lpf_fuzzy_ec_desc = {0, Lpf_Controller_Read_Cb, Lpf_Controller_Write_Cb}; /* 左轮速度LPF频率 */
 /* ================================================================
  * Motor_Data_Task
  *   由 P2.0 中断 (500Hz) 通过 TaskNotify 触发
@@ -380,8 +381,8 @@ void Main_Control_Task(void *pvParameters)
                 }
                 pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
 
-                speed_target_l.f = pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed;
-                speed_target_r.f = -(-pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed);
+                speed_target_l.f = -pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed;
+                speed_target_r.f = -(pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed);
                 speed_target_r_nagtive = -speed_target_r.f;
                 //最右横向为1，最左横向为3，左中为2，右中为0
                 // MOTOR_CS_RESET();
@@ -528,6 +529,7 @@ void Main_Control_Task_Init(void)
     g_speed_controller_limit_desc.peri_addr = (uint32_t)&(g_speed_controller.controller_limit);
     g_speed_controller_radius_desc.peri_addr = (uint32_t)&(g_speed_controller.radius);
     g_speed_controller_straight_speed_desc.peri_addr = (uint32_t)&(g_speed_controller.straight_speed);
+    g_lpf_fuzzy_ec_desc.peri_addr = (uint32_t)&(pid_struct.ec_lpf); /* 直接映射到 LPF 结构体, 供上位机调整频率 */
     /* 注册 ADC 调试变量 */
     Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[0]);
     Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[1]);
@@ -564,6 +566,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
     //Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
     Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
+    Debug_Register("ec",DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.temp_ec);
     // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
     // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
     // Debug_Register("A_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kd_desc);
@@ -579,6 +582,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("FKi0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
     Debug_Register("FKd0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kd0);
     Debug_Register("EC_DeadZone", DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_dead_zone);
+    Debug_Register("EC_Lpf",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lpf_fuzzy_ec_desc);
+    Debug_Register("EC_Thresh", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh);
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
     Debug_Register("Fec_max",   DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_max);
     Debug_Register("Ferr_thr",  DBG_FLOAT | STATIC_TYPE, &pid_struct.err_thresh);
@@ -615,12 +620,12 @@ void Main_Control_Task_Init(void)
     ADC2_DMA_Init(adc_dma_buf);
     ADC2_DMA_Start();
 
-    g_speed_controller.radius = 10.0f;
-    g_speed_controller.straight_speed = 30.0f;
-    g_speed_controller.controller_limit = 200.0f;  
+    g_speed_controller.radius = 5.0f;
+    g_speed_controller.straight_speed = 10.0f;
+    g_speed_controller.controller_limit = 300.0f;
     update_speed_controller(&g_speed_controller);
     pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
-    pid_struct.ec_max = 30.0f; /* 根据实际误差变化率 */
+    pid_struct.ec_max = 700.0f; /* 根据实际误差变化率 */
     pid_struct.Kp0 = 3.4f; /* 基础 Kp */
     pid_struct.Ki0 = 0.0f; /* 基础 Ki */
     pid_struct.Kd0 = 1.0f; /* 基础 Kd */
@@ -628,9 +633,10 @@ void Main_Control_Task_Init(void)
     pid_struct.integral = 0.0f;
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
     pid_struct.prev_error = 0.0f;
-  //  pid_struct.limit = 100.0f; /* 积分限幅 */
-  //  pid_struct.ec_dead_zone = 0.5f; /* 误差变化率死区 (小于该值视为无变化) */
-    FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh); 
+    pid_struct.kd_err_thresh = 60.0f;
+    FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh);
+    pid_struct.ec_dead_zone = 100.0f;
+    pid_struct.limit = 0.0f;
     //vTaskDelay(pdMS_TO_TICKS(10));
     
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */

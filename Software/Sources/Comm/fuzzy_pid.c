@@ -62,13 +62,13 @@ int tmp_kp[7][5] = {
     pid->kp_singletons[FUZZY_PM] = 1.0f;
     pid->kp_singletons[FUZZY_PB] = 1.0f ;
 
-    pid->kd_singletons[FUZZY_NB] = 1.0f;
-    pid->kd_singletons[FUZZY_NM] = 1.0f;
-    pid->kd_singletons[FUZZY_NS] = 1.0f;
-    pid->kd_singletons[FUZZY_ZO] = 1.0f;
-    pid->kd_singletons[FUZZY_PS] = 1.0f;
-    pid->kd_singletons[FUZZY_PM] = 1.0f;
-    pid->kd_singletons[FUZZY_PB] = 1.0f;
+    pid->kd_singletons[FUZZY_NB] = 0.2f;
+    pid->kd_singletons[FUZZY_NM] = 0.1f;
+    pid->kd_singletons[FUZZY_NS] = 0.05f;
+    pid->kd_singletons[FUZZY_ZO] = 0.02f;
+    pid->kd_singletons[FUZZY_PS] = 0.05;
+    pid->kd_singletons[FUZZY_PM] = 0.1f;
+    pid->kd_singletons[FUZZY_PB] = 0.2f;
 
     /* ---- 填写规则表 (语言值索引 0~6) ---- */
     /* Kp修正系数规则表，行:e 列:ec，ec顺序: NB,NS,ZO,PS,PB */
@@ -96,7 +96,7 @@ int tmp_kp[7][5] = {
 
     /* ---- 初始化 ec 低通滤波器 (fc=50Hz, dt=0.002s, alpha=0.4665) ---- */
     /* alpha = 1 - exp(-2*PI*50*0.002) ≈ 0.4665, 预计算避免依赖 math.h */
-    lpf_init_fc(&pid->ec_lpf, 50.0f, FUZZY_PID_DT);
+    lpf_init_fc(&pid->ec_lpf, 15.0f, FUZZY_PID_DT);
     
 }
 
@@ -158,7 +158,10 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
     if (ec > -pid->ec_dead_zone && ec < pid->ec_dead_zone) {
         ec = 0.0f;
     }
-
+    pid->temp_ec = ec;
+    if(error < pid->kd_err_thresh || error > -pid->kd_err_thresh){
+        ec = 0.0f; //误差小于一定值时防止振荡
+    }
     /* 3. 模糊化：计算 error 的 7 个隶属度 */
     /* e 中心点：均匀分布 [-1,1] 映射到归一化 */
     for (i = 0; i < 7; i++) {
