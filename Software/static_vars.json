@@ -1,13 +1,13 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-05T00:08:40.446843",
+  "timestamp": "2026-06-05T00:35:55.584692",
   "vars": [
     {
       "id": 0,
       "name": "imu_k",
       "type": 6,
       "addr": 11677,
-      "value": 1.0541874170303345,
+      "value": 1.052709698677063,
       "isPeri": false
     },
     {
@@ -31,7 +31,7 @@
       "name": "bias_gy",
       "type": 6,
       "addr": 11915,
-      "value": -0.021410616114735603,
+      "value": -0.021198557689785957,
       "isPeri": false
     },
     {
@@ -39,7 +39,7 @@
       "name": "bias_gz",
       "type": 6,
       "addr": 11919,
-      "value": 0.0041688052006065845,
+      "value": 0.00404432974755764,
       "isPeri": false
     },
     {
@@ -103,7 +103,7 @@
       "name": "Fan_Voltag",
       "type": 6,
       "addr": 11539,
-      "value": 3623878912.0,
+      "value": -1.7867102493322846e-22,
       "isPeri": true
     },
     {
@@ -151,7 +151,7 @@
       "name": "EC_Avg",
       "type": 6,
       "addr": 11515,
-      "value": 20.0,
+      "value": 10.0,
       "isPeri": true
     },
     {
@@ -159,7 +159,7 @@
       "name": "EC_Thresh",
       "type": 6,
       "addr": 11168,
-      "value": 20.0,
+      "value": 30.0,
       "isPeri": false
     },
     {
@@ -199,7 +199,7 @@
       "name": "K_gyro",
       "type": 6,
       "addr": 11483,
-      "value": -20.0,
+      "value": -30.0,
       "isPeri": false
     },
     {
@@ -303,7 +303,7 @@
       "name": "FKd",
       "type": 6,
       "addr": 11212,
-      "value": 0.6000000238418579,
+      "value": 0.0,
       "isPeri": false
     },
     {
@@ -311,7 +311,7 @@
       "name": "FKd",
       "type": 6,
       "addr": 11216,
-      "value": 0.6000000238418579,
+      "value": 0.0,
       "isPeri": false
     },
     {
@@ -319,7 +319,7 @@
       "name": "FKd",
       "type": 6,
       "addr": 11220,
-      "value": 0.5,
+      "value": 0.0,
       "isPeri": false
     },
     {
@@ -327,7 +327,7 @@
       "name": "FKd",
       "type": 6,
       "addr": 11224,
-      "value": 0.20000000298023224,
+      "value": 0.0,
       "isPeri": false
     },
     {
@@ -335,7 +335,7 @@
       "name": "FKd",
       "type": 6,
       "addr": 11228,
-      "value": 0.5,
+      "value": 0.0,
       "isPeri": false
     },
     {
@@ -343,7 +343,7 @@
       "name": "FKd",
       "type": 6,
       "addr": 11232,
-      "value": 0.6000000238418579,
+      "value": 0.0,
       "isPeri": false
     },
     {
@@ -351,7 +351,7 @@
       "name": "FKd",
       "type": 6,
       "addr": 11236,
-      "value": 0.6000000238418579,
+      "value": 0.0,
       "isPeri": false
     }
   ]

@@ -149,8 +149,9 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     float centers_ec[5];
     float half_width_e;
     float half_width_ec;
+    float abs_err;
     int i;
-
+    unsigned char count;
     /* NaN 防护：传感器未就绪时直接返回 0 */
     if (measurement != measurement) {
         return 0.0f;
@@ -163,7 +164,7 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     ec = (error - pid->prev_error) * FUZZY_PID_SAMPLE_FREQ;
     /* 移动平均滤波平滑ec (替代原低通滤波) */
     {
-        unsigned char count;
+       
         count = (unsigned char)pid->ec_count;
         if (count < 1) count = 1;
         if (count > FUZZY_EC_MA_MAX) count = FUZZY_EC_MA_MAX;
@@ -200,20 +201,6 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
         ec = 0.0f;
     }
     pid->temp_ec = ec;
-
-    /* 平滑混合微分项: |error|大→纯ec, |error|小→混入角速度作为阻尼 */
-    if (pid->kd_err_thresh > 0.0f) {
-        float abs_err, weight;
-        abs_err = error;
-        if (abs_err < 0.0f) abs_err = -abs_err;
-        weight = 1.0f - abs_err / pid->kd_err_thresh;
-        if (weight < 0.0f) weight = 0.0f;
-        if (weight > 1.0f) weight = 1.0f;
-        /* NaN保护: IMU未就绪时退化为纯ec */
-        if (gyro_z == gyro_z) {
-            ec = (1.0f - weight) * ec + weight * (pid->K_gyro * gyro_z);
-        }
-    }
 
     /* 3. 模糊化：计算 error 的 7 个隶属度 */
     /* e 中心点：均匀分布 [-1,1] 映射到归一化 */
@@ -256,6 +243,18 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
 
     /* 7. 位置式PID输出 */
     output = kp * error + ki * pid->integral + kd * ec;
+
+    /* 角速度阻尼：小偏差时硬切换，直接叠加到输出，不参与模糊推理 */
+    if (pid->kd_err_thresh > 0.0f) {
+        abs_err = error;
+        if (abs_err < 0.0f) abs_err = -abs_err;
+        if (abs_err < pid->kd_err_thresh) {
+            /* NaN保护: IMU未就绪时跳过 */
+            if (gyro_z == gyro_z) {
+                output += pid->K_gyro * gyro_z;
+            }
+        }
+    }
 
     /* 8. 输出限幅（根据实际需求调整） */
     /* if (output >  1000.0f) output =  1000.0f; */

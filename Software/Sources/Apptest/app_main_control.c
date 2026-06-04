@@ -644,7 +644,7 @@ void Main_Control_Task_Init(void)
     pid_struct.ec_dead_zone = 50.0f;
     pid_struct.ec_count = 10;
     pid_struct.limit = 0.0f;
-    pid_struct.K_gyro = -20.0f;
+    pid_struct.K_gyro = -30.0f;
     //vTaskDelay(pdMS_TO_TICKS(10));
     
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */
