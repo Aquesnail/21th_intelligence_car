@@ -50,9 +50,9 @@ int tmp_kp[7][5] = {
     pid->e_max = e_max;
     pid->ec_max = ec_max;
     pid->err_thresh = err_thresh;
-    pid->ec_dead_zone = ec_max * 0.02f;  /* 死区默认为 ec_max 的 2% */
+    pid->ec_dead_zone = 50.0f;   /* ec 死区, 小于此值视为噪声 */
 
-    /* ---- 输出单点系数（可根据需求  修改） ---- */
+    /* ---- 输出单点系数 ---- */
     /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
     pid->kp_singletons[FUZZY_NB] = 1.0f;
     pid->kp_singletons[FUZZY_NM] = 1.0f;
@@ -60,15 +60,15 @@ int tmp_kp[7][5] = {
     pid->kp_singletons[FUZZY_ZO] = 1.0f;
     pid->kp_singletons[FUZZY_PS] = 1.0f;
     pid->kp_singletons[FUZZY_PM] = 1.0f;
-    pid->kp_singletons[FUZZY_PB] = 1.0f ;
+    pid->kp_singletons[FUZZY_PB] = 1.0f;
 
-    pid->kd_singletons[FUZZY_NB] = 0.2f;
-    pid->kd_singletons[FUZZY_NM] = 0.1f;
-    pid->kd_singletons[FUZZY_NS] = 0.05f;
-    pid->kd_singletons[FUZZY_ZO] = 0.02f;
-    pid->kd_singletons[FUZZY_PS] = 0.05;
-    pid->kd_singletons[FUZZY_PM] = 0.1f;
-    pid->kd_singletons[FUZZY_PB] = 0.2f;
+    pid->kd_singletons[FUZZY_NB] = 0.6f;
+    pid->kd_singletons[FUZZY_NM] = 0.6f;
+    pid->kd_singletons[FUZZY_NS] = 0.5f;
+    pid->kd_singletons[FUZZY_ZO] = 0.2f;
+    pid->kd_singletons[FUZZY_PS] = 0.5f;
+    pid->kd_singletons[FUZZY_PM] = 0.6f;
+    pid->kd_singletons[FUZZY_PB] = 0.6f;
 
     /* ---- 填写规则表 (语言值索引 0~6) ---- */
     /* Kp修正系数规则表，行:e 列:ec，ec顺序: NB,NS,ZO,PS,PB */
@@ -94,9 +94,18 @@ int tmp_kp[7][5] = {
     pid->prev_error = 0.0f;
     pid->integral = 0.0f;
 
-    /* ---- 初始化 ec 低通滤波器 (fc=50Hz, dt=0.002s, alpha=0.4665) ---- */
-    /* alpha = 1 - exp(-2*PI*50*0.002) ≈ 0.4665, 预计算避免依赖 math.h */
-    lpf_init_fc(&pid->ec_lpf, 15.0f, FUZZY_PID_DT);
+    /* ---- 初始化 EC 移动平均滤波 ---- */
+    {
+        unsigned char i;
+        for (i = 0; i < FUZZY_EC_MA_MAX; i++) {
+            pid->ec_ma_buf[i] = 0.0f;
+        }
+        pid->ec_ma_sum = 0.0f;
+        pid->ec_ma_index = 0;
+        pid->ec_ma_filled = 0;
+        pid->ec_count = 10;  /* 默认窗口大小, 上位机可调 */
+        pid->K_gyro = 5.0f;  /* 角速度→微分项增益, 保守起步 */
+    }
     
 }
 
@@ -106,9 +115,16 @@ int tmp_kp[7][5] = {
 void FuzzyPID_Reset(FuzzyPID *pid)
 {
     if (pid != NULL) {
+        unsigned char i;
         pid->prev_error = 0.0f;
         pid->integral = 0.0f;
-        lpf_reset(&pid->ec_lpf, 0.0f);
+        /* 重置移动平均缓冲区 */
+        for (i = 0; i < FUZZY_EC_MA_MAX; i++) {
+            pid->ec_ma_buf[i] = 0.0f;
+        }
+        pid->ec_ma_sum = 0.0f;
+        pid->ec_ma_index = 0;
+        pid->ec_ma_filled = 0;
     }
 }
 
@@ -118,7 +134,7 @@ void FuzzyPID_Reset(FuzzyPID *pid)
  * 返回：控制量（如转向PWM）
  * 注：采样周期固定为500Hz，使用宏 FUZZY_PID_SAMPLE_FREQ / FUZZY_PID_DT
  */
-float FuzzyPID_Step(FuzzyPID *pid, float measurement)
+float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
 {
     /* 所有局部变量必须在此处声明 */
     float error, ec;
@@ -145,8 +161,33 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
 
     /* 用乘法替代浮点除法: ec = Δerror / dt = Δerror * freq */
     ec = (error - pid->prev_error) * FUZZY_PID_SAMPLE_FREQ;
-    /* 50Hz低通滤波平滑ec */
-    ec = lpf_update(&pid->ec_lpf, ec);
+    /* 移动平均滤波平滑ec (替代原低通滤波) */
+    {
+        unsigned char count;
+        count = (unsigned char)pid->ec_count;
+        if (count < 1) count = 1;
+        if (count > FUZZY_EC_MA_MAX) count = FUZZY_EC_MA_MAX;
+
+        /* 缓冲区满则减去最旧值, 否则增加计数 */
+        if (pid->ec_ma_filled >= count) {
+            pid->ec_ma_sum -= pid->ec_ma_buf[pid->ec_ma_index];
+        } else {
+            pid->ec_ma_filled++;
+        }
+
+        /* 写入新值 */
+        pid->ec_ma_buf[pid->ec_ma_index] = ec;
+        pid->ec_ma_sum += ec;
+
+        /* 环形推进 */
+        pid->ec_ma_index++;
+        if (pid->ec_ma_index >= count) {
+            pid->ec_ma_index = 0;
+        }
+
+        /* 平均值作为滤波输出 */
+        ec = pid->ec_ma_sum / (float)pid->ec_ma_filled;
+    }
     pid->prev_error = error;
 
     /* 2. 限幅到模糊域内，并对 ec 做死区处理抑制小噪声 */
@@ -159,9 +200,21 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
         ec = 0.0f;
     }
     pid->temp_ec = ec;
-    if(error < pid->kd_err_thresh || error > -pid->kd_err_thresh){
-        ec = 0.0f; //误差小于一定值时防止振荡
+
+    /* 平滑混合微分项: |error|大→纯ec, |error|小→混入角速度作为阻尼 */
+    if (pid->kd_err_thresh > 0.0f) {
+        float abs_err, weight;
+        abs_err = error;
+        if (abs_err < 0.0f) abs_err = -abs_err;
+        weight = 1.0f - abs_err / pid->kd_err_thresh;
+        if (weight < 0.0f) weight = 0.0f;
+        if (weight > 1.0f) weight = 1.0f;
+        /* NaN保护: IMU未就绪时退化为纯ec */
+        if (gyro_z == gyro_z) {
+            ec = (1.0f - weight) * ec + weight * (pid->K_gyro * gyro_z);
+        }
     }
+
     /* 3. 模糊化：计算 error 的 7 个隶属度 */
     /* e 中心点：均匀分布 [-1,1] 映射到归一化 */
     for (i = 0; i < 7; i++) {

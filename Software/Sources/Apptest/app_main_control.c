@@ -131,28 +131,25 @@ static void Speed_Controller_Write_Cb(uint32_t peri_addr, void *pData, uint8_t l
     return;
 }
 
-/*服务于上位机的低通滤波调整器*/
-static void Lpf_Controller_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+/*服务于上位机的EC移动平均窗口调整器*/
+static void EC_MA_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
-    Lpf_t* lpf_ptr;
-    (void)peri_addr;
+    float val;
     (void)len;
-    lpf_ptr = (Lpf_t*)(peri_addr);
-    memcpy(pData, &lpf_ptr->freq, sizeof(float));
-    return;
+    val = (float)(*(char *)(peri_addr));
+    memcpy(pData, &val, sizeof(float));
 }
 
-static void Lpf_Controller_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
-     float new_alpha;
-    Lpf_t* lpf_ptr;
-    (void)peri_addr;
+    float new_val;
+    unsigned char count;
     (void)len;
-    memcpy(&new_alpha, pData, sizeof(float));
-    lpf_ptr = (Lpf_t*)(peri_addr); /* 假设频率紧跟在alpha后面 */
-    lpf_ptr->freq = new_alpha;
-    lpf_init_fc(lpf_ptr, new_alpha, FUZZY_PID_DT);
-    return;
+    memcpy(&new_val, pData, sizeof(float));
+    count = (unsigned char)new_val;
+    if (count < 1) count = 1;
+    if (count > FUZZY_EC_MA_MAX) count = FUZZY_EC_MA_MAX;
+    *(char *)(peri_addr) = (char)count;
 }
 
 /* PID 参数外设描述符 (Motor A / 左电机) */
@@ -172,7 +169,7 @@ static DebugPeriDesc_t g_fan_voltage_desc  = {REG_FAN_VOLTAGE, Motor_Reg_Read_Cb
 static DebugPeriDesc_t g_speed_controller_limit_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb}; /* 速度控制器参数 (非寄存器映射) */
 static DebugPeriDesc_t g_speed_controller_radius_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
 static DebugPeriDesc_t g_speed_controller_straight_speed_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
-static DebugPeriDesc_t g_lpf_fuzzy_ec_desc = {0, Lpf_Controller_Read_Cb, Lpf_Controller_Write_Cb}; /* 左轮速度LPF频率 */
+static DebugPeriDesc_t g_ec_ma_count_desc = {0, EC_MA_Read_Cb, EC_MA_Write_Cb}; /* EC移动平均窗口大小 */
 /* ================================================================
  * Motor_Data_Task
  *   由 P2.0 中断 (500Hz) 通过 TaskNotify 触发
@@ -279,7 +276,7 @@ void Change_Maunal(){
          * 风扇启动 3s 后再激活电机 */
         manual_control_flag = 0;
         g_auto_transition = 0;  /* 风扇尚未写入 */
-        g_reg_write_value.f = -2.5f;
+        g_reg_write_value.f = 2.5f;
         g_reg_write_addr = REG_FAN_VOLTAGE;
         g_reg_write_pending = 1;
     }else{
@@ -313,6 +310,7 @@ void Main_Control_Task(void *pvParameters)
     float Err_2;
     float Err_3;
     float Err_4;
+    float gyro_z;
     (void)pvParameters;
     
 
@@ -348,6 +346,7 @@ void Main_Control_Task(void *pvParameters)
                 // tmp.f = -right_speed_target;
                 // g_right_speed_target = tmp;
                 IMU_Get_Angle(&roll, &pitch, &yaw);
+                gyro_z = IMU_Filter_Data->sensor.dat.gz - IMU_Filter_Data->bias_gz;
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
                     spi_buffer[i] = MOTOR_SPI_TxRx(0xFFu);
@@ -372,14 +371,14 @@ void Main_Control_Task(void *pvParameters)
                 if(Err_3 < adc_err_zone && Err_3 > -adc_err_zone) Err_3 = 0.0f;
                 if(Err_4 < adc_err_zone && Err_4 > -adc_err_zone) Err_4 = 0.0f;
 
-                numerator = sqrt_negative(Err_A_K*(Err_1)+Err_B_K*(Err_2));
-                denominator = sqrt_negative(Err_C_K*(Err_3))+sqrt_negative(Err_D_K*(Err_4));
+                numerator = (Err_A_K*(Err_1)+(Err_B_K*(Err_2)));
+                denominator = (Err_C_K*(Err_3))+(Err_D_K*(Err_4));
                 if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
                     Err_Angle = 0.0f;
                 } else {
                     Err_Angle = numerator / denominator * 100.0f;
                 }
-                pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
+                pid_output = FuzzyPID_Step(&pid_struct, Err_Angle, gyro_z);
 
                 speed_target_l.f = -pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed;
                 speed_target_r.f = -(pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed);
@@ -448,16 +447,7 @@ void Main_Control_Task(void *pvParameters)
                     }
                     
                 }else{
-                    if(adc_values[0]<10 && adc_values[1]<10 && adc_values[2]<10 && adc_values[3]<10){
-                        /* 赛道丢失, 紧急刹车 */
-                        tmp.f = 0.0f;
-                        MOTOR_CS_RESET();
-                        motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                        motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                        MOTOR_CS_SET();
-                        g_reg_write_pending = 0;
-                        g_drive_direction = DRIVE_STOP;
-                    }
+                    
                     /* --- 自动模式: 处理延迟写入 --- */
                     if (g_reg_write_pending) {
                         MOTOR_CS_RESET();
@@ -489,7 +479,22 @@ void Main_Control_Task(void *pvParameters)
                     }
 
                 }
-                
+                if(adc_values[0]<10 && adc_values[1]<10 && adc_values[2]<10 && adc_values[3]<10){
+                    /* 赛道丢失, 紧急刹车 */
+                    tmp.f = 0.0f;
+                    MOTOR_CS_RESET();
+                    motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                    motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                    MOTOR_CS_SET();
+                    g_reg_write_pending = 0;
+                    g_drive_direction = DRIVE_STOP;
+                    manual_control_flag=1;
+                   // tmp.f = 0.0f;
+                    g_auto_transition = 0;  /* 风扇尚未写入 */
+                    g_reg_write_value.f = 0.0f;
+                    g_reg_write_addr = REG_FAN_VOLTAGE;
+                    g_reg_write_pending = 1;
+                }
 
                 //taskEXIT_CRITICAL();
             }
@@ -529,7 +534,7 @@ void Main_Control_Task_Init(void)
     g_speed_controller_limit_desc.peri_addr = (uint32_t)&(g_speed_controller.controller_limit);
     g_speed_controller_radius_desc.peri_addr = (uint32_t)&(g_speed_controller.radius);
     g_speed_controller_straight_speed_desc.peri_addr = (uint32_t)&(g_speed_controller.straight_speed);
-    g_lpf_fuzzy_ec_desc.peri_addr = (uint32_t)&(pid_struct.ec_lpf); /* 直接映射到 LPF 结构体, 供上位机调整频率 */
+    g_ec_ma_count_desc.peri_addr = (uint32_t)&(pid_struct.ec_count); /* EC 移动平均窗口大小, 供上位机调整 */
     /* 注册 ADC 调试变量 */
     Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[0]);
     Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[1]);
@@ -582,7 +587,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("FKi0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
     Debug_Register("FKd0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kd0);
     Debug_Register("EC_DeadZone", DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_dead_zone);
-    Debug_Register("EC_Lpf",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lpf_fuzzy_ec_desc);
+    Debug_Register("EC_Avg",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_ec_ma_count_desc);
     Debug_Register("EC_Thresh", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh);
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
     Debug_Register("Fec_max",   DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_max);
@@ -590,6 +595,7 @@ void Main_Control_Task_Init(void)
    // Debug_Register("Fintegral", DBG_FLOAT | STATIC_TYPE, &pid_struct.integral);
    // Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
     Debug_Register("Flimit",    DBG_FLOAT | STATIC_TYPE, &pid_struct.limit);
+    Debug_Register("K_gyro",    DBG_FLOAT | STATIC_TYPE, &pid_struct.K_gyro);
    // Debug_Register("Fprev_err", DBG_FLOAT | STATIC_TYPE, &pid_struct.prev_error);
     Debug_Register("Crtl_Limit", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_limit_desc));
     Debug_Register("Crtl_Radius", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_radius_desc));
@@ -621,11 +627,11 @@ void Main_Control_Task_Init(void)
     ADC2_DMA_Start();
 
     g_speed_controller.radius = 5.0f;
-    g_speed_controller.straight_speed = 10.0f;
+    g_speed_controller.straight_speed = 30.0f;
     g_speed_controller.controller_limit = 300.0f;
     update_speed_controller(&g_speed_controller);
     pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
-    pid_struct.ec_max = 700.0f; /* 根据实际误差变化率 */
+    pid_struct.ec_max = 1200.0f; /* 根据实际误差变化率 */
     pid_struct.Kp0 = 3.4f; /* 基础 Kp */
     pid_struct.Ki0 = 0.0f; /* 基础 Ki */
     pid_struct.Kd0 = 1.0f; /* 基础 Kd */
@@ -635,8 +641,10 @@ void Main_Control_Task_Init(void)
     pid_struct.prev_error = 0.0f;
     pid_struct.kd_err_thresh = 60.0f;
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh);
-    pid_struct.ec_dead_zone = 100.0f;
+    pid_struct.ec_dead_zone = 50.0f;
+    pid_struct.ec_count = 10;
     pid_struct.limit = 0.0f;
+    pid_struct.K_gyro = -20.0f;
     //vTaskDelay(pdMS_TO_TICKS(10));
     
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */

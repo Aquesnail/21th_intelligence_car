@@ -126,8 +126,8 @@ uint16_t delta_imu_time=0;
 uint16_t current_imu_time=0;
 uint8_t fsync_received=0;
 float last_imu_sample_time=1000e-6;
-float imu_slope_k=1.066;
-float last_imu_slope_k = 1.066;
+float imu_slope_k=1.054f;
+float last_imu_slope_k = 1.054f;
 void vIMUProcessTask(void *pvParameters) {
     /* -----------------------------------------------------------
      * 1. 局部变量声明 (严格遵循 C89 标准，定义在函数开头)

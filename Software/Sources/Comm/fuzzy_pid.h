@@ -1,11 +1,12 @@
 #ifndef FUZZY_PID_H
 #define FUZZY_PID_H
 
-#include "lpf.h"
-
 /* 采样频率相关宏：500Hz固定频率，用乘法替代浮点除法 */
 #define FUZZY_PID_SAMPLE_FREQ  500.0f   /* 采样频率(Hz)，用于 ec = Δerror * freq */
 #define FUZZY_PID_DT           0.002f   /* 采样周期 = 1/500，用于积分累加 */
+
+/* EC 移动平均滤波最大窗口 */
+#define FUZZY_EC_MA_MAX        20
 
 /* 模糊语言值枚举 (前缀防混用) */
 typedef enum {
@@ -43,8 +44,12 @@ typedef struct {
     float prev_error;             /* 上一次误差 */
     float integral;               /* 积分项 */
     float limit;                  /* 积分限幅 */
-    Lpf_t ec_lpf;                 /* 50Hz低通滤波, 用于ec平滑 */
-
+    float ec_ma_buf[FUZZY_EC_MA_MAX]; /* EC 移动平均环形缓冲区 */
+    float ec_ma_sum;              /* 环形缓冲区和 (O(1) 更新) */
+    unsigned char ec_ma_index;    /* 当前写入位置 */
+    unsigned char ec_ma_filled;   /* 已填充样本数 (启动阶段用) */
+    char ec_count;                /* 移动平均窗口大小 (1~20, 上位机可调) */
+    float K_gyro;                 /* 角速度→微分项增益 (小偏差时阻尼) */
     float temp_ec;
 } FuzzyPID;
 
@@ -58,7 +63,7 @@ void FuzzyPID_Init(FuzzyPID *pid,
                    float e_max, float ec_max, float err_thresh);
 
 /* 执行一次PID计算，输入实际值，返回控制量 */
-float FuzzyPID_Step(FuzzyPID *pid, float measurement);
+float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z);
 
 /* 重置控制器状态 */
 void FuzzyPID_Reset(FuzzyPID *pid);
