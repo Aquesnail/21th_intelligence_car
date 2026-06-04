@@ -87,6 +87,8 @@ void SPI3_Callback(void *pvParameters)
  * ================================================================ */
 static void Motor_Reg_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
+    float tmp = 0.0f;
+    memcpy(&tmp,pData,sizeof(float));
     return;
 }
 
@@ -588,7 +590,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("FKd0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kd0);
     Debug_Register("EC_DeadZone", DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_dead_zone);
     Debug_Register("EC_Avg",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_ec_ma_count_desc);
-    Debug_Register("EC_Thresh", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh);
+    Debug_Register("EC_Thresh_L", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh_l);
+    Debug_Register("EC_Thresh_R", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh_r);
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
     Debug_Register("Fec_max",   DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_max);
     Debug_Register("Ferr_thr",  DBG_FLOAT | STATIC_TYPE, &pid_struct.err_thresh);
@@ -627,22 +630,23 @@ void Main_Control_Task_Init(void)
     ADC2_DMA_Start();
 
     g_speed_controller.radius = 5.0f;
-    g_speed_controller.straight_speed = 30.0f;
-    g_speed_controller.controller_limit = 300.0f;
+    g_speed_controller.straight_speed = 40.0f;
+    g_speed_controller.controller_limit = 330.0f;
     update_speed_controller(&g_speed_controller);
     pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
     pid_struct.ec_max = 1200.0f; /* 根据实际误差变化率 */
     pid_struct.Kp0 = 3.4f; /* 基础 Kp */
     pid_struct.Ki0 = 0.0f; /* 基础 Ki */
-    pid_struct.Kd0 = 1.0f; /* 基础 Kd */
+    pid_struct.Kd0 = 0.8f; /* 基础 Kd */
     pid_struct.err_thresh = 10.0f; /* 积分分离阈值 */
     pid_struct.integral = 0.0f;
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
     pid_struct.prev_error = 0.0f;
-    pid_struct.kd_err_thresh = 60.0f;
+    pid_struct.kd_err_thresh_l = 60.0f;
+    pid_struct.kd_err_thresh_r = 50.0f;
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh);
     pid_struct.ec_dead_zone = 50.0f;
-    pid_struct.ec_count = 10;
+    pid_struct.ec_count = 40;
     pid_struct.limit = 0.0f;
     pid_struct.K_gyro = -30.0f;
     //vTaskDelay(pdMS_TO_TICKS(10));

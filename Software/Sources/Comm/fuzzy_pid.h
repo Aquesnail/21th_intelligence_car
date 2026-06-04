@@ -6,7 +6,7 @@
 #define FUZZY_PID_DT           0.002f   /* 采样周期 = 1/500，用于积分累加 */
 
 /* EC 移动平均滤波最大窗口 */
-#define FUZZY_EC_MA_MAX        20
+#define FUZZY_EC_MA_MAX        50
 
 /* 模糊语言值枚举 (前缀防混用) */
 typedef enum {
@@ -26,7 +26,8 @@ typedef struct {
 
     /* ---------- 积分分离 ---------- */
     float err_thresh;             /* 积分分离阈值，|error|>此值时 Ki=0 */
-    float kd_err_thresh;          /* Kd积分分离阈值*/
+    float kd_err_thresh_l;        /* 角速度阻尼阈值(左/负向)，|error|<此值时用gyro替换ec */
+    float kd_err_thresh_r;        /* 角速度阻尼阈值(右/正向)，|error|<此值时用gyro替换ec */
     /* ---------- 模糊域参数 ---------- */
     float e_max;                  /* 误差输入最大幅值 */
     float ec_max;                 /* 误差变化率最大幅值 */

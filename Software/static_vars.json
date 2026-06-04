@@ -1,20 +1,20 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-05T00:35:55.584692",
+  "timestamp": "2026-06-05T07:15:00.454953",
   "vars": [
     {
       "id": 0,
       "name": "imu_k",
       "type": 6,
-      "addr": 11677,
-      "value": 1.052709698677063,
+      "addr": 11801,
+      "value": 1.054985761642456,
       "isPeri": false
     },
     {
       "id": 4,
       "name": "Kp",
       "type": 6,
-      "addr": 11903,
+      "addr": 12027,
       "value": 1.2000000476837158,
       "isPeri": false
     },
@@ -22,7 +22,7 @@
       "id": 5,
       "name": "Ki",
       "type": 6,
-      "addr": 11907,
+      "addr": 12031,
       "value": 0.0020000000949949026,
       "isPeri": false
     },
@@ -30,23 +30,23 @@
       "id": 6,
       "name": "bias_gy",
       "type": 6,
-      "addr": 11915,
-      "value": -0.021198557689785957,
+      "addr": 12039,
+      "value": -0.022136474028229713,
       "isPeri": false
     },
     {
       "id": 7,
       "name": "bias_gz",
       "type": 6,
-      "addr": 11919,
-      "value": 0.00404432974755764,
+      "addr": 12043,
+      "value": 0.004842354916036129,
       "isPeri": false
     },
     {
       "id": 17,
       "name": "Err_K_A",
       "type": 6,
-      "addr": 11605,
+      "addr": 11056,
       "value": 0.6000000238418579,
       "isPeri": false
     },
@@ -54,7 +54,7 @@
       "id": 18,
       "name": "Err_K_B",
       "type": 6,
-      "addr": 11617,
+      "addr": 11068,
       "value": 1.7999999523162842,
       "isPeri": false
     },
@@ -62,7 +62,7 @@
       "id": 19,
       "name": "Err_K_C",
       "type": 6,
-      "addr": 11625,
+      "addr": 11076,
       "value": 3.0,
       "isPeri": false
     },
@@ -70,7 +70,7 @@
       "id": 20,
       "name": "Err_K_D",
       "type": 6,
-      "addr": 11629,
+      "addr": 11080,
       "value": 1.0,
       "isPeri": false
     },
@@ -78,7 +78,7 @@
       "id": 21,
       "name": "ADC_DeadZo",
       "type": 2,
-      "addr": 11142,
+      "addr": 10469,
       "value": 5,
       "isPeri": false
     },
@@ -86,7 +86,7 @@
       "id": 22,
       "name": "ADC_ErrZon",
       "type": 6,
-      "addr": 11597,
+      "addr": 11048,
       "value": 20.0,
       "isPeri": false
     },
@@ -94,7 +94,7 @@
       "id": 24,
       "name": "Manual",
       "type": 0,
-      "addr": 11576,
+      "addr": 11027,
       "value": 1,
       "isPeri": false
     },
@@ -102,15 +102,15 @@
       "id": 26,
       "name": "Fan_Voltag",
       "type": 6,
-      "addr": 11539,
-      "value": -1.7867102493322846e-22,
+      "addr": 10990,
+      "value": -3456.000244140625,
       "isPeri": true
     },
     {
       "id": 27,
       "name": "Drive_Spd",
       "type": 6,
-      "addr": 11070,
+      "addr": 10397,
       "value": 10.0,
       "isPeri": false
     },
@@ -118,7 +118,7 @@
       "id": 28,
       "name": "FKp0",
       "type": 6,
-      "addr": 11152,
+      "addr": 10479,
       "value": 3.4000000953674316,
       "isPeri": false
     },
@@ -126,7 +126,7 @@
       "id": 29,
       "name": "FKi0",
       "type": 6,
-      "addr": 11156,
+      "addr": 10483,
       "value": 0.0,
       "isPeri": false
     },
@@ -134,7 +134,7 @@
       "id": 30,
       "name": "FKd0",
       "type": 6,
-      "addr": 11160,
+      "addr": 10487,
       "value": 1.0,
       "isPeri": false
     },
@@ -142,7 +142,7 @@
       "id": 31,
       "name": "EC_DeadZon",
       "type": 6,
-      "addr": 11180,
+      "addr": 10511,
       "value": 50.0,
       "isPeri": false
     },
@@ -150,208 +150,216 @@
       "id": 32,
       "name": "EC_Avg",
       "type": 6,
-      "addr": 11515,
-      "value": 10.0,
+      "addr": 10966,
+      "value": 40.0,
       "isPeri": true
     },
     {
       "id": 33,
-      "name": "EC_Thresh",
+      "name": "EC_Thresh_",
       "type": 6,
-      "addr": 11168,
-      "value": 30.0,
+      "addr": 10495,
+      "value": 40.0,
       "isPeri": false
     },
     {
       "id": 34,
-      "name": "Fe_max",
+      "name": "EC_Thresh_",
       "type": 6,
-      "addr": 11172,
-      "value": 100.0,
+      "addr": 10499,
+      "value": 40.0,
       "isPeri": false
     },
     {
       "id": 35,
-      "name": "Fec_max",
+      "name": "Fe_max",
       "type": 6,
-      "addr": 11176,
-      "value": 1200.0,
+      "addr": 10503,
+      "value": 100.0,
       "isPeri": false
     },
     {
       "id": 36,
-      "name": "Ferr_thr",
+      "name": "Fec_max",
       "type": 6,
-      "addr": 11164,
-      "value": 10.0,
+      "addr": 10507,
+      "value": 1200.0,
       "isPeri": false
     },
     {
       "id": 37,
-      "name": "Flimit",
+      "name": "Ferr_thr",
       "type": 6,
-      "addr": 11392,
-      "value": 0.0,
+      "addr": 10491,
+      "value": 10.0,
       "isPeri": false
     },
     {
       "id": 38,
-      "name": "K_gyro",
+      "name": "Flimit",
       "type": 6,
-      "addr": 11483,
-      "value": -30.0,
+      "addr": 10723,
+      "value": 0.0,
       "isPeri": false
     },
     {
       "id": 39,
-      "name": "Crtl_Limit",
+      "name": "K_gyro",
       "type": 6,
-      "addr": 11045,
-      "value": 300.0,
-      "isPeri": true
+      "addr": 10934,
+      "value": -45.0,
+      "isPeri": false
     },
     {
       "id": 40,
-      "name": "Crtl_Radiu",
+      "name": "Crtl_Limit",
       "type": 6,
-      "addr": 11609,
-      "value": 5.0,
+      "addr": 10372,
+      "value": 330.0,
       "isPeri": true
     },
     {
       "id": 41,
-      "name": "Crtl_ComSp",
+      "name": "Crtl_Radiu",
       "type": 6,
-      "addr": 11499,
-      "value": 30.0,
+      "addr": 11060,
+      "value": 5.0,
       "isPeri": true
     },
     {
       "id": 42,
-      "name": "ComSpd",
+      "name": "Crtl_ComSp",
       "type": 6,
-      "addr": 11032,
-      "value": 30.0,
-      "isPeri": false
+      "addr": 10950,
+      "value": 45.0,
+      "isPeri": true
     },
     {
       "id": 43,
-      "name": "Crtl_K",
+      "name": "ComSpd",
       "type": 6,
-      "addr": 11040,
-      "value": 0.06875000149011612,
+      "addr": 10359,
+      "value": 45.0,
       "isPeri": false
     },
     {
       "id": 44,
-      "name": "FKp",
+      "name": "Crtl_K",
       "type": 6,
-      "addr": 11184,
-      "value": 1.0,
+      "addr": 10367,
+      "value": 0.09375,
       "isPeri": false
     },
     {
       "id": 45,
       "name": "FKp",
       "type": 6,
-      "addr": 11188,
-      "value": 1.0,
+      "addr": 10515,
+      "value": 4.0,
       "isPeri": false
     },
     {
       "id": 46,
       "name": "FKp",
       "type": 6,
-      "addr": 11192,
-      "value": 1.0,
+      "addr": 10519,
+      "value": 4.0,
       "isPeri": false
     },
     {
       "id": 47,
       "name": "FKp",
       "type": 6,
-      "addr": 11196,
-      "value": 1.0,
+      "addr": 10523,
+      "value": 2.0,
       "isPeri": false
     },
     {
       "id": 48,
       "name": "FKp",
       "type": 6,
-      "addr": 11200,
-      "value": 1.0,
+      "addr": 10527,
+      "value": 0.800000011920929,
       "isPeri": false
     },
     {
       "id": 49,
       "name": "FKp",
       "type": 6,
-      "addr": 11204,
-      "value": 1.0,
+      "addr": 10531,
+      "value": 2.0,
       "isPeri": false
     },
     {
       "id": 50,
       "name": "FKp",
       "type": 6,
-      "addr": 11208,
-      "value": 1.0,
+      "addr": 10535,
+      "value": 4.0,
       "isPeri": false
     },
     {
       "id": 51,
-      "name": "FKd",
+      "name": "FKp",
       "type": 6,
-      "addr": 11212,
-      "value": 0.0,
+      "addr": 10539,
+      "value": 4.0,
       "isPeri": false
     },
     {
       "id": 52,
       "name": "FKd",
       "type": 6,
-      "addr": 11216,
-      "value": 0.0,
+      "addr": 10543,
+      "value": 1.0,
       "isPeri": false
     },
     {
       "id": 53,
       "name": "FKd",
       "type": 6,
-      "addr": 11220,
-      "value": 0.0,
+      "addr": 10547,
+      "value": 0.6000000238418579,
       "isPeri": false
     },
     {
       "id": 54,
       "name": "FKd",
       "type": 6,
-      "addr": 11224,
-      "value": 0.0,
+      "addr": 10551,
+      "value": 0.10000000149011612,
       "isPeri": false
     },
     {
       "id": 55,
       "name": "FKd",
       "type": 6,
-      "addr": 11228,
-      "value": 0.0,
+      "addr": 10555,
+      "value": 0.10000000149011612,
       "isPeri": false
     },
     {
       "id": 56,
       "name": "FKd",
       "type": 6,
-      "addr": 11232,
-      "value": 0.0,
+      "addr": 10559,
+      "value": 0.10000000149011612,
       "isPeri": false
     },
     {
       "id": 57,
       "name": "FKd",
       "type": 6,
-      "addr": 11236,
-      "value": 0.0,
+      "addr": 10563,
+      "value": 0.6000000238418579,
+      "isPeri": false
+    },
+    {
+      "id": 58,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10567,
+      "value": 1.0,
       "isPeri": false
     }
   ]

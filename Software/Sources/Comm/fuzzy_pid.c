@@ -150,6 +150,7 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     float half_width_e;
     float half_width_ec;
     float abs_err;
+    float thresh;
     int i;
     unsigned char count;
     /* NaN 防护：传感器未就绪时直接返回 0 */
@@ -241,19 +242,26 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
         else if (pid->integral < -pid->limit) pid->integral = -pid->limit;
     }
 
-    /* 7. 位置式PID输出 */
-    output = kp * error + ki * pid->integral + kd * ec;
+    /* 7. 位置式PID输出 (微分项单独处理) */
+    output = kp * error + ki * pid->integral;
 
-    /* 角速度阻尼：小偏差时硬切换，直接叠加到输出，不参与模糊推理 */
-    if (pid->kd_err_thresh > 0.0f) {
+    /* 微分项：小偏差时用角速度阻尼替代ec，低速下ec噪声太大 */
+    /* 传感器左右不对称，error>=0 用右阈值，error<0 用左阈值 */
+    if (pid->kd_err_thresh_l > 0.0f || pid->kd_err_thresh_r > 0.0f) {
+        if (error >= 0.0f) {
+            thresh = pid->kd_err_thresh_l;
+        } else {
+            thresh = pid->kd_err_thresh_r;
+        }
         abs_err = error;
         if (abs_err < 0.0f) abs_err = -abs_err;
-        if (abs_err < pid->kd_err_thresh) {
-            /* NaN保护: IMU未就绪时跳过 */
-            if (gyro_z == gyro_z) {
-                output += pid->K_gyro * gyro_z;
-            }
+        if (abs_err < thresh && gyro_z == gyro_z) {
+            output += pid->K_gyro * gyro_z;  /* 角速度阻尼替换微分项 */
+        } else {
+            output += kd * ec;  /* 正常微分项 */
         }
+    } else {
+        output += kd * ec;
     }
 
     /* 8. 输出限幅（根据实际需求调整） */
