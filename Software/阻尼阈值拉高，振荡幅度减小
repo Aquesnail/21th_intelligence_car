@@ -1,0 +1,382 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-06T21:03:25.693436",
+  "vars": [
+    {
+      "id": 0,
+      "name": "imu_k",
+      "type": 6,
+      "addr": 11806,
+      "value": 1.0527548789978027,
+      "isPeri": false
+    },
+    {
+      "id": 4,
+      "name": "Kp",
+      "type": 6,
+      "addr": 12040,
+      "value": 1.2000000476837158,
+      "isPeri": false
+    },
+    {
+      "id": 5,
+      "name": "Ki",
+      "type": 6,
+      "addr": 12044,
+      "value": 0.0020000000949949026,
+      "isPeri": false
+    },
+    {
+      "id": 6,
+      "name": "bias_gy",
+      "type": 6,
+      "addr": 12052,
+      "value": -0.017161685973405838,
+      "isPeri": false
+    },
+    {
+      "id": 7,
+      "name": "bias_gz",
+      "type": 6,
+      "addr": 12056,
+      "value": 0.008539401926100254,
+      "isPeri": false
+    },
+    {
+      "id": 18,
+      "name": "CH_Induct",
+      "type": 0,
+      "addr": 10468,
+      "value": 0,
+      "isPeri": false
+    },
+    {
+      "id": 19,
+      "name": "Err_K_A",
+      "type": 6,
+      "addr": 11061,
+      "value": 120.0,
+      "isPeri": false
+    },
+    {
+      "id": 20,
+      "name": "Err_K_B",
+      "type": 6,
+      "addr": 11073,
+      "value": 120.0,
+      "isPeri": false
+    },
+    {
+      "id": 21,
+      "name": "Err_K_C",
+      "type": 6,
+      "addr": 11081,
+      "value": 3.0,
+      "isPeri": false
+    },
+    {
+      "id": 22,
+      "name": "Err_K_D",
+      "type": 6,
+      "addr": 11085,
+      "value": 3.0,
+      "isPeri": false
+    },
+    {
+      "id": 23,
+      "name": "ADC_DeadZo",
+      "type": 2,
+      "addr": 10470,
+      "value": 5,
+      "isPeri": false
+    },
+    {
+      "id": 24,
+      "name": "ADC_ErrZon",
+      "type": 6,
+      "addr": 11053,
+      "value": 0.5,
+      "isPeri": false
+    },
+    {
+      "id": 26,
+      "name": "Manual",
+      "type": 0,
+      "addr": 11032,
+      "value": 1,
+      "isPeri": false
+    },
+    {
+      "id": 28,
+      "name": "Fan_Voltag",
+      "type": 6,
+      "addr": 10995,
+      "value": 0.0,
+      "isPeri": true
+    },
+    {
+      "id": 29,
+      "name": "Drive_Spd",
+      "type": 6,
+      "addr": 10397,
+      "value": 10.0,
+      "isPeri": false
+    },
+    {
+      "id": 30,
+      "name": "FKp0",
+      "type": 6,
+      "addr": 10480,
+      "value": 1.5,
+      "isPeri": false
+    },
+    {
+      "id": 31,
+      "name": "FKi0",
+      "type": 6,
+      "addr": 10484,
+      "value": 20.0,
+      "isPeri": false
+    },
+    {
+      "id": 32,
+      "name": "FKd0",
+      "type": 6,
+      "addr": 10488,
+      "value": 0.20000000298023224,
+      "isPeri": false
+    },
+    {
+      "id": 33,
+      "name": "EC_DeadZon",
+      "type": 6,
+      "addr": 10516,
+      "value": 50.0,
+      "isPeri": false
+    },
+    {
+      "id": 34,
+      "name": "EC_Avg",
+      "type": 6,
+      "addr": 10971,
+      "value": 40.0,
+      "isPeri": true
+    },
+    {
+      "id": 35,
+      "name": "EC_Thresh_",
+      "type": 6,
+      "addr": 10500,
+      "value": 100.0,
+      "isPeri": false
+    },
+    {
+      "id": 36,
+      "name": "EC_Thresh_",
+      "type": 6,
+      "addr": 10504,
+      "value": 100.0,
+      "isPeri": false
+    },
+    {
+      "id": 37,
+      "name": "Fe_max",
+      "type": 6,
+      "addr": 10508,
+      "value": 200.0,
+      "isPeri": false
+    },
+    {
+      "id": 38,
+      "name": "Fec_max",
+      "type": 6,
+      "addr": 10512,
+      "value": 1200.0,
+      "isPeri": false
+    },
+    {
+      "id": 39,
+      "name": "Ferr_thr",
+      "type": 6,
+      "addr": 10492,
+      "value": 150.0,
+      "isPeri": false
+    },
+    {
+      "id": 40,
+      "name": "Ferr_clear",
+      "type": 6,
+      "addr": 10496,
+      "value": 10.0,
+      "isPeri": false
+    },
+    {
+      "id": 41,
+      "name": "Flimit",
+      "type": 6,
+      "addr": 10728,
+      "value": 100.0,
+      "isPeri": false
+    },
+    {
+      "id": 42,
+      "name": "K_gyro",
+      "type": 6,
+      "addr": 10939,
+      "value": -50.0,
+      "isPeri": false
+    },
+    {
+      "id": 43,
+      "name": "Crtl_Limit",
+      "type": 6,
+      "addr": 10372,
+      "value": 330.0,
+      "isPeri": true
+    },
+    {
+      "id": 44,
+      "name": "Crtl_Radiu",
+      "type": 6,
+      "addr": 11065,
+      "value": 5.0,
+      "isPeri": true
+    },
+    {
+      "id": 45,
+      "name": "Crtl_ComSp",
+      "type": 6,
+      "addr": 10955,
+      "value": 30.0,
+      "isPeri": true
+    },
+    {
+      "id": 46,
+      "name": "ComSpd",
+      "type": 6,
+      "addr": 10359,
+      "value": 30.0,
+      "isPeri": false
+    },
+    {
+      "id": 47,
+      "name": "Crtl_K",
+      "type": 6,
+      "addr": 10367,
+      "value": 0.0625,
+      "isPeri": false
+    },
+    {
+      "id": 48,
+      "name": "FKp",
+      "type": 6,
+      "addr": 10520,
+      "value": 1.2000000476837158,
+      "isPeri": false
+    },
+    {
+      "id": 49,
+      "name": "FKp",
+      "type": 6,
+      "addr": 10524,
+      "value": 1.2000000476837158,
+      "isPeri": false
+    },
+    {
+      "id": 50,
+      "name": "FKp",
+      "type": 6,
+      "addr": 10528,
+      "value": 1.0,
+      "isPeri": false
+    },
+    {
+      "id": 51,
+      "name": "FKp",
+      "type": 6,
+      "addr": 10532,
+      "value": 0.800000011920929,
+      "isPeri": false
+    },
+    {
+      "id": 52,
+      "name": "FKp",
+      "type": 6,
+      "addr": 10536,
+      "value": 1.0,
+      "isPeri": false
+    },
+    {
+      "id": 53,
+      "name": "FKp",
+      "type": 6,
+      "addr": 10540,
+      "value": 1.2000000476837158,
+      "isPeri": false
+    },
+    {
+      "id": 54,
+      "name": "FKp",
+      "type": 6,
+      "addr": 10544,
+      "value": 1.2000000476837158,
+      "isPeri": false
+    },
+    {
+      "id": 55,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10548,
+      "value": 0.6000000238418579,
+      "isPeri": false
+    },
+    {
+      "id": 56,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10552,
+      "value": 0.6000000238418579,
+      "isPeri": false
+    },
+    {
+      "id": 57,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10556,
+      "value": 0.5,
+      "isPeri": false
+    },
+    {
+      "id": 58,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10560,
+      "value": 0.20000000298023224,
+      "isPeri": false
+    },
+    {
+      "id": 59,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10564,
+      "value": 0.5,
+      "isPeri": false
+    },
+    {
+      "id": 60,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10568,
+      "value": 0.6000000238418579,
+      "isPeri": false
+    },
+    {
+      "id": 61,
+      "name": "FKd",
+      "type": 6,
+      "addr": 10572,
+      "value": 0.6000000238418579,
+      "isPeri": false
+    }
+  ]
+}

@@ -219,12 +219,12 @@ float left_speed_target = 0.0f;
 float right_speed_target = 0.0f;
 uint8_t manual_control_flag = 1;
 
-float Err_A_K=24.0f;  //所有adc 标定值为2200左右
+float Err_A_K=120.0f;  //所有adc 标定值为2200左右
 float Err_B_K=120.0f;
 float Err_C_K=3.0f;
-float Err_D_K=3.0f;
+float Err_D_K=2.0f;
 uint16_t adc_dead_zone = 5;
-float adc_err_zone = 20.0f;
+float adc_err_zone = 0.5f;
 float Err_Angle=0.0f;
 
 /* 驾驶方向命令 (标志位方式, Main_Control 安全点执行) */
@@ -271,6 +271,7 @@ static motor_data_t speed_target_l={0};
 static motor_data_t speed_target_r={0};
 static float speed_target_r_nagtive=0.0f;
 static float numerator, denominator;
+static float err_max = 120.0f;
 #define spd_limit 150.0f
 void Change_Maunal(){
     motor_data_t tmp;
@@ -592,11 +593,7 @@ void Main_Control_Task_Init(void)
     // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
     // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
     // Debug_Register("A_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kd_desc);
-    // Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
-    // Debug_Register("B_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kp_desc);
-    // Debug_Register("B_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ki_desc);
-    // Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
-    // Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
+
    // Debug_Register("pid_output_k", DBG_FLOAT | STATIC_TYPE, &pid_output_k);
     Debug_Register("Fan_Voltage", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_fan_voltage_desc);
     Debug_Register("Drive_Spd", DBG_FLOAT | STATIC_TYPE, &drive_speed);
@@ -639,6 +636,11 @@ void Main_Control_Task_Init(void)
     Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PM]);
     Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PB]);
 
+         Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
+    // Debug_Register("B_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kp_desc);
+    // Debug_Register("B_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ki_desc);
+    // Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
+     Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
    // Debug_Register("FKi0", DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
@@ -649,22 +651,30 @@ void Main_Control_Task_Init(void)
     g_speed_controller.straight_speed = 20.0f;
     g_speed_controller.controller_limit = 330.0f;
     update_speed_controller(&g_speed_controller);
-    pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
+    pid_struct.e_max = 150.0f; /* 根据实际误差范围调整 */
     pid_struct.ec_max = 1200.0f; /* 根据实际误差变化率 */
-    pid_struct.Kp0 = 3.4f; /* 基础 Kp */
-    pid_struct.Ki0 = 0.0f; /* 基础 Ki */
+    pid_struct.Kp0 = 2.0f; /* 基础 Kp */
+    pid_struct.Ki0 = 30.0f; /* 基础 Ki */
     pid_struct.Kd0 = 0.0f; /* 基础 Kd */
-    pid_struct.err_thresh = 10.0f; /* 积分分离阈值 */
+    pid_struct.err_thresh = 150.0f; /* 积分分离阈值 */
     pid_struct.integral = 0.0f;
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
     pid_struct.prev_error = 0.0f;
-    pid_struct.kd_err_thresh_l = 35.0f;
-    pid_struct.kd_err_thresh_r = 35.0f;
+    pid_struct.kd_err_thresh_l = 50.0f;
+    pid_struct.kd_err_thresh_r = 50.0f;
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh);
     pid_struct.ec_dead_zone = 50.0f;
     pid_struct.ec_count = 40;
-    pid_struct.limit = 50.0f;
-    pid_struct.K_gyro = -10.0f;
+    pid_struct.limit = 100.0f;
+    pid_struct.K_gyro = -40.0f;
+    /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
+    pid_struct.kp_singletons[FUZZY_NB] = 1.6f;
+    pid_struct.kp_singletons[FUZZY_NM] = 1.5f;
+    pid_struct.kp_singletons[FUZZY_NS] = 1.3f;
+    pid_struct.kp_singletons[FUZZY_ZO] = 1.0f;
+    pid_struct.kp_singletons[FUZZY_PS] = 1.3f;
+    pid_struct.kp_singletons[FUZZY_PM] = 1.5f;
+    pid_struct.kp_singletons[FUZZY_PB] = 1.6f;
     //vTaskDelay(pdMS_TO_TICKS(10));
     
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */

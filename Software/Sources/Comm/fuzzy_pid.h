@@ -27,8 +27,10 @@ typedef struct {
     /* ---------- 积分分离 ---------- */
     float err_thresh;             /* 积分分离阈值，|error|>此值时积分清零 */
     float err_clear_thresh;       /* 低误差清零阈值，|error|<此值时积分清零，防止低频振荡 */
-    float kd_err_thresh_l;        /* 角速度阻尼阈值(左/负向)，|error|<此值时用gyro替换ec */
-    float kd_err_thresh_r;        /* 角速度阻尼阈值(右/正向)，|error|<此值时用gyro替换ec */
+    float kd_err_thresh_l;        /* 角速度阻尼外阈值(左/负向)，|error|>此值时关闭gyro阻尼，用kd*ec */
+    float kd_err_thresh_r;        /* 角速度阻尼外阈值(右/正向) */
+    float kd_gyro_thresh_l;       /* 角速度阻尼内阈值(左/负向)，|error|<此值时用高阻尼系数 */
+    float kd_gyro_thresh_r;       /* 角速度阻尼内阈值(右/正向) */
     /* ---------- 模糊域参数 ---------- */
     float e_max;                  /* 误差输入最大幅值 */
     float ec_max;                 /* 误差变化率最大幅值 */
@@ -51,7 +53,8 @@ typedef struct {
     unsigned char ec_ma_index;    /* 当前写入位置 */
     unsigned char ec_ma_filled;   /* 已填充样本数 (启动阶段用) */
     char ec_count;                /* 移动平均窗口大小 (1~20, 上位机可调) */
-    float K_gyro;                 /* 角速度→微分项增益 (小偏差时阻尼) */
+    float K_gyro;                 /* 角速度→微分项增益 (中偏差时低阻尼) */
+    float K_gyro_high;            /* 角速度→微分项增益 (小偏差时高阻尼) */
     float temp_ec;
 } FuzzyPID;
 

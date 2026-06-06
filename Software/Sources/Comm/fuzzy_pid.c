@@ -105,7 +105,10 @@ int tmp_kp[7][5] = {
         pid->ec_ma_index = 0;
         pid->ec_ma_filled = 0;
         pid->ec_count = 10;  /* 默认窗口大小, 上位机可调 */
-        pid->K_gyro = 5.0f;  /* 角速度→微分项增益, 保守起步 */
+        pid->K_gyro = 5.0f;       /* 中偏差低阻尼系数, 保守起步 */
+        pid->K_gyro_high = 10.0f;  /* 小偏差高阻尼系数 */
+        pid->kd_gyro_thresh_l = 15.0f; /* 高阻尼内阈值(左) */
+        pid->kd_gyro_thresh_r = 15.0f; /* 高阻尼内阈值(右) */
     }
     
 }
@@ -152,6 +155,7 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     float half_width_ec;
     float abs_err;
     float thresh;
+    float thresh_small;
     int i;
     unsigned char count;
     /* NaN 防护：传感器未就绪时直接返回 0 */
