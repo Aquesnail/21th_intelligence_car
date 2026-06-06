@@ -219,9 +219,9 @@ float left_speed_target = 0.0f;
 float right_speed_target = 0.0f;
 uint8_t manual_control_flag = 1;
 
-float Err_A_K=0.1f;  //所有adc 标定值为2200左右
-float Err_B_K=3.0f;
-float Err_C_K=4.0f;
+float Err_A_K=24.0f;  //所有adc 标定值为2200左右
+float Err_B_K=120.0f;
+float Err_C_K=3.0f;
 float Err_D_K=3.0f;
 uint16_t adc_dead_zone = 5;
 float adc_err_zone = 20.0f;
@@ -480,6 +480,7 @@ void Main_Control_Task(void *pvParameters)
                     if (g_auto_transition == 1) {
                         if ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(3000)) {
                             g_auto_transition = 2;
+                            pid_struct.integral = 0.0f;
                         }
                     }
 
@@ -609,6 +610,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
     Debug_Register("Fec_max",   DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_max);
     Debug_Register("Ferr_thr",  DBG_FLOAT | STATIC_TYPE, &pid_struct.err_thresh);
+    Debug_Register("Ferr_clear",DBG_FLOAT | STATIC_TYPE, &pid_struct.err_clear_thresh);
    // Debug_Register("Fintegral", DBG_FLOAT | STATIC_TYPE, &pid_struct.integral);
    // Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
     Debug_Register("Flimit",    DBG_FLOAT | STATIC_TYPE, &pid_struct.limit);
@@ -661,7 +663,7 @@ void Main_Control_Task_Init(void)
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh);
     pid_struct.ec_dead_zone = 50.0f;
     pid_struct.ec_count = 40;
-    pid_struct.limit = 0.0f;
+    pid_struct.limit = 50.0f;
     pid_struct.K_gyro = -10.0f;
     //vTaskDelay(pdMS_TO_TICKS(10));
     

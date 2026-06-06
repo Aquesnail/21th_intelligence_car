@@ -50,6 +50,7 @@ int tmp_kp[7][5] = {
     pid->e_max = e_max;
     pid->ec_max = ec_max;
     pid->err_thresh = err_thresh;
+    pid->err_clear_thresh = 3.0f; /* 低误差清零阈值，防止积分项引起低频振荡 */
     pid->ec_dead_zone = 50.0f;   /* ec 死区, 小于此值视为噪声 */
 
     /* ---- 输出单点系数 ---- */
@@ -165,10 +166,17 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     ec = (error - pid->prev_error) * FUZZY_PID_SAMPLE_FREQ;
     /* 移动平均滤波平滑ec (替代原低通滤波) */
     {
-       
+
         count = (unsigned char)pid->ec_count;
         if (count < 1) count = 1;
         if (count > FUZZY_EC_MA_MAX) count = FUZZY_EC_MA_MAX;
+
+        /* 窗口缩小时重置缓冲区，避免 filled/sum 与 count 不一致 */
+        if (pid->ec_ma_filled > count) {
+            pid->ec_ma_filled = 0;
+            pid->ec_ma_sum = 0.0f;
+            pid->ec_ma_index = 0;
+        }
 
         /* 缓冲区满则减去最旧值, 否则增加计数 */
         if (pid->ec_ma_filled >= count) {
@@ -229,21 +237,27 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     kp = pid->Kp0 * kp_coeff;
     kd = pid->Kd0 * kd_coeff;
 
-    /* 积分分离：大偏差时冻结积分，防止过冲和饱和 */
-    if (error > pid->err_thresh || error < -pid->err_thresh) {
+    /* 积分分离 + 低误差清零：防止过冲、饱和和低频振荡 */
+    abs_err = error;
+    if (abs_err < 0.0f) abs_err = -abs_err;
+    if (abs_err > pid->err_thresh) {
+        /* 大偏差：清零积分，防止过冲和饱和 */
         ki = 0.0f;
-        /* 也可选清零积分项，保留上次值可能导致突变，这里选择冻结 */
-       // pid->integral = 0.0f;  /* 如需强制清零可取消注释 */
+        pid->integral = 0.0f;
+    } else if (abs_err < pid->err_clear_thresh) {
+        /* 极小偏差：清零积分，防止积分项引起低频振荡 */
+        ki = 0.0f;
+        pid->integral = 0.0f;
     } else {
         ki = pid->Ki0;
-        pid->integral += error * FUZZY_PID_DT; /* 积分累加: ∫e·dt ≈ Σe·Δt */
-        /* 积分限幅 (可选) */
+        pid->integral += error * ki * FUZZY_PID_DT; /* 积分累加: ∫e·dt ≈ Σe·Δt */
+        /* 积分限幅 */
         if (pid->integral > pid->limit) pid->integral = pid->limit;
         else if (pid->integral < -pid->limit) pid->integral = -pid->limit;
     }
 
     /* 7. 位置式PID输出 (微分项单独处理) */
-    output = kp * error + ki * pid->integral;
+    output = kp * error +  pid->integral;
 
     /* 微分项：小偏差时用角速度阻尼替代ec，低速下ec噪声太大 */
     /* 传感器左右不对称，error>=0 用右阈值，error<0 用左阈值 */

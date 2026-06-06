@@ -25,7 +25,8 @@ typedef struct {
     float Kp0, Ki0, Kd0;          /* 手动整定的基础值 */
 
     /* ---------- 积分分离 ---------- */
-    float err_thresh;             /* 积分分离阈值，|error|>此值时 Ki=0 */
+    float err_thresh;             /* 积分分离阈值，|error|>此值时积分清零 */
+    float err_clear_thresh;       /* 低误差清零阈值，|error|<此值时积分清零，防止低频振荡 */
     float kd_err_thresh_l;        /* 角速度阻尼阈值(左/负向)，|error|<此值时用gyro替换ec */
     float kd_err_thresh_r;        /* 角速度阻尼阈值(右/正向)，|error|<此值时用gyro替换ec */
     /* ---------- 模糊域参数 ---------- */
