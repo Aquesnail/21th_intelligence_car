@@ -24,13 +24,13 @@ void FuzzyPID_Init(FuzzyPID *pid,
     int i, j;
 int tmp_kp[7][5] = {
         /* ec:          NB        NS        ZO        PS        PB    */
-        /* e NB */ { FUZZY_PB, FUZZY_PM, FUZZY_PM, FUZZY_PS, FUZZY_ZO }, // 大偏差,向外飞时Kp极大;向回冲时Kp减小防过冲
-        /* e NM */ { FUZZY_PB, FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_ZO },
-        /* e NS */ { FUZZY_PM, FUZZY_PS, FUZZY_PS, FUZZY_ZO, FUZZY_ZO },
-        /* e ZO */ { FUZZY_PM, FUZZY_PS, FUZZY_ZO, FUZZY_PS, FUZZY_PM }, // 中央直道: ec大说明正在偏离,加大Kp; ec小说明稳定,Kp给最小
-        /* e PS */ { FUZZY_ZO, FUZZY_ZO, FUZZY_PS, FUZZY_PS, FUZZY_PM },
-        /* e PM */ { FUZZY_ZO, FUZZY_PS, FUZZY_PS, FUZZY_PM, FUZZY_PB },
-        /* e PB */ { FUZZY_ZO, FUZZY_PS, FUZZY_PM, FUZZY_PM, FUZZY_PB }
+        /* e NB */ { FUZZY_PB, FUZZY_PB, FUZZY_PB, FUZZY_PB, FUZZY_PB }, // 大偏差,向外飞时Kp极大;向回冲时Kp减小防过冲
+        /* e NM */ { FUZZY_PM, FUZZY_PM, FUZZY_PM, FUZZY_PM, FUZZY_PM },
+        /* e NS */ { FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PS },
+        /* e ZO */ { FUZZY_ZO, FUZZY_ZO, FUZZY_ZO, FUZZY_ZO, FUZZY_ZO }, // 中央直道: ec大说明正在偏离,加大Kp; ec小说明稳定,Kp给最小
+        /* e PS */ { FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PS, FUZZY_PS },
+        /* e PM */ { FUZZY_PM, FUZZY_PM, FUZZY_PM, FUZZY_PM, FUZZY_PM },
+        /* e PB */ { FUZZY_PB, FUZZY_PB, FUZZY_PB, FUZZY_PB, FUZZY_PB }
     };
 
     int tmp_kd[7][5] = {
@@ -54,13 +54,13 @@ int tmp_kp[7][5] = {
 
     /* ---- 输出单点系数 ---- */
     /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
-    pid->kp_singletons[FUZZY_NB] = 1.0f;
-    pid->kp_singletons[FUZZY_NM] = 1.0f;
-    pid->kp_singletons[FUZZY_NS] = 1.0f;
-    pid->kp_singletons[FUZZY_ZO] = 1.0f;
-    pid->kp_singletons[FUZZY_PS] = 1.0f;
-    pid->kp_singletons[FUZZY_PM] = 1.0f;
-    pid->kp_singletons[FUZZY_PB] = 1.0f;
+    pid->kp_singletons[FUZZY_NB] = 2.2f;
+    pid->kp_singletons[FUZZY_NM] = 2.0f;
+    pid->kp_singletons[FUZZY_NS] = 1.1f;
+    pid->kp_singletons[FUZZY_ZO] = 0.2f;
+    pid->kp_singletons[FUZZY_PS] = 1.1f;
+    pid->kp_singletons[FUZZY_PM] = 2.0f;
+    pid->kp_singletons[FUZZY_PB] = 2.2f;
 
     pid->kd_singletons[FUZZY_NB] = 0.6f;
     pid->kd_singletons[FUZZY_NM] = 0.6f;
@@ -233,7 +233,7 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     if (error > pid->err_thresh || error < -pid->err_thresh) {
         ki = 0.0f;
         /* 也可选清零积分项，保留上次值可能导致突变，这里选择冻结 */
-        pid->integral = 0.0f;  /* 如需强制清零可取消注释 */
+       // pid->integral = 0.0f;  /* 如需强制清零可取消注释 */
     } else {
         ki = pid->Ki0;
         pid->integral += error * FUZZY_PID_DT; /* 积分累加: ∫e·dt ≈ Σe·Δt */

@@ -87,8 +87,9 @@ void SPI3_Callback(void *pvParameters)
  * ================================================================ */
 static void Motor_Reg_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
-    float tmp = 0.0f;
-    memcpy(&tmp,pData,sizeof(float));
+    float tmp;
+    tmp = 0.0f;
+    memcpy(pData,&tmp,sizeof(float));
     return;
 }
 
@@ -218,10 +219,10 @@ float left_speed_target = 0.0f;
 float right_speed_target = 0.0f;
 uint8_t manual_control_flag = 1;
 
-float Err_A_K=0.6f;
-float Err_B_K=1.8f;
-float Err_C_K=3.0f;
-float Err_D_K=1.0f;
+float Err_A_K=0.1f;  //所有adc 标定值为2200左右
+float Err_B_K=3.0f;
+float Err_C_K=4.0f;
+float Err_D_K=3.0f;
 uint16_t adc_dead_zone = 5;
 float adc_err_zone = 20.0f;
 float Err_Angle=0.0f;
@@ -293,6 +294,7 @@ void Change_Maunal(){
 }
 
 extern void IMU_Get_Angle(float* roll, float* pitch, float* yaw);
+extern float IMU_Get_Yaw_Unwrapped(void);
 static float sqrt_negative(float value) {
 
     if (value < 0.0f) {
@@ -301,6 +303,7 @@ static float sqrt_negative(float value) {
         return sqrt(value);
     }
 }
+static uint8_t change_inductor = 0;
 static float roll=0.0f, pitch=0.0f, yaw=0.0f;
 void Main_Control_Task(void *pvParameters)
 {
@@ -347,7 +350,8 @@ void Main_Control_Task(void *pvParameters)
                 // g_left_speed_target = tmp;
                 // tmp.f = -right_speed_target;
                 // g_right_speed_target = tmp;
-                IMU_Get_Angle(&roll, &pitch, &yaw);
+               // IMU_Get_Angle(&roll, &pitch, &yaw);
+                yaw = IMU_Get_Yaw_Unwrapped();
                 gyro_z = IMU_Filter_Data->sensor.dat.gz - IMU_Filter_Data->bias_gz;
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
@@ -364,10 +368,18 @@ void Main_Control_Task(void *pvParameters)
                 if(adc_values[1]<adc_dead_zone) adc_values[1]=0;
                 if(adc_values[2]<adc_dead_zone) adc_values[2]=0;
                 if(adc_values[3]<adc_dead_zone) adc_values[3]=0;
-                Err_1 = (float)(adc_values[0] - adc_values[2]);
-                Err_2 = (float)(adc_values[1] - adc_values[3]);
-                Err_3 = (float)(adc_values[0] + adc_values[2]);
-                Err_4 = (float)(adc_values[1] + adc_values[3]);
+                if(change_inductor == 1){
+                    Err_1 = (float)(sqrt((float)adc_values[0]) - sqrt((float)adc_values[2]));
+                    Err_2 = (float)(sqrt((float)adc_values[1]) - sqrt((float)adc_values[3]));
+                    Err_3 = (float)(adc_values[0] + adc_values[2]);
+                    Err_4 = (float)(adc_values[1] + adc_values[3]);
+                }else{
+                    Err_1 = (float)(sqrt((float)adc_values[1]) - sqrt((float)adc_values[3]));
+                    Err_2 = (float)(sqrt((float)adc_values[0]) - sqrt((float)adc_values[2]));
+                    Err_3 = (float)(adc_values[1] + adc_values[3]);
+                    Err_4 = (float)(adc_values[0] + adc_values[2]);
+                }
+                
                 if(Err_1 < adc_err_zone && Err_1 > -adc_err_zone) Err_1 = 0.0f;
                 if(Err_2 < adc_err_zone && Err_2 > -adc_err_zone) Err_2 = 0.0f;
                 if(Err_3 < adc_err_zone && Err_3 > -adc_err_zone) Err_3 = 0.0f;
@@ -542,6 +554,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[1]);
     Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[2]);
     Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[3]);
+    Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
     Debug_Register("pid_output", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
     /* 注册电机调试变量 */
     // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
@@ -564,6 +577,7 @@ void Main_Control_Task_Init(void)
     lpf_init_fc(&g_lpf_right, 400.0f, 0.002f);
     
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
+    Debug_Register("CH_Induct",  DBG_UINT8 | STATIC_TYPE , &change_inductor);
     Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &Err_A_K);
     Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &Err_B_K);
     Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &Err_C_K);
@@ -630,25 +644,25 @@ void Main_Control_Task_Init(void)
     ADC2_DMA_Start();
 
     g_speed_controller.radius = 5.0f;
-    g_speed_controller.straight_speed = 40.0f;
+    g_speed_controller.straight_speed = 20.0f;
     g_speed_controller.controller_limit = 330.0f;
     update_speed_controller(&g_speed_controller);
     pid_struct.e_max = 100.0f; /* 根据实际误差范围调整 */
     pid_struct.ec_max = 1200.0f; /* 根据实际误差变化率 */
     pid_struct.Kp0 = 3.4f; /* 基础 Kp */
     pid_struct.Ki0 = 0.0f; /* 基础 Ki */
-    pid_struct.Kd0 = 0.8f; /* 基础 Kd */
+    pid_struct.Kd0 = 0.0f; /* 基础 Kd */
     pid_struct.err_thresh = 10.0f; /* 积分分离阈值 */
     pid_struct.integral = 0.0f;
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
     pid_struct.prev_error = 0.0f;
-    pid_struct.kd_err_thresh_l = 60.0f;
-    pid_struct.kd_err_thresh_r = 50.0f;
+    pid_struct.kd_err_thresh_l = 35.0f;
+    pid_struct.kd_err_thresh_r = 35.0f;
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh);
     pid_struct.ec_dead_zone = 50.0f;
     pid_struct.ec_count = 40;
     pid_struct.limit = 0.0f;
-    pid_struct.K_gyro = -30.0f;
+    pid_struct.K_gyro = -10.0f;
     //vTaskDelay(pdMS_TO_TICKS(10));
     
      /* 创建 Motor_Data_Task (高优先级, 500Hz 触发) */

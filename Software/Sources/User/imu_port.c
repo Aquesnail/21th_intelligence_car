@@ -271,3 +271,28 @@ void IMU_Get_Angle(float* roll, float* pitch, float* yaw) {
     *pitch = IMU_Filter_Data->pitch;
     *yaw = IMU_Filter_Data->yaw;
 }
+
+/* =======================================================
+ * 获取累积 yaw 角（无范围限制，可无限累加）
+ * 通过检测 atan2 的 ±180° 跳变来解缠绕
+ * ======================================================= */
+float IMU_Get_Yaw_Unwrapped(void) {
+    float current_yaw;
+    float delta;
+    static float prev_yaw  = 0.0f;
+    static float yaw_accum = 0.0f;
+
+    current_yaw = IMU_Filter_Data->yaw;
+    delta = current_yaw - prev_yaw;
+
+    /* 检测跨越 ±180° 边界的跳变 */
+    if (delta > 180.0f) {
+        yaw_accum -= 360.0f;
+    } else if (delta < -180.0f) {
+        yaw_accum += 360.0f;
+    }
+
+    prev_yaw = current_yaw;
+
+    return current_yaw + yaw_accum;
+}
