@@ -155,7 +155,7 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement, float gyro_z)
     float half_width_ec;
     float abs_err;
     float thresh;
-    float thresh_small;
+//    float thresh_small;
     int i;
     unsigned char count;
     /* NaN 防护：传感器未就绪时直接返回 0 */

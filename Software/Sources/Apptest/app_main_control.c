@@ -137,24 +137,61 @@ static void Speed_Controller_Write_Cb(uint32_t peri_addr, void *pData, uint8_t l
 /*服务于上位机的EC移动平均窗口调整器*/
 static void EC_MA_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
-    float val;
+    uint16_t val;
     (void)len;
-    val = (float)(*(char *)(peri_addr));
-    memcpy(pData, &val, sizeof(float));
+    val = (uint16_t)(*(char *)(peri_addr));
+    memcpy(pData, &val, sizeof(uint16_t));
 }
 
 static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
-    float new_val;
+    uint16_t new_val;
     unsigned char count;
     (void)len;
-    memcpy(&new_val, pData, sizeof(float));
+    memcpy(&new_val, pData, sizeof(uint16_t));
     count = (unsigned char)new_val;
     if (count < 1) count = 1;
     if (count > FUZZY_EC_MA_MAX) count = FUZZY_EC_MA_MAX;
     *(char *)(peri_addr) = (char)count;
 }
+static float normalized_adc_k[4] = {1.0f, 1.0f, 1.0f, 1.0f}; // ADC 归一化系数数组
+static uint8_t normalize_index = 0;
+static uint8_t adc_start_normalize = 0;
+static void NormalizeADC(uint32_t peri_addr,void *pData,uint8_t len){
+    uint8_t* ptr = (uint8_t *)pData;
+    (void)peri_addr;
+    (void)len;
+    if(*ptr<4){
+        normalize_index = *ptr;
+    }
+    adc_start_normalize = 1;
+    return;
+}
 
+uint8_t ADC_NormalizeCommand(const char* cmd) {
+    if (strcmp(cmd, "norm0") == 0) {
+        normalize_index = 0;
+        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
+        Debug_Log("ADC_NORM_0");
+        return 1;
+    } else if (strcmp(cmd, "norm1") == 0) {
+        normalize_index = 1;
+        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
+        Debug_Log("ADC_NORM_1");
+        return 1;
+    } else if (strcmp(cmd, "norm2") == 0) {
+        normalize_index = 2;
+        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
+        Debug_Log("ADC_NORM_2");
+        return 1;
+    } else if (strcmp(cmd, "norm3") == 0) {
+        normalize_index = 3;
+        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
+        Debug_Log("ADC_NORM_3");
+        return 1;
+    }
+    return 0; // 未识别
+}
 /* PID 参数外设描述符 (Motor A / 左电机) */
 static DebugPeriDesc_t g_pid_a_kp_desc   = {REG_A_PID_SPEED_KP,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_ki_desc   = {REG_A_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
@@ -306,6 +343,11 @@ static float sqrt_negative(float value) {
 }
 static uint8_t change_inductor = 0;
 static float roll=0.0f, pitch=0.0f, yaw=0.0f;
+static float adc_avg_sum = 0.0f;
+static uint16_t adc_avg = 0;
+static uint16_t adc_avg_count = 0;
+static uint8_t display_adc_original = 0;
+static float adc_normalized[4] = {0.0f};
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
@@ -365,20 +407,49 @@ void Main_Control_Task(void *pvParameters)
                 g_left_speed_actual = lpf_update(&g_lpf_left, tmp.f);
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
+
+                if(adc_start_normalize){
+                    adc_avg_sum += adc_values[normalize_index];
+                    adc_avg_count++;
+                    if(adc_avg_count >= 500){
+                        adc_avg = adc_avg_sum / adc_avg_count;
+                        adc_avg_sum = 0;
+                        adc_avg_count = 0;
+                        if(adc_avg > 4000){
+                            normalized_adc_k[normalize_index] = 1000.0f / (float)adc_avg; // 简单线性归一化
+                        }else{
+                            normalized_adc_k[normalize_index] = 1.0f; // 不进行归一化
+                        }
+                        adc_start_normalize = 0;
+                    }
+                }
                 if(adc_values[0]<adc_dead_zone) adc_values[0]=0;
                 if(adc_values[1]<adc_dead_zone) adc_values[1]=0;
                 if(adc_values[2]<adc_dead_zone) adc_values[2]=0;
                 if(adc_values[3]<adc_dead_zone) adc_values[3]=0;
-                if(change_inductor == 1){
-                    Err_1 = (float)(sqrt((float)adc_values[0]) - sqrt((float)adc_values[2]));
-                    Err_2 = (float)(sqrt((float)adc_values[1]) - sqrt((float)adc_values[3]));
-                    Err_3 = (float)(adc_values[0] + adc_values[2]);
-                    Err_4 = (float)(adc_values[1] + adc_values[3]);
+                if(display_adc_original){
+                    adc_normalized[0] = adc_values[0];
+                    adc_normalized[1] = adc_values[1];
+                    adc_normalized[2] = adc_values[2];
+                    adc_normalized[3] = adc_values[3];
                 }else{
-                    Err_1 = (float)(sqrt((float)adc_values[1]) - sqrt((float)adc_values[3]));
-                    Err_2 = (float)(sqrt((float)adc_values[0]) - sqrt((float)adc_values[2]));
-                    Err_3 = (float)(adc_values[1] + adc_values[3]);
-                    Err_4 = (float)(adc_values[0] + adc_values[2]);
+                    adc_normalized[0] = adc_values[0] * normalized_adc_k[0];
+                    adc_normalized[1] = adc_values[1] * normalized_adc_k[1];
+                    adc_normalized[2] = adc_values[2] * normalized_adc_k[2 ];
+                    adc_normalized[3] = adc_values[3] * normalized_adc_k[3];
+                }
+       
+            
+                if(change_inductor == 1){
+                    Err_1 = (float)(sqrt(adc_normalized[0]) - sqrt(adc_normalized[2]));
+                    Err_2 = (float)(sqrt(adc_normalized[1]) - sqrt(adc_normalized[3]));
+                    Err_3 = (float)(adc_normalized[0] + adc_normalized[2]);
+                    Err_4 = (float)(adc_normalized[1] + adc_normalized[3]);
+                }else{
+                    Err_1 = (float)(sqrt(adc_normalized[1]) - sqrt(adc_normalized[3]));
+                    Err_2 = (float)(sqrt(adc_normalized[0]) - sqrt(adc_normalized[2]));
+                    Err_3 = (float)(adc_normalized[1] + adc_normalized[3]);
+                    Err_4 = (float)(adc_normalized[0] + adc_normalized[2]);
                 }
                 
                 if(Err_1 < adc_err_zone && Err_1 > -adc_err_zone) Err_1 = 0.0f;
@@ -552,10 +623,10 @@ void Main_Control_Task_Init(void)
     g_speed_controller_straight_speed_desc.peri_addr = (uint32_t)&(g_speed_controller.straight_speed);
     g_ec_ma_count_desc.peri_addr = (uint32_t)&(pid_struct.ec_count); /* EC 移动平均窗口大小, 供上位机调整 */
     /* 注册 ADC 调试变量 */
-    Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[0]);
-    Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[1]);
-    Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[2]);
-    Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_values[3]);
+    Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[0]);
+    Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[1]);
+    Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
+    Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
     Debug_Register("pid_output", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
     /* 注册电机调试变量 */
@@ -601,7 +672,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("FKi0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
     Debug_Register("FKd0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kd0);
     Debug_Register("EC_DeadZone", DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_dead_zone);
-    Debug_Register("EC_Avg",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_ec_ma_count_desc);
+    Debug_Register("EC_Avg",   DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_ec_ma_count_desc);
     Debug_Register("EC_Thresh_L", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh_l);
     Debug_Register("EC_Thresh_R", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh_r);
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
@@ -642,6 +713,10 @@ void Main_Control_Task_Init(void)
     // Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
      Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
    // Debug_Register("FKi0", DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
+    Debug_Register("NormalizedK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[0]);
+    Debug_Register("NormalizedK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[1]);
+    Debug_Register("NormalizedK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[2]);
+    Debug_Register("NormalizedK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[3]);
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
