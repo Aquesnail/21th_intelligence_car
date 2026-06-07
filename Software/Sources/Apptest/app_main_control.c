@@ -56,6 +56,10 @@ static volatile uint8_t g_reg_write_pending = 0;
 static uint8_t          g_reg_write_addr;
 static motor_data_t     g_reg_write_value;
 
+static volatile uint8_t g_reg_read_pending = 0;
+static uint8_t          g_reg_read_addr;
+static motor_data_t     g_reg_read_value;
+
 /* 手动模式超时保护 (3s 无指令自动刹车) */
 static TickType_t g_last_manual_cmd_tick = 0;
 static uint8_t    g_manual_cmd_received  = 0;
@@ -87,10 +91,11 @@ void SPI3_Callback(void *pvParameters)
  * ================================================================ */
 static void Motor_Reg_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
-    float tmp;
-    tmp = 0.0f;
-    memcpy(pData,&tmp,sizeof(float));
-    return;
+    (void)len;
+    /* 触发异步读取请求, 返回上次缓存值 */
+    g_reg_read_addr = (uint8_t)peri_addr;
+    g_reg_read_pending = 1;
+    memcpy(pData, &g_reg_read_value.u32, sizeof(uint32_t));
 }
 
 static void Motor_Reg_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
@@ -584,6 +589,40 @@ void Main_Control_Task(void *pvParameters)
                 }
 
                 //taskEXIT_CRITICAL();
+
+                /* --- 异步电机寄存器读取 --- */
+                if (g_reg_read_pending) {
+                    /* ① 停止 stream */
+                    MOTOR_CS_RESET();
+                    motor_stream_stop();
+                    MOTOR_CS_SET();
+                    g_stream_active = 0;
+
+                    /* ② 关闭 P20 中断 */
+                    P2INTE &= ~PIN_0;
+                    ClearP2nFlag(PIN_0);
+
+                    /* ③ 延时 1ms */
+                    vTaskDelay(pdMS_TO_TICKS(1));
+
+                    /* ④ 发送读命令 + 轮询 P20 + 读取数据 */
+                    MOTOR_CS_RESET();
+                    g_reg_read_value = motor_read_reg_timeout(g_reg_read_addr, pdMS_TO_TICKS(2));
+                    MOTOR_CS_SET();
+
+                    /* ⑤ 清除中断标志，重开 P20 中断 */
+                    ClearP2nFlag(PIN_0);
+                    P2INTE |= PIN_0;
+
+                    /* ⑥ 重开 stream */
+                    MOTOR_CS_RESET();
+                    motor_stream_start(0x01, 0x02);
+                    MOTOR_CS_SET();
+                    g_stream_active = 1;
+
+                    /* ⑦ 清除请求 */
+                    g_reg_read_pending = 0;
+                }
             }
 
             if (ADC2_DMA_IsDone()) {

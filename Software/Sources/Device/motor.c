@@ -51,7 +51,7 @@ motor_data_t motor_spi_recv_u32(void)
     motor_data_t dat;
     int8_t i;
     dat.u32 = 0;
-    for (i = MOTOR_FRAME_BYTES-1; i >= 0; i--) {
+    for (i = 0; i < MOTOR_FRAME_BYTES; i++) {
         dat.u32 |= (uint32_t)MOTOR_SPI_TxRx(0xFFu) << (i * 8);
     }
     return dat;
@@ -85,7 +85,38 @@ void motor_write_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t val1, motor
 motor_data_t motor_read_reg(uint8_t addr)
 {
     motor_data_t dat;
+    uint8_t tmp;
+    tmp=P20;
+    motor_send_cmd(MOTOR_CMD_READ_ONE,addr,addr);
+    while(tmp!=P20){
+        dat = motor_spi_recv_u32();
+    }
+    return dat;
+}
+
+/* 读单个寄存器 (带超时): 发送命令帧 -> 等待P20翻转 -> 接收1个32bit数据
+ * timeout_ticks: 超时tick数, 0=无限等待
+ * 超时时返回 dat.u32=0 */
+motor_data_t motor_read_reg_timeout(uint8_t addr, uint32_t timeout_ticks)
+{
+    motor_data_t dat;
+    uint32_t start_tick;
+    uint8_t initial_p20;
+
     dat.u32 = 0;
+    initial_p20 = P20;
+    motor_send_cmd(MOTOR_CMD_READ_ONE, addr, addr);
+
+    start_tick = MOTOR_GetTick();
+    while (P20 == initial_p20) {
+        if (timeout_ticks > 0) {
+            if ((MOTOR_GetTick() - start_tick) >= timeout_ticks) {
+                return dat;  /* 超时, 返回 0 */
+            }
+        }
+    }
+    /* P20 已翻转, 从机数据就绪 */
+    dat = motor_spi_recv_u32();
     return dat;
 }
 
