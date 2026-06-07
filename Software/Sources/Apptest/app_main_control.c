@@ -103,35 +103,26 @@ static void Motor_Reg_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     g_manual_cmd_received = 1;
 }
 
-/*用于将速度和pid解耦的结构体*/
-#define TRACK_WIDTH 11.0f
-typedef struct speed_controller{
-    float radius;
-    float straight_speed;
-    float controller_limit;
-    float controller_k;
-} speed_controller_t;
-void update_speed_controller(speed_controller_t* controller){
-   controller->controller_k = (controller->straight_speed * TRACK_WIDTH) / 
-   (2.0f * controller->radius * 2 * controller->controller_limit * 4.0f / 5.0f);
-}
-speed_controller_t g_speed_controller;
+/* ================================================================
+ * 内环 PI 控制器 (角速度)
+ * ================================================================ */
+typedef struct {
+    float Kp;
+    float Ki;
+    float error_sum;
+    float error_sum_max;
+} PI_Controller;
 
-static void Speed_Controller_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+float PI_Step(PI_Controller *pi, float setpoint, float actual)
 {
-        (void)peri_addr;
-        (void)len;
-        memcpy(pData, (void*)(peri_addr), sizeof(float));
-    return;
-}
-
-static void Speed_Controller_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
-{
-    (void)peri_addr;
-    (void)len;
-    memcpy((void*)(peri_addr), pData, sizeof(float));
-    update_speed_controller(&g_speed_controller);
-    return;
+    float error;
+    float output;
+    error = setpoint - actual;
+    pi->error_sum += error;
+    if (pi->error_sum > pi->error_sum_max)  pi->error_sum = pi->error_sum_max;
+    if (pi->error_sum < -pi->error_sum_max) pi->error_sum = -pi->error_sum_max;
+    output = pi->Kp * error + pi->Ki * pi->error_sum;
+    return output;
 }
 
 /*服务于上位机的EC移动平均窗口调整器*/
@@ -151,7 +142,7 @@ static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     memcpy(&new_val, pData, sizeof(uint16_t));
     count = (unsigned char)new_val;
     if (count < 1) count = 1;
-    if (count > FUZZY_EC_MA_MAX) count = FUZZY_EC_MA_MAX;
+    if (count > 50) count = 50;
     *(char *)(peri_addr) = (char)count;
 }
 static float normalized_adc_k[4] = {1.0f, 1.0f, 1.0f, 1.0f}; // ADC 归一化系数数组
@@ -206,9 +197,6 @@ static DebugPeriDesc_t g_pid_b_ilim_desc = {REG_B_PID_SPEED_INTEGRAL_LIMIT, Moto
 static DebugPeriDesc_t g_right_speed_desc = {REG_A_SPEED_TARGET, Motor_Reg_Read_Cb,Motor_Reg_Write_Cb}; // 只写当前右轮速度
 static DebugPeriDesc_t g_left_speed_desc  = {REG_B_SPEED_TARGET,Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 只写当前左轮速度
 static DebugPeriDesc_t g_fan_voltage_desc  = {REG_FAN_VOLTAGE, Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 风扇控制寄存器
-static DebugPeriDesc_t g_speed_controller_limit_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb}; /* 速度控制器参数 (非寄存器映射) */
-static DebugPeriDesc_t g_speed_controller_radius_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
-static DebugPeriDesc_t g_speed_controller_straight_speed_desc = {0, Speed_Controller_Read_Cb, Speed_Controller_Write_Cb};
 static DebugPeriDesc_t g_ec_ma_count_desc = {0, EC_MA_Read_Cb, EC_MA_Write_Cb}; /* EC移动平均窗口大小 */
 /* ================================================================
  * Motor_Data_Task
@@ -303,6 +291,8 @@ uint8_t Motor_HandleCommand(const char* cmd)
 static FuzzyPID pid_struct={0.0f};
 static float pid_output=0.0f;
 static float common_speed=30.0f;
+static PI_Controller inner_yaw_rate_pi = {0};
+static float actual_yaw_rate_debug = 0.0f;
 static float pid_output_k = 0.10f;
 static motor_data_t speed_target_l={0};
 static motor_data_t speed_target_r={0};
@@ -333,6 +323,7 @@ void Change_Maunal(){
 
 extern void IMU_Get_Angle(float* roll, float* pitch, float* yaw);
 extern float IMU_Get_Yaw_Unwrapped(void);
+extern float IMU_Get_Gyro_Z(void);
 static float sqrt_negative(float value) {
 
     if (value < 0.0f) {
@@ -358,7 +349,6 @@ void Main_Control_Task(void *pvParameters)
     float Err_2;
     float Err_3;
     float Err_4;
-    float gyro_z;
     (void)pvParameters;
     
 
@@ -395,7 +385,6 @@ void Main_Control_Task(void *pvParameters)
                 // g_right_speed_target = tmp;
                // IMU_Get_Angle(&roll, &pitch, &yaw);
                 yaw = IMU_Get_Yaw_Unwrapped();
-                gyro_z = IMU_Filter_Data->sensor.dat.gz - IMU_Filter_Data->bias_gz;
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
                     spi_buffer[i] = MOTOR_SPI_TxRx(0xFFu);
@@ -464,10 +453,17 @@ void Main_Control_Task(void *pvParameters)
                 } else {
                     Err_Angle = numerator / denominator * 100.0f;
                 }
-                pid_output = FuzzyPID_Step(&pid_struct, Err_Angle, gyro_z);
-
-                speed_target_l.f = -pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed;
-                speed_target_r.f = -(pid_output*g_speed_controller.controller_k + g_speed_controller.straight_speed);
+                pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
+                /* pid_output 作为目标角速度 */
+                {
+                    float actual_yaw_rate;
+                    float differential_speed;
+                    actual_yaw_rate = IMU_Get_Gyro_Z();
+                    actual_yaw_rate_debug = actual_yaw_rate;
+                    differential_speed = PI_Step(&inner_yaw_rate_pi, pid_output, actual_yaw_rate);
+                    speed_target_l.f = common_speed - differential_speed;
+                    speed_target_r.f = -(common_speed + differential_speed);
+                }
                 speed_target_r_nagtive = -speed_target_r.f;
                 //最右横向为1，最左横向为3，左中为2，右中为0
                 // MOTOR_CS_RESET();
@@ -552,7 +548,6 @@ void Main_Control_Task(void *pvParameters)
                     if (g_auto_transition == 1) {
                         if ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(3000)) {
                             g_auto_transition = 2;
-                            pid_struct.integral = 0.0f;
                         }
                     }
 
@@ -618,10 +613,7 @@ void Main_Control_Task_Init(void)
 {
     motor_data_t tmp;
 
-    g_speed_controller_limit_desc.peri_addr = (uint32_t)&(g_speed_controller.controller_limit);
-    g_speed_controller_radius_desc.peri_addr = (uint32_t)&(g_speed_controller.radius);
-    g_speed_controller_straight_speed_desc.peri_addr = (uint32_t)&(g_speed_controller.straight_speed);
-    g_ec_ma_count_desc.peri_addr = (uint32_t)&(pid_struct.ec_count); /* EC 移动平均窗口大小, 供上位机调整 */
+    // g_ec_ma_count_desc.peri_addr = (uint32_t)&(pid_struct.ec_count); /* EC移动平均已移除 */
     /* 注册 ADC 调试变量 */
     Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[0]);
     Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[1]);
@@ -660,7 +652,6 @@ void Main_Control_Task_Init(void)
     Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
     //Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
     Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
-    Debug_Register("ec",DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.temp_ec);
     // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
     // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
     // Debug_Register("A_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kd_desc);
@@ -669,27 +660,18 @@ void Main_Control_Task_Init(void)
     Debug_Register("Fan_Voltage", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_fan_voltage_desc);
     Debug_Register("Drive_Spd", DBG_FLOAT | STATIC_TYPE, &drive_speed);
     Debug_Register("FKp0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kp0);
-    Debug_Register("FKi0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
-    Debug_Register("FKd0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kd0);
-    Debug_Register("EC_DeadZone", DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_dead_zone);
-    Debug_Register("EC_Avg",   DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_ec_ma_count_desc);
-    Debug_Register("EC_Thresh_L", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh_l);
-    Debug_Register("EC_Thresh_R", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_err_thresh_r);
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
-    Debug_Register("Fec_max",   DBG_FLOAT | STATIC_TYPE, &pid_struct.ec_max);
-    Debug_Register("Ferr_thr",  DBG_FLOAT | STATIC_TYPE, &pid_struct.err_thresh);
-    Debug_Register("Ferr_clear",DBG_FLOAT | STATIC_TYPE, &pid_struct.err_clear_thresh);
-   // Debug_Register("Fintegral", DBG_FLOAT | STATIC_TYPE, &pid_struct.integral);
-   // Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
-    Debug_Register("Flimit",    DBG_FLOAT | STATIC_TYPE, &pid_struct.limit);
-    Debug_Register("K_gyro",    DBG_FLOAT | STATIC_TYPE, &pid_struct.K_gyro);
-   // Debug_Register("Fprev_err", DBG_FLOAT | STATIC_TYPE, &pid_struct.prev_error);
-    Debug_Register("Crtl_Limit", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_limit_desc));
-    Debug_Register("Crtl_Radius", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_radius_desc));
-    Debug_Register("Crtl_ComSpd", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &(g_speed_controller_straight_speed_desc));
+    // Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
 
-    Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_controller.straight_speed);
-    Debug_Register("Crtl_K", DBG_FLOAT | STATIC_TYPE, &g_speed_controller.controller_k);
+    /* 内环 PI 控制器参数 (静态, 上位机在线调参) */
+    Debug_Register("Yaw_Kp",    DBG_FLOAT | STATIC_TYPE, &inner_yaw_rate_pi.Kp);
+    Debug_Register("Yaw_Ki",    DBG_FLOAT | STATIC_TYPE, &inner_yaw_rate_pi.Ki);
+
+    /* 外环模糊 P 输出 = 目标角速度, 内环实际角速度 (高频, 观察跟随效果) */
+    Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
+    Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &actual_yaw_rate_debug);
+
+    Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &common_speed);
 
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NB]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NM]);
@@ -698,14 +680,6 @@ void Main_Control_Task_Init(void)
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PS]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PM]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PB]);
-
-    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_NB]);
-    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_NM]);
-    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_NS]);
-    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_ZO]);
-    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PS]);
-    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PM]);
-    Debug_Register("FKd", DBG_FLOAT | STATIC_TYPE, &pid_struct.kd_singletons[FUZZY_PB]);
 
          Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
     // Debug_Register("B_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kp_desc);
@@ -722,26 +696,15 @@ void Main_Control_Task_Init(void)
     ADC2_DMA_Init(adc_dma_buf);
     ADC2_DMA_Start();
 
-    g_speed_controller.radius = 5.0f;
-    g_speed_controller.straight_speed = 20.0f;
-    g_speed_controller.controller_limit = 330.0f;
-    update_speed_controller(&g_speed_controller);
+    /* 内环 PI 控制器初始参数 (上位机可在线调参) */
+    inner_yaw_rate_pi.Kp = 0.5f;
+    inner_yaw_rate_pi.Ki = 0.0f;
+    inner_yaw_rate_pi.error_sum = 0.0f;
+    inner_yaw_rate_pi.error_sum_max = 200.0f;
     pid_struct.e_max = 150.0f; /* 根据实际误差范围调整 */
-    pid_struct.ec_max = 1200.0f; /* 根据实际误差变化率 */
     pid_struct.Kp0 = 2.0f; /* 基础 Kp */
-    pid_struct.Ki0 = 30.0f; /* 基础 Ki */
-    pid_struct.Kd0 = 0.0f; /* 基础 Kd */
-    pid_struct.err_thresh = 150.0f; /* 积分分离阈值 */
-    pid_struct.integral = 0.0f;
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
-    pid_struct.prev_error = 0.0f;
-    pid_struct.kd_err_thresh_l = 50.0f;
-    pid_struct.kd_err_thresh_r = 50.0f;
-    FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.Ki0, pid_struct.Kd0, pid_struct.e_max, pid_struct.ec_max, pid_struct.err_thresh);
-    pid_struct.ec_dead_zone = 50.0f;
-    pid_struct.ec_count = 40;
-    pid_struct.limit = 100.0f;
-    pid_struct.K_gyro = -40.0f;
+    FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.e_max);
     /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
     pid_struct.kp_singletons[FUZZY_NB] = 1.6f;
     pid_struct.kp_singletons[FUZZY_NM] = 1.5f;

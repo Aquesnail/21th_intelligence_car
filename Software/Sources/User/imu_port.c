@@ -265,7 +265,9 @@ void IMU_Init() {
     Debug_Register("bias_gy", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gy));
     Debug_Register("bias_gz", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gz));
 }
-
+float IMU_Get_Gyro_Z(void){
+    return IMU_Filter_Data->sensor.dat.gz;
+}
 void IMU_Get_Angle(float* roll, float* pitch, float* yaw) {
     *roll = IMU_Filter_Data->roll;
     *pitch = IMU_Filter_Data->pitch;
