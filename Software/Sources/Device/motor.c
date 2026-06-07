@@ -51,9 +51,11 @@ motor_data_t motor_spi_recv_u32(void)
     motor_data_t dat;
     int8_t i;
     dat.u32 = 0;
-    for (i = 0; i < MOTOR_FRAME_BYTES; i++) {
+    MOTOR_CS_RESET();
+    for (i = MOTOR_FRAME_BYTES-1; i >= 0; i--) {
         dat.u32 |= (uint32_t)MOTOR_SPI_TxRx(0xFFu) << (i * 8);
     }
+    MOTOR_CS_SET();
     return dat;
 }
 
@@ -115,6 +117,7 @@ motor_data_t motor_read_reg_timeout(uint8_t addr, uint32_t timeout_ticks)
             }
         }
     }
+    NOP19();
     /* P20 已翻转, 从机数据就绪 */
     dat = motor_spi_recv_u32();
     return dat;
