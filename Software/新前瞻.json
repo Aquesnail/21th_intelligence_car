@@ -1,13 +1,13 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-09T20:20:36.270578",
+  "timestamp": "2026-06-09T20:57:58.618912",
   "vars": [
     {
       "id": 0,
       "name": "imu_k",
       "type": 6,
       "addr": 11432,
-      "value": 1.053332805633545,
+      "value": 1.0542875528335571,
       "isPeri": false
     },
     {
@@ -31,7 +31,7 @@
       "name": "bias_gy",
       "type": 6,
       "addr": 11678,
-      "value": -0.020576216280460358,
+      "value": -0.021071551367640495,
       "isPeri": false
     },
     {
@@ -39,7 +39,7 @@
       "name": "bias_gz",
       "type": 6,
       "addr": 11682,
-      "value": 0.0042214468121528625,
+      "value": 0.004337533842772245,
       "isPeri": false
     },
     {
@@ -159,7 +159,7 @@
       "name": "Yaw_Ki",
       "type": 6,
       "addr": 11095,
-      "value": 0.05000000074505806,
+      "value": 0.0,
       "isPeri": false
     },
     {
@@ -247,7 +247,7 @@
       "name": "NormK",
       "type": 6,
       "addr": 11054,
-      "value": 0.9632835388183594,
+      "value": 1.0180624723434448,
       "isPeri": false
     },
     {
@@ -255,7 +255,7 @@
       "name": "NormK",
       "type": 6,
       "addr": 11058,
-      "value": 1.1336030960083008,
+      "value": 1.2438770532608032,
       "isPeri": false
     },
     {
@@ -263,7 +263,7 @@
       "name": "NormK",
       "type": 6,
       "addr": 11062,
-      "value": 1.0451898574829102,
+      "value": 1.042374610900879,
       "isPeri": false
     },
     {
@@ -271,7 +271,71 @@
       "name": "NormK",
       "type": 6,
       "addr": 11066,
-      "value": 1.043664813041687,
+      "value": 1.034674048423767,
+      "isPeri": false
+    },
+    {
+      "id": 51,
+      "name": "Ring1",
+      "type": 6,
+      "addr": 11902,
+      "value": 0.0,
+      "isPeri": false
+    },
+    {
+      "id": 52,
+      "name": "Ring2",
+      "type": 6,
+      "addr": 11906,
+      "value": 0.0,
+      "isPeri": false
+    },
+    {
+      "id": 53,
+      "name": "Ring3",
+      "type": 6,
+      "addr": 11910,
+      "value": 0.0,
+      "isPeri": false
+    },
+    {
+      "id": 54,
+      "name": "Ring4",
+      "type": 6,
+      "addr": 11914,
+      "value": 0.0,
+      "isPeri": false
+    },
+    {
+      "id": 55,
+      "name": "Ring_AngTh",
+      "type": 6,
+      "addr": 11896,
+      "value": 5.0,
+      "isPeri": false
+    },
+    {
+      "id": 56,
+      "name": "Ring_WinLe",
+      "type": 0,
+      "addr": 11895,
+      "value": 10,
+      "isPeri": false
+    },
+    {
+      "id": 57,
+      "name": "Ring_EntTh",
+      "type": 0,
+      "addr": 11918,
+      "value": 7,
+      "isPeri": false
+    },
+    {
+      "id": 58,
+      "name": "Ring_ExtTh",
+      "type": 0,
+      "addr": 11919,
+      "value": 7,
       "isPeri": false
     }
   ]

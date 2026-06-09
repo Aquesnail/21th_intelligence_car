@@ -532,8 +532,8 @@ void Main_Control_Task(void *pvParameters)
        
             
                 if(change_inductor == 1){
-                    Err_1 = (float)(sqrt(adc_normalized[0]) - sqrt(adc_normalized[2]));
-                    Err_2 = (float)(sqrt(adc_normalized[1]) - sqrt(adc_normalized[3]));
+                    Err_1 = (float)(sqrt(adc_normalized[0]) - sqrt(adc_normalized[2]));//0,2对应横向电感
+                    Err_2 = (float)(sqrt(adc_normalized[1]) - sqrt(adc_normalized[3]));//1,3对应竖直电感
                     Err_3 = (float)(adc_normalized[0] + adc_normalized[2]);
                     Err_4 = (float)(adc_normalized[1] + adc_normalized[3]);
                 }else{
@@ -757,7 +757,7 @@ void Main_Control_Task_Init(void)
     // Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_target);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
     
-    
+  
     //  Debug_Register("FKp", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kp0);
    // Debug_Register("FKd", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kd0);
   //  Debug_Register("FKi", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Ki0);
@@ -819,6 +819,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[1]);
     Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[2]);
     Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[3]);
+
+    Debug_Register("stat",DBG_UINT8,&current_element);
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
