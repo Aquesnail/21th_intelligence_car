@@ -11,6 +11,7 @@
 #include "imu_filter.h"
 #include "lpf.h"
 #include "fuzzy_pid.h"
+#include "element.h"
 
 #pragma warning disable = 174
 /* ================================================================
@@ -148,6 +149,13 @@ static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 static float normalized_adc_k[4] = {1.0f, 1.0f, 1.0f, 1.0f}; // ADC 归一化系数数组
 static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
+static uint8_t change_inductor = 0;
+static float roll=0.0f, pitch=0.0f, yaw=0.0f;
+static float adc_avg_sum = 0.0f;
+static float adc_avg = 0.0f;
+static uint16_t adc_avg_count = 0;
+static uint8_t display_adc_original = 0;
+static float adc_normalized[4] = {0.0f};
 static void NormalizeADC(uint32_t peri_addr,void *pData,uint8_t len){
     uint8_t* ptr = (uint8_t *)pData;
     (void)peri_addr;
@@ -301,6 +309,7 @@ static motor_data_t speed_target_r={0};
 static float speed_target_r_nagtive=0.0f;
 static float numerator, denominator;
 static float err_max = 120.0f;
+static element_t current_element = ELEMENT_STRAIGHT;
 #define spd_limit 150.0f
 void Change_Maunal(){
     motor_data_t tmp;
@@ -334,13 +343,7 @@ static float sqrt_negative(float value) {
         return sqrt(value);
     }
 }
-static uint8_t change_inductor = 0;
-static float roll=0.0f, pitch=0.0f, yaw=0.0f;
-static float adc_avg_sum = 0.0f;
-static float adc_avg = 0.0f;
-static uint16_t adc_avg_count = 0;
-static uint8_t display_adc_original = 0;
-static float adc_normalized[4] = {0.0f};
+
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
@@ -406,8 +409,8 @@ void Main_Control_Task(void *pvParameters)
                         adc_avg = adc_avg_sum / adc_avg_count;
                         adc_avg_sum = 0;
                         adc_avg_count = 0;
-                        if(adc_avg > 4000){
-                            normalized_adc_k[normalize_index] = 1000.0f / (float)adc_avg; // 简单线性归一化
+                        if(adc_avg > 1000){
+                            normalized_adc_k[normalize_index] = 2000.0f / (float)adc_avg; // 简单线性归一化
                         }else{
                             normalized_adc_k[normalize_index] = 1.0f; // 不进行归一化
                         }
