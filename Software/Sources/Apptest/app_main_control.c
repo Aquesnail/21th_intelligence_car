@@ -154,6 +154,8 @@ static void NormalizeADC(uint32_t peri_addr,void *pData,uint8_t len){
     (void)len;
     if(*ptr<4){
         normalize_index = *ptr;
+        adc_avg_sum = 0.0f;
+        adc_avg_count = 0;
     }
     adc_start_normalize = 1;
     return;
@@ -335,7 +337,7 @@ static float sqrt_negative(float value) {
 static uint8_t change_inductor = 0;
 static float roll=0.0f, pitch=0.0f, yaw=0.0f;
 static float adc_avg_sum = 0.0f;
-static uint16_t adc_avg = 0;
+static float adc_avg = 0.0f;
 static uint16_t adc_avg_count = 0;
 static uint8_t display_adc_original = 0;
 static float adc_normalized[4] = {0.0f};
@@ -412,20 +414,16 @@ void Main_Control_Task(void *pvParameters)
                         adc_start_normalize = 0;
                     }
                 }
-                if(adc_values[0]<adc_dead_zone) adc_values[0]=0;
-                if(adc_values[1]<adc_dead_zone) adc_values[1]=0;
-                if(adc_values[2]<adc_dead_zone) adc_values[2]=0;
-                if(adc_values[3]<adc_dead_zone) adc_values[3]=0;
                 if(display_adc_original){
                     adc_normalized[0] = adc_values[0];
                     adc_normalized[1] = adc_values[1];
                     adc_normalized[2] = adc_values[2];
                     adc_normalized[3] = adc_values[3];
                 }else{
-                    adc_normalized[0] = adc_values[0] * normalized_adc_k[0];
-                    adc_normalized[1] = adc_values[1] * normalized_adc_k[1];
-                    adc_normalized[2] = adc_values[2] * normalized_adc_k[2 ];
-                    adc_normalized[3] = adc_values[3] * normalized_adc_k[3];
+                    adc_normalized[0] = (adc_values[0] < adc_dead_zone) ? 0.0f : adc_values[0] * normalized_adc_k[0];
+                    adc_normalized[1] = (adc_values[1] < adc_dead_zone) ? 0.0f : adc_values[1] * normalized_adc_k[1];
+                    adc_normalized[2] = (adc_values[2] < adc_dead_zone) ? 0.0f : adc_values[2] * normalized_adc_k[2];
+                    adc_normalized[3] = (adc_values[3] < adc_dead_zone) ? 0.0f : adc_values[3] * normalized_adc_k[3];
                 }
        
             

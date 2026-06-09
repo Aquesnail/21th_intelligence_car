@@ -74,6 +74,7 @@ void vDebugTaskDelayedStart(void *pvParameters)
 extern uint8_t CPUStatus_HandleCommand(const char* cmd);
 extern uint8_t Storage_HandleCommand(const char* cmd);
 extern uint8_t Motor_HandleCommand(const char* cmd);
+extern uint8_t ADC_NormalizeCommand(const char* cmd);
 char echoBuf[70] = {0};
 void Debug_OnTextReceived(char* str, uint8_t len)
 {
@@ -86,6 +87,10 @@ void Debug_OnTextReceived(char* str, uint8_t len)
     if(Motor_HandleCommand(str)){
         return;
     }
+    if(ADC_NormalizeCommand(str)){
+        return;
+    }
+    
 
     sprintf(echoBuf, "Echo: %s", str);
     Debug_Log(echoBuf);
