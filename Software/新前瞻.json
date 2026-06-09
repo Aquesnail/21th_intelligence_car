@@ -1,20 +1,20 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-08T20:02:36.883577",
+  "timestamp": "2026-06-09T20:20:36.270578",
   "vars": [
     {
       "id": 0,
       "name": "imu_k",
       "type": 6,
-      "addr": 11420,
-      "value": 1.0534753799438477,
+      "addr": 11432,
+      "value": 1.053332805633545,
       "isPeri": false
     },
     {
       "id": 4,
       "name": "Kp",
       "type": 6,
-      "addr": 11654,
+      "addr": 11666,
       "value": 1.2000000476837158,
       "isPeri": false
     },
@@ -22,7 +22,7 @@
       "id": 5,
       "name": "Ki",
       "type": 6,
-      "addr": 11658,
+      "addr": 11670,
       "value": 0.0020000000949949026,
       "isPeri": false
     },
@@ -30,16 +30,16 @@
       "id": 6,
       "name": "bias_gy",
       "type": 6,
-      "addr": 11666,
-      "value": -0.020219357684254646,
+      "addr": 11678,
+      "value": -0.020576216280460358,
       "isPeri": false
     },
     {
       "id": 7,
       "name": "bias_gz",
       "type": 6,
-      "addr": 11670,
-      "value": 0.004459564108401537,
+      "addr": 11682,
+      "value": 0.0042214468121528625,
       "isPeri": false
     },
     {
@@ -47,14 +47,14 @@
       "name": "CH_Induct",
       "type": 0,
       "addr": 11157,
-      "value": 1,
+      "value": 0,
       "isPeri": false
     },
     {
       "id": 19,
       "name": "Err_K_A",
       "type": 6,
-      "addr": 11356,
+      "addr": 11368,
       "value": 25.0,
       "isPeri": false
     },
@@ -62,7 +62,7 @@
       "id": 20,
       "name": "Err_K_B",
       "type": 6,
-      "addr": 11360,
+      "addr": 11372,
       "value": 120.0,
       "isPeri": false
     },
@@ -70,7 +70,7 @@
       "id": 21,
       "name": "Err_K_C",
       "type": 6,
-      "addr": 11368,
+      "addr": 11380,
       "value": 3.0,
       "isPeri": false
     },
@@ -78,7 +78,7 @@
       "id": 22,
       "name": "Err_K_D",
       "type": 6,
-      "addr": 11372,
+      "addr": 11384,
       "value": 4.0,
       "isPeri": false
     },
@@ -87,14 +87,14 @@
       "name": "ADC_DeadZo",
       "type": 2,
       "addr": 11159,
-      "value": 2,
+      "value": 5,
       "isPeri": false
     },
     {
       "id": 24,
       "name": "ADC_ErrZon",
       "type": 6,
-      "addr": 11347,
+      "addr": 11359,
       "value": 0.5,
       "isPeri": false
     },
@@ -102,7 +102,7 @@
       "id": 26,
       "name": "Manual",
       "type": 0,
-      "addr": 11322,
+      "addr": 11334,
       "value": 1,
       "isPeri": false
     },
@@ -110,7 +110,7 @@
       "id": 27,
       "name": "Fan_Voltag",
       "type": 6,
-      "addr": 11285,
+      "addr": 11297,
       "value": 0.0,
       "isPeri": true
     },
@@ -124,6 +124,14 @@
     },
     {
       "id": 29,
+      "name": "SS_Step",
+      "type": 6,
+      "addr": 11256,
+      "value": 0.20000000298023224,
+      "isPeri": false
+    },
+    {
+      "id": 30,
       "name": "FKp0",
       "type": 6,
       "addr": 11186,
@@ -131,7 +139,7 @@
       "isPeri": false
     },
     {
-      "id": 30,
+      "id": 31,
       "name": "Fe_max",
       "type": 6,
       "addr": 11190,
@@ -139,23 +147,23 @@
       "isPeri": false
     },
     {
-      "id": 31,
+      "id": 32,
       "name": "Yaw_Kp",
       "type": 6,
       "addr": 11091,
-      "value": 0.5,
+      "value": 0.05000000074505806,
       "isPeri": false
     },
     {
-      "id": 32,
+      "id": 33,
       "name": "Yaw_Ki",
       "type": 6,
       "addr": 11095,
-      "value": 0.0,
+      "value": 0.05000000074505806,
       "isPeri": false
     },
     {
-      "id": 35,
+      "id": 36,
       "name": "ComSpd",
       "type": 6,
       "addr": 11004,
@@ -163,7 +171,7 @@
       "isPeri": false
     },
     {
-      "id": 36,
+      "id": 37,
       "name": "FKp",
       "type": 6,
       "addr": 11194,
@@ -171,7 +179,7 @@
       "isPeri": false
     },
     {
-      "id": 37,
+      "id": 38,
       "name": "FKp",
       "type": 6,
       "addr": 11198,
@@ -179,7 +187,7 @@
       "isPeri": false
     },
     {
-      "id": 38,
+      "id": 39,
       "name": "FKp",
       "type": 6,
       "addr": 11202,
@@ -187,7 +195,7 @@
       "isPeri": false
     },
     {
-      "id": 39,
+      "id": 40,
       "name": "FKp",
       "type": 6,
       "addr": 11206,
@@ -195,7 +203,7 @@
       "isPeri": false
     },
     {
-      "id": 40,
+      "id": 41,
       "name": "FKp",
       "type": 6,
       "addr": 11210,
@@ -203,7 +211,7 @@
       "isPeri": false
     },
     {
-      "id": 41,
+      "id": 42,
       "name": "FKp",
       "type": 6,
       "addr": 11214,
@@ -211,7 +219,7 @@
       "isPeri": false
     },
     {
-      "id": 42,
+      "id": 43,
       "name": "FKp",
       "type": 6,
       "addr": 11218,
@@ -219,51 +227,51 @@
       "isPeri": false
     },
     {
-      "id": 43,
+      "id": 44,
       "name": "A_ILim",
       "type": 6,
-      "addr": 11293,
-      "value": 0.0,
-      "isPeri": true
-    },
-    {
-      "id": 44,
-      "name": "B_ILim",
-      "type": 6,
-      "addr": 11301,
-      "value": 0.0,
+      "addr": 11305,
+      "value": 2.5,
       "isPeri": true
     },
     {
       "id": 45,
-      "name": "Normalized",
+      "name": "B_ILim",
       "type": 6,
-      "addr": 11054,
-      "value": 1.0,
-      "isPeri": false
+      "addr": 11313,
+      "value": 2.5,
+      "isPeri": true
     },
     {
       "id": 46,
-      "name": "Normalized",
+      "name": "NormK",
       "type": 6,
-      "addr": 11058,
-      "value": 1.0,
+      "addr": 11054,
+      "value": 0.9632835388183594,
       "isPeri": false
     },
     {
       "id": 47,
-      "name": "Normalized",
+      "name": "NormK",
       "type": 6,
-      "addr": 11062,
-      "value": 1.0,
+      "addr": 11058,
+      "value": 1.1336030960083008,
       "isPeri": false
     },
     {
       "id": 48,
-      "name": "Normalized",
+      "name": "NormK",
+      "type": 6,
+      "addr": 11062,
+      "value": 1.0451898574829102,
+      "isPeri": false
+    },
+    {
+      "id": 49,
+      "name": "NormK",
       "type": 6,
       "addr": 11066,
-      "value": 1.0,
+      "value": 1.043664813041687,
       "isPeri": false
     }
   ]

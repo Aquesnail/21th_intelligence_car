@@ -429,6 +429,16 @@
               <FileType>1</FileType>
               <FilePath>.\Sources\User\motor_port.c</FilePath>
             </File>
+            <File>
+              <FileName>element.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\User\element.c</FilePath>
+            </File>
+            <File>
+              <FileName>element.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\User\element.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
