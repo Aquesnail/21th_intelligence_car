@@ -3605,9 +3605,9 @@
       </Doc>
       <Doc>
         <Name>.\Sources\Apptest\app_main_control.c</Name>
-        <ColumnNumber>18</ColumnNumber>
+        <ColumnNumber>0</ColumnNumber>
         <TopLine>244</TopLine>
-        <CurrentLine>259</CurrentLine>
+        <CurrentLine>286</CurrentLine>
         <Folding>1</Folding>
         <ContractedFolders></ContractedFolders>
         <PaneID>0</PaneID>

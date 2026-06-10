@@ -277,6 +277,36 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     val = fan_D;
     memcpy(pData, &val, sizeof(uint16_t));
 }
+static float g_outer_slew_max = 5.0f;       /* 每周期(2ms)最大变化量 deg/s */
+static float g_pid_output_slewed = 0.0f;    /* 斜率限制状态 */
+static float g_pid_output_filtered = 0.0f;  /* 外环最终输出(经斜率+LPF) */
+static Lpf_t g_lpf_outer;                    /* 外环低通滤波器 */
+static float g_outer_lpf_fc = 100.0f;        /* 外环LPF截止频率(Hz), 上位机可调 */
+/* 外环 LPF 截止频率读写回调 (上位机在线调参) */
+static void OuterLpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float val;
+    (void)len;
+    (void)peri_addr;
+    val = g_outer_lpf_fc;
+    memcpy(pData, &val, sizeof(float));
+}
+
+static void OuterLpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float new_fc;
+    float alpha;
+    (void)len;
+    (void)peri_addr;
+    memcpy(&new_fc, pData, sizeof(float));
+    if (new_fc < 1.0f)  new_fc = 1.0f;
+    if (new_fc > 400.0f) new_fc = 400.0f;
+    g_outer_lpf_fc = new_fc;
+    alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
+    g_lpf_outer.alpha = alpha;
+    g_lpf_outer.freq = new_fc;
+    /* 不重置 output, 保持滤波连续性 */
+}
 static DebugPeriDesc_t g_pid_a_kp_desc   = {REG_A_PID_SPEED_KP,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_ki_desc   = {REG_A_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_kd_desc   = {REG_A_PID_SPEED_KD,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
@@ -291,6 +321,7 @@ static DebugPeriDesc_t g_right_speed_desc = {REG_A_SPEED_TARGET, Motor_Reg_Read_
 static DebugPeriDesc_t g_left_speed_desc  = {REG_B_SPEED_TARGET,Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 只写当前左轮速度
 static DebugPeriDesc_t g_ec_ma_count_desc = {0, EC_MA_Read_Cb, EC_MA_Write_Cb}; /* EC移动平均窗口大小 */
 static DebugPeriDesc_t g_fan_d = {0, Fan_D_Read_Cb, Fan_D_Write_Cb}; /* 风扇占空比寄存器 */
+static DebugPeriDesc_t g_outer_lpf_fc_desc = {0, OuterLpf_Read_Cb, OuterLpf_Write_Cb}; /* 外环LPF截止频率 */
 extern IMU_Filter_t *IMU_Filter_Data;
 
 motor_data_t motor_spi_dat_handle(uint8_t* buffer)
@@ -362,6 +393,8 @@ uint8_t Motor_HandleCommand(const char* cmd)
 static FuzzyPID pid_struct={0.0f};
 static float pid_output=0.0f;
 static float common_speed=30.0f;
+/* 外环带宽限制: 斜率限制 + 低通滤波 */
+
 static PI_Controller inner_yaw_rate_pi = {0};
 static float actual_yaw_rate_debug = 0.0f;
 static float pid_output_k = 0.10f;
@@ -407,6 +440,8 @@ void Change_Maunal(){
         g_auto_transition = 1;
         g_auto_fan_tick = xTaskGetTickCount();
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
+        g_pid_output_slewed = 0.0f;    /* 重置外环带宽限制 */
+        lpf_reset(&g_lpf_outer, 0.0f);
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
@@ -542,12 +577,25 @@ void Main_Control_Task(void *pvParameters)
                     Err_Angle = numerator / denominator * 100.0f;
                 }
                 pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
-                /* pid_output 作为目标角速度 */
+                /* 外环带宽限制: 1.斜率限制 → 2.低通滤波 */
+                {
+                    float slew_diff;
+                    slew_diff = pid_output - g_pid_output_slewed;
+                    if (slew_diff > g_outer_slew_max) {
+                        g_pid_output_slewed += g_outer_slew_max;
+                    } else if (slew_diff < -g_outer_slew_max) {
+                        g_pid_output_slewed -= g_outer_slew_max;
+                    } else {
+                        g_pid_output_slewed = pid_output;
+                    }
+                }
+                g_pid_output_filtered = lpf_update(&g_lpf_outer, g_pid_output_slewed);
+                /* g_pid_output_filtered 作为目标角速度送入内环 */
                 {
                     actual_yaw_rate;
                     actual_yaw_rate = IMU_Get_Gyro_Z();
                     actual_yaw_rate_debug = actual_yaw_rate;
-                    differential_speed = PI_Step(&inner_yaw_rate_pi, pid_output, actual_yaw_rate);
+                    differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
                     speed_target_l.f = common_speed - differential_speed;
                     speed_target_r.f = -(common_speed + differential_speed);
                 }
@@ -683,6 +731,8 @@ void Main_Control_Task(void *pvParameters)
                     PWMA_Set(0);
                     g_auto_transition = 0;
                     g_ss_magnitude = 0.0f;  /* 重置缓启动 */
+                    g_pid_output_slewed = 0.0f;    /* 重置外环带宽限制 */
+                    lpf_reset(&g_lpf_outer, 0.0f);
                 }
 
                 //taskEXIT_CRITICAL();
@@ -747,6 +797,7 @@ void Main_Control_Task_Init(void)
     /* 初始化低通滤波器, 截止频率可在此修改 */
     lpf_init_fc(&g_lpf_left,  400.0f, 0.002f);  /* fc=20Hz, dt=2ms(500Hz) */
     lpf_init_fc(&g_lpf_right, 400.0f, 0.002f);
+    lpf_init_fc(&g_lpf_outer, g_outer_lpf_fc, 0.002f);  /* 外环 fc=100Hz, dt=2ms */
     
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
     Debug_Register("CH_Induct",  DBG_UINT8 | STATIC_TYPE , &change_inductor);
@@ -779,6 +830,9 @@ void Main_Control_Task_Init(void)
     Debug_Register("YawLoLi",DBG_FLOAT|STATIC_TYPE,&inner_yaw_rate_pi.min_sep);
     /* 外环模糊 P 输出 = 目标角速度, 内环实际角速度 (高频, 观察跟随效果) */
     Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
+    Debug_Register("TgtYawF",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_pid_output_filtered);
+    Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_outer_slew_max);
+    Debug_Register("OutLPFFc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
     Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &actual_yaw_rate_debug);
 
     Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &common_speed);
