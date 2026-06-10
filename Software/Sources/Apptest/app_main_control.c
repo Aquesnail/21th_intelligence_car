@@ -186,7 +186,7 @@ float PI_Step(PI_Controller *pi, float setpoint, float actual)
     if (pi->error_sum > pi->error_sum_max)  pi->error_sum = pi->error_sum_max;
     if (pi->error_sum < -pi->error_sum_max) pi->error_sum = -pi->error_sum_max;
     if(error < pi->min_sep && error > -pi->min_sep)pi->error_sum = 0;
-    if(error > pi->max_sep && error < -pi->max_sep)pi->error_sum = 0;
+    if(error > pi->max_sep || error < -pi->max_sep)pi->error_sum = 0;
     output = pi->Kp * error + pi->error_sum;
     return output;
 }

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-11T00:18:59.682783",
+  "timestamp": "2026-06-11T00:33:00.325886",
   "vars": [
     {
       "id": 13,
@@ -71,7 +71,7 @@
       "name": "Fan_D",
       "type": 2,
       "addr": 11177,
-      "value": 0,
+      "value": 300,
       "isPeri": true
     },
     {
@@ -95,7 +95,7 @@
       "name": "FKp0",
       "type": 6,
       "addr": 11201,
-      "value": 1.2000000476837158,
+      "value": 0.10000000149011612,
       "isPeri": false
     },
     {
@@ -215,7 +215,7 @@
       "name": "A_ILim",
       "type": 6,
       "addr": 11312,
-      "value": 3.0375106032090465e-40,
+      "value": 2.5,
       "isPeri": true
     },
     {
