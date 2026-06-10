@@ -704,6 +704,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Comm\fuzzy_pid.h</FilePath>
             </File>
+            <File>
+              <FileName>moving_avg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Comm\moving_avg.c</FilePath>
+            </File>
+            <File>
+              <FileName>moving_avg.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Comm\moving_avg.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

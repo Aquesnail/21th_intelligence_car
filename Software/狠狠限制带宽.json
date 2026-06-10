@@ -1,12 +1,12 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-11T01:46:48.073004",
+  "timestamp": "2026-06-11T03:18:18.213112",
   "vars": [
     {
       "id": 13,
       "name": "CH_Induct",
       "type": 0,
-      "addr": 11180,
+      "addr": 10523,
       "value": 1,
       "isPeri": false
     },
@@ -14,7 +14,7 @@
       "id": 14,
       "name": "Err_K_A",
       "type": 6,
-      "addr": 11409,
+      "addr": 11172,
       "value": 25.0,
       "isPeri": false
     },
@@ -22,7 +22,7 @@
       "id": 15,
       "name": "Err_K_B",
       "type": 6,
-      "addr": 11413,
+      "addr": 11176,
       "value": 120.0,
       "isPeri": false
     },
@@ -30,7 +30,7 @@
       "id": 16,
       "name": "Err_K_C",
       "type": 6,
-      "addr": 11421,
+      "addr": 11184,
       "value": 3.0,
       "isPeri": false
     },
@@ -38,7 +38,7 @@
       "id": 17,
       "name": "Err_K_D",
       "type": 6,
-      "addr": 11425,
+      "addr": 11188,
       "value": 4.0,
       "isPeri": false
     },
@@ -46,7 +46,7 @@
       "id": 18,
       "name": "ADC_DeadZo",
       "type": 2,
-      "addr": 11182,
+      "addr": 10525,
       "value": 5,
       "isPeri": false
     },
@@ -54,7 +54,7 @@
       "id": 19,
       "name": "ADC_ErrZon",
       "type": 6,
-      "addr": 11400,
+      "addr": 11163,
       "value": 0.5,
       "isPeri": false
     },
@@ -62,7 +62,7 @@
       "id": 21,
       "name": "Manual",
       "type": 0,
-      "addr": 11379,
+      "addr": 11130,
       "value": 1,
       "isPeri": false
     },
@@ -70,7 +70,7 @@
       "id": 22,
       "name": "Fan_D",
       "type": 2,
-      "addr": 11197,
+      "addr": 10540,
       "value": 300,
       "isPeri": true
     },
@@ -78,15 +78,15 @@
       "id": 23,
       "name": "Drive_Spd",
       "type": 6,
-      "addr": 11054,
-      "value": 20.0,
+      "addr": 10389,
+      "value": 150.0,
       "isPeri": false
     },
     {
       "id": 24,
       "name": "SS_Step",
       "type": 6,
-      "addr": 11303,
+      "addr": 10646,
       "value": 5.0,
       "isPeri": false
     },
@@ -94,15 +94,15 @@
       "id": 25,
       "name": "FKp0",
       "type": 6,
-      "addr": 11221,
-      "value": 0.20000000298023224,
+      "addr": 10564,
+      "value": 1.2000000476837158,
       "isPeri": false
     },
     {
       "id": 26,
       "name": "Fe_max",
       "type": 6,
-      "addr": 11225,
+      "addr": 10568,
       "value": 150.0,
       "isPeri": false
     },
@@ -110,39 +110,39 @@
       "id": 27,
       "name": "Yaw_Kp",
       "type": 6,
-      "addr": 11095,
-      "value": 4.300000190734863,
+      "addr": 10438,
+      "value": 0.15000000596046448,
       "isPeri": false
     },
     {
       "id": 28,
       "name": "Yaw_Ki",
       "type": 6,
-      "addr": 11099,
-      "value": 0.009999999776482582,
+      "addr": 10442,
+      "value": 0.0003000000142492354,
       "isPeri": false
     },
     {
       "id": 29,
       "name": "YawLimit",
       "type": 6,
-      "addr": 11107,
-      "value": 20.0,
+      "addr": 10450,
+      "value": 50000.0,
       "isPeri": false
     },
     {
       "id": 30,
       "name": "YawHiLi",
       "type": 6,
-      "addr": 11115,
-      "value": 19999.0,
+      "addr": 10458,
+      "value": 0.0,
       "isPeri": false
     },
     {
       "id": 31,
       "name": "YawLoLi",
       "type": 6,
-      "addr": 11111,
+      "addr": 10454,
       "value": 0.0,
       "isPeri": false
     },
@@ -150,193 +150,225 @@
       "id": 34,
       "name": "OutSlew",
       "type": 6,
-      "addr": 11192,
-      "value": 0.5,
+      "addr": 10535,
+      "value": 5.0,
       "isPeri": false
     },
     {
       "id": 35,
       "name": "OutLPFFc",
       "type": 6,
-      "addr": 11291,
+      "addr": 10634,
       "value": 100.0,
       "isPeri": true
     },
     {
       "id": 37,
-      "name": "ComSpd",
+      "name": "Kd_Gyro",
       "type": 6,
-      "addr": 11004,
-      "value": 30.0,
+      "addr": 10430,
+      "value": 0.0,
       "isPeri": false
     },
     {
       "id": 38,
-      "name": "FKp",
+      "name": "Kd_Diff",
       "type": 6,
-      "addr": 11229,
-      "value": 1.100000023841858,
+      "addr": 11159,
+      "value": 0.0,
       "isPeri": false
     },
     {
       "id": 39,
-      "name": "FKp",
+      "name": "DiffDead",
       "type": 6,
-      "addr": 11233,
-      "value": 1.2000000476837158,
+      "addr": 11139,
+      "value": 0.0,
       "isPeri": false
     },
     {
-      "id": 40,
-      "name": "FKp",
+      "id": 60,
+      "name": "Ring3",
       "type": 6,
-      "addr": 11237,
-      "value": 1.100000023841858,
+      "addr": 12381,
+      "value": 10000.0,
       "isPeri": false
     },
     {
-      "id": 41,
-      "name": "FKp",
+      "id": 61,
+      "name": "Ring4",
       "type": 6,
-      "addr": 11241,
-      "value": 1.2000000476837158,
+      "addr": 12385,
+      "value": 10000.0,
       "isPeri": false
     },
     {
-      "id": 42,
-      "name": "FKp",
+      "id": 62,
+      "name": "Ring_AngTh",
       "type": 6,
-      "addr": 11245,
-      "value": 1.100000023841858,
+      "addr": 12367,
+      "value": 5.0,
+      "isPeri": false
+    },
+    {
+      "id": 63,
+      "name": "Ring_WinLe",
+      "type": 0,
+      "addr": 12366,
+      "value": 7,
+      "isPeri": false
+    },
+    {
+      "id": 64,
+      "name": "Ring_EntTh",
+      "type": 0,
+      "addr": 12389,
+      "value": 7,
+      "isPeri": false
+    },
+    {
+      "id": 65,
+      "name": "Ring_ExtTh",
+      "type": 0,
+      "addr": 12390,
+      "value": 0,
       "isPeri": false
     },
     {
       "id": 43,
-      "name": "FKp",
+      "name": "ComSpd",
       "type": 6,
-      "addr": 11249,
-      "value": 1.2000000476837158,
+      "addr": 10331,
+      "value": 30.0,
       "isPeri": false
     },
     {
       "id": 44,
       "name": "FKp",
       "type": 6,
-      "addr": 11253,
-      "value": 1.100000023841858,
+      "addr": 10572,
+      "value": 1.2000000476837158,
       "isPeri": false
     },
     {
       "id": 45,
-      "name": "A_ILim",
+      "name": "FKp",
       "type": 6,
-      "addr": 11348,
-      "value": 2.5,
-      "isPeri": true
+      "addr": 10576,
+      "value": 1.0,
+      "isPeri": false
     },
     {
       "id": 46,
-      "name": "B_ILim",
+      "name": "FKp",
       "type": 6,
-      "addr": 11356,
-      "value": 2.5,
-      "isPeri": true
+      "addr": 10580,
+      "value": 1.0,
+      "isPeri": false
     },
     {
       "id": 47,
-      "name": "NormK",
+      "name": "FKp",
       "type": 6,
-      "addr": 11058,
-      "value": 0.9896110892295837,
+      "addr": 10584,
+      "value": 1.0,
       "isPeri": false
     },
     {
       "id": 48,
-      "name": "NormK",
+      "name": "FKp",
       "type": 6,
-      "addr": 11062,
-      "value": 1.112323522567749,
+      "addr": 10588,
+      "value": 1.0,
       "isPeri": false
     },
     {
       "id": 49,
-      "name": "NormK",
+      "name": "FKp",
       "type": 6,
-      "addr": 11066,
-      "value": 1.1040208339691162,
+      "addr": 10592,
+      "value": 1.0,
       "isPeri": false
     },
     {
       "id": 50,
-      "name": "NormK",
+      "name": "FKp",
       "type": 6,
-      "addr": 11070,
-      "value": 1.0352288484573364,
+      "addr": 10596,
+      "value": 1.2000000476837158,
       "isPeri": false
+    },
+    {
+      "id": 51,
+      "name": "A_ILim",
+      "type": 6,
+      "addr": 10691,
+      "value": 2.5,
+      "isPeri": true
     },
     {
       "id": 52,
-      "name": "Ring1",
+      "name": "B_ILim",
       "type": 6,
-      "addr": 11933,
-      "value": 10000.0,
-      "isPeri": false
+      "addr": 10700,
+      "value": 2.5,
+      "isPeri": true
     },
     {
       "id": 53,
-      "name": "Ring2",
+      "name": "NormK",
       "type": 6,
-      "addr": 11937,
-      "value": 10000.0,
+      "addr": 10393,
+      "value": 0.9581499695777893,
       "isPeri": false
     },
     {
       "id": 54,
-      "name": "Ring3",
+      "name": "NormK",
       "type": 6,
-      "addr": 11941,
-      "value": 10000.0,
+      "addr": 10397,
+      "value": 1.0557365417480469,
       "isPeri": false
     },
     {
       "id": 55,
-      "name": "Ring4",
+      "name": "NormK",
       "type": 6,
-      "addr": 11945,
-      "value": 10000.0,
+      "addr": 10401,
+      "value": 1.0300761461257935,
       "isPeri": false
     },
     {
       "id": 56,
-      "name": "Ring_AngTh",
+      "name": "NormK",
       "type": 6,
-      "addr": 11927,
-      "value": 5.0,
-      "isPeri": false
-    },
-    {
-      "id": 57,
-      "name": "Ring_WinLe",
-      "type": 0,
-      "addr": 11926,
-      "value": 7,
+      "addr": 10405,
+      "value": 0.9722529053688049,
       "isPeri": false
     },
     {
       "id": 58,
-      "name": "Ring_EntTh",
-      "type": 0,
-      "addr": 11949,
-      "value": 7,
+      "name": "Ring1",
+      "type": 6,
+      "addr": 12373,
+      "value": 10000.0,
       "isPeri": false
     },
     {
       "id": 59,
-      "name": "Ring_ExtTh",
-      "type": 0,
-      "addr": 11950,
-      "value": 0,
+      "name": "Ring2",
+      "type": 6,
+      "addr": 12377,
+      "value": 10000.0,
       "isPeri": false
+    },
+    {
+      "id": 36,
+      "name": "D_MA_Win",
+      "type": 2,
+      "addr": 10364,
+      "value": 0,
+      "isPeri": true
     }
   ]
 }
