@@ -22,8 +22,8 @@ void GPIO_Init(void) {
     // --- P1口配置 ---
     // P1.1: TX, 推挽;  P1.0: RX, 准双向
     // P1.6, P1.7: 保持原配置(高阻);  其余浮空准双向
-    P1M1 = (PIN_7 | PIN_6 | PIN_2);
-    P1M0 = PIN_1;
+    P1M1 = (PIN_6 | PIN_2);
+    P1M0 = (PIN_7 |PIN_1);
     P1PU = 0x00;
     P1SR = ~PIN_1;
     P1DR &= ~PIN_1;

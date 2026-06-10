@@ -415,16 +415,6 @@
               <FilePath>.\Sources\User\imu_port.c</FilePath>
             </File>
             <File>
-              <FileName>storage_port.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\User\storage_port.c</FilePath>
-            </File>
-            <File>
-              <FileName>storage_port.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\User\storage_port.h</FilePath>
-            </File>
-            <File>
               <FileName>motor_port.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\User\motor_port.c</FilePath>
@@ -1023,11 +1013,6 @@
               <FileName>motor.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Device\motor.h</FilePath>
-            </File>
-            <File>
-              <FileName>storage_mgr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Device\storage_mgr.c</FilePath>
             </File>
           </Files>
         </Group>

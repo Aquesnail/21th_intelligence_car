@@ -58,3 +58,47 @@ void PWMC_Init(void)
     // 在此添加用户初始化代码  
     //<<AICUBE_USER_PWM2_INITIAL_END>>
 }
+
+
+#define PWMA_CH1                0x11
+#define PWMA_CH2                0x12
+#define PWMA_CH3                0x13
+#define PWMA_CH4                0x14
+
+
+void PWMA_Init(void)
+{
+    PWMA_C4SwitchP1617();               //设置PWMA通道4数据端口: PWMA4P (P1.6), PWMA4N (P1.7)
+
+    HSPWMA_Disable();                   //关闭高速模式，使用同步方式进行初始化
+    PWMA_InternalClockMode();           //选择内部时钟模式
+    PWMA_SetClockDivider(479);         //设置16位预分频
+    PWMA_SetReload16(999);              //设置16位重载值
+    PWMA_BufferARR();                   //使能重载值寄存器预装载功能
+    PWMA_SetCounter(0);                 //初始化计数值
+
+    PWMA_CC4PDisable();                 //关闭通道
+    PWMA_CC4Output();                   //使能通道输出功能
+    PWMA_CC4PEnable();                  //打开通道
+    //PWM_UpdateDuty(PWMA_CH4, 400);      //设置通道的PWM占空比
+    PWMA_OC4REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
+    PWMA_BufferCCR4();                  //使能CCRn预装载功能
+    PWMA_DisablePWM4POutput();          //关闭正极通道输出
+    PWMA_CC4NEnable();                  //打开负极通道
+    PWMA_CC4NNonInverted();             //设置负极通道输出高电平有效
+    PWMA_EnablePWM4NOutput();           //使能负极通道输出
+
+    PWMA_EnableMainOutput();            //使能PWM主输出
+
+    PWMA_Run();                         //PWMA开始运行
+
+    //<<AICUBE_USER_PWM0_INITIAL_BEGIN>>
+    // 在此添加用户初始化代码  
+    //<<AICUBE_USER_PWM0_INITIAL_END>>
+}
+
+
+void PWMA_Set(uint16_t t){
+  if(t>700) t = 0;
+  PWMA_SetCCR4Value(t);
+}

@@ -9,7 +9,6 @@
 
 #include "imu_filter.h"
 #include "debug_arch.h"
-#include "storage_port.h"
 #include <stdarg.h>
 #include "timer.h"
 
@@ -32,7 +31,8 @@ SemaphoreHandle_t xDmaSemaphore = NULL;
 TaskHandle_t   xImuTaskHandle = NULL;
 static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1] = {0};
 static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1] = {0};
-IMU_Filter_t *IMU_Filter_Data = NULL;
+static IMU_Filter_t g_imu_filter;
+IMU_Filter_t *IMU_Filter_Data = &g_imu_filter;
 static ICM42688_Pack16_t IMU_Dat = {0};
 
 extern SemaphoreHandle_t xDebugReadySignal;
@@ -241,29 +241,36 @@ void vIMUProcessTask(void *pvParameters) {
 /* =======================================================
  * 对外接口
  * ======================================================= */
-extern UserParams_t *UserParams;
 
 void IMU_Init() {
+    /* 初始化 IMU 滤波器默认参数 */
+    g_imu_filter.Kp = 1.2f;
+    g_imu_filter.Ki = 0.002f;
+    g_imu_filter.bias_gx = 0.0f;
+    g_imu_filter.bias_gy = 0.0f;
+    g_imu_filter.bias_gz = 0.0f;
+    g_imu_filter.is_calibrated = 0;
+
     xTaskCreate(vIMUProcessTask, "IMU", 728-500, NULL, tskIDLE_PRIORITY + 4, NULL);
 
 		//Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
     //Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
     //Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
    // Debug_Register("imu_k",DBG_FLOAT | STATIC_TYPE,&imu_slope_k);
-    Debug_Register("imu_k", DBG_FLOAT | STATIC_TYPE, &(imu_slope_k));
+ //   Debug_Register("imu_k", DBG_FLOAT | STATIC_TYPE, &(imu_slope_k));
     Debug_Register("pitch", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->pitch));
     Debug_Register("roll", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->roll));
     Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
-    Debug_Register("Kp", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Kp));
-    Debug_Register("Ki", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Ki));
+  //  Debug_Register("Kp", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Kp));
+   // Debug_Register("Ki", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Ki));
   //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
  //   Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
  //   Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
  //   Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
  //   Debug_Register("gx", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gx));
  //   Debug_Register("gy", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gy));
-    Debug_Register("bias_gy", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gy));
-    Debug_Register("bias_gz", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gz));
+  //  Debug_Register("bias_gy", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gy));
+   // Debug_Register("bias_gz", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->bias_gz));
 }
 float IMU_Get_Gyro_Z(void){
     return IMU_Filter_Data->sensor.dat.gz;

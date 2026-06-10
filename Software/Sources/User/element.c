@@ -1,7 +1,7 @@
 #include "element.h"
 #include "debug_arch.h"
 
-static float Ring[4] = {0.0f}, angle_pitch = 5.0f;
+static float Ring[4] = {10000.0f, 10000.0f, 10000.0f, 10000.0f}, angle_pitch = 5.0f;
 
 /* ================================================================
  * 环岛多数投票窗 (Majority Voting Window)
@@ -73,10 +73,10 @@ void Element_Init(void)
     Debug_Register("Ring_EntThr",  DBG_UINT8 | STATIC_TYPE, &ring_entry_thresh);
     Debug_Register("Ring_ExtThr",  DBG_UINT8 | STATIC_TYPE, &ring_exit_thresh);
 
-    /* 窗长默认 10 帧 (20ms), 阈值默认 7 (70% 多数) */
-    ring_win_len      = 10;
+    /* 窗长默认 7 帧 (14ms), 阈值默认 7/0 (进入70%多数, 退出即时) */
+    ring_win_len      = 7;
     ring_entry_thresh = 7;
-    ring_exit_thresh  = 7;
+    ring_exit_thresh  = 0;
 
     /* 清零窗口缓冲区 (xdata 上电值不确定) */
     for (i = 0; i < 100; i++) {
