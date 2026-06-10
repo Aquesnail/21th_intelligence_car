@@ -267,7 +267,7 @@ static void Fan_D_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     (void)peri_addr;
     memcpy(&new_val, pData, sizeof(uint16_t));
     fan_D = new_val;
-    PWMA_Set(fan_D);
+    //PWMA_Set(fan_D);
 }
 
 static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
@@ -466,7 +466,6 @@ void Change_Maunal(){
 	if(manual_control_flag){
         /* 切换到自动模式: 启动风扇, 3s 后再激活电机 */
         manual_control_flag = 0;
-        fan_D = 300;
         PWMA_Set(fan_D);
         g_auto_transition = 1;
         g_auto_fan_tick = xTaskGetTickCount();
@@ -478,7 +477,6 @@ void Change_Maunal(){
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
-        fan_D = 0;
         PWMA_Set(0);
         g_auto_transition = 0;
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
@@ -731,6 +729,7 @@ void Main_Control_Task(void *pvParameters)
                             break;
                         default:
                           //  common_speed = 30.0f;
+													break;
                     }
                     /* --- 自动模式: 处理延迟 PID 参数写入 --- */
                     if (g_reg_write_pending) {

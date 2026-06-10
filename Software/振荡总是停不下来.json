@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-11T04:29:57.426301",
+  "timestamp": "2026-06-11T04:44:41.017801",
   "vars": [
     {
       "id": 13,
@@ -71,7 +71,7 @@
       "name": "Fan_D",
       "type": 2,
       "addr": 10540,
-      "value": 0,
+      "value": 300,
       "isPeri": true
     },
     {
@@ -87,7 +87,7 @@
       "name": "SS_Step",
       "type": 6,
       "addr": 10646,
-      "value": 5.0,
+      "value": 2.0,
       "isPeri": false
     },
     {
@@ -95,7 +95,7 @@
       "name": "FKp0",
       "type": 6,
       "addr": 10564,
-      "value": 0.16500000655651093,
+      "value": 0.1899999976158142,
       "isPeri": false
     },
     {
@@ -151,7 +151,7 @@
       "name": "OutSlew",
       "type": 6,
       "addr": 10535,
-      "value": 0.20000000298023224,
+      "value": 0.699999988079071,
       "isPeri": false
     },
     {
@@ -159,7 +159,7 @@
       "name": "OutLPFFc",
       "type": 6,
       "addr": 10634,
-      "value": 45.0,
+      "value": 100.0,
       "isPeri": true
     },
     {
@@ -167,7 +167,7 @@
       "name": "D_MA_Win",
       "type": 2,
       "addr": 10364,
-      "value": 30,
+      "value": 35,
       "isPeri": true
     },
     {
@@ -175,7 +175,7 @@
       "name": "Kd_Gyro",
       "type": 6,
       "addr": 10430,
-      "value": 0.10000000149011612,
+      "value": 0.2199999988079071,
       "isPeri": false
     },
     {
@@ -183,7 +183,7 @@
       "name": "Kd_Diff",
       "type": 6,
       "addr": 11159,
-      "value": 0.0010000000474974513,
+      "value": 0.003539999946951866,
       "isPeri": false
     },
     {
@@ -199,7 +199,7 @@
       "name": "ComSpd",
       "type": 6,
       "addr": 10331,
-      "value": 30.0,
+      "value": 45.0,
       "isPeri": false
     },
     {
@@ -215,7 +215,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10576,
-      "value": 1.0,
+      "value": 1.100000023841858,
       "isPeri": false
     },
     {
@@ -223,7 +223,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10580,
-      "value": 1.100000023841858,
+      "value": 1.2000000476837158,
       "isPeri": false
     },
     {
@@ -231,7 +231,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10584,
-      "value": 1.2000000476837158,
+      "value": 1.100000023841858,
       "isPeri": false
     },
     {
@@ -239,7 +239,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10588,
-      "value": 1.100000023841858,
+      "value": 1.2000000476837158,
       "isPeri": false
     },
     {
@@ -247,7 +247,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10592,
-      "value": 1.0,
+      "value": 1.100000023841858,
       "isPeri": false
     },
     {
