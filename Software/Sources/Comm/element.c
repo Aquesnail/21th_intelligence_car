@@ -26,6 +26,21 @@ static uint8_t ring_win_len;          /* 有效窗长 0~100, 0=旁路 */
 static uint8_t ring_entry_thresh;     /* 进入阈值: 1 的个数 >= 此值 */
 static uint8_t ring_exit_thresh;      /* 退出阈值: 1 的个数 >= 此值 */
 
+/* ================================================================
+ * 上墙检测多数投票窗 (Majority Voting Window)
+ *   窗长固定 10 cycles
+ *   进入条件: pitch 超过 wall_entry_pitch 时投票 1
+ *   退出条件: pitch 低于 wall_exit_pitch  时投票 1
+ *   仅从 STRAIGHT 进入上墙, 从 WALL 退回 STRAIGHT
+ * ================================================================ */
+static uint8_t xdata wall_vote_win[10];
+static uint8_t wall_win_idx;          /* 当前写入位置 (循环) */
+static uint8_t wall_win_cnt;          /* 窗口内 1 的个数 (增量维护) */
+static float   wall_entry_pitch;      /* 进入上墙的 pitch 阈值 (度) */
+static float   wall_exit_pitch;       /* 退出上墙的 pitch 阈值 (度) */
+static uint8_t wall_entry_thresh;     /* 进入阈值: 1 的个数 >= 此值 */
+static uint8_t wall_exit_thresh;      /* 退出阈值: 1 的个数 >= 此值 */
+
 /* ---- 将投票推入环形窗口, 增量更新计数 ---- */
 static void Ring_Vote_Push(uint8_t vote)
 {
@@ -49,6 +64,25 @@ static void Ring_Vote_Push(uint8_t vote)
         ring_win_cnt = ring_win_len;
     }
     ring_win_idx++;
+}
+
+/* ---- 将上墙投票推入环形窗口, 增量更新计数 ---- */
+static void Wall_Vote_Push(uint8_t vote)
+{
+    uint8_t old_vote;
+
+    old_vote = wall_vote_win[wall_win_idx];
+    if (old_vote == 1) {
+        wall_win_cnt--;
+    }
+    wall_vote_win[wall_win_idx] = vote;
+    if (vote == 1) {
+        wall_win_cnt++;
+    }
+    wall_win_idx++;
+    if (wall_win_idx >= 10) {
+        wall_win_idx = 0;
+    }
 }
 
 void Element_Init(void)
@@ -75,6 +109,14 @@ void Element_Init(void)
     Debug_Register("Ring_EntThr",  DBG_UINT8 | STATIC_TYPE, &ring_entry_thresh);
     Debug_Register("Ring_ExtThr",  DBG_UINT8 | STATIC_TYPE, &ring_exit_thresh);
 
+    /* 上墙 pitch 阈值 */
+    Debug_Register("Wall_EnPitch", DBG_FLOAT | STATIC_TYPE, &wall_entry_pitch);
+    Debug_Register("Wall_ExPitch", DBG_FLOAT | STATIC_TYPE, &wall_exit_pitch);
+
+    /* 上墙投票窗参数 (上位机可调) */
+    Debug_Register("Wall_EntThr",  DBG_UINT8 | STATIC_TYPE, &wall_entry_thresh);
+    Debug_Register("Wall_ExtThr",  DBG_UINT8 | STATIC_TYPE, &wall_exit_thresh);
+
     /* 默认阈值 */
     RingEntrance[0] = 2500.0f;
     RingEntrance[1] = 0.0f;
@@ -91,12 +133,26 @@ void Element_Init(void)
     ring_entry_thresh = 7;
     ring_exit_thresh  = 7;
 
+    /* 上墙 pitch 默认: 进入 >30°, 退出 <20° (滞回) */
+    wall_entry_pitch  = 30.0f;
+    wall_exit_pitch   = 20.0f;
+
+    /* 上墙投票: 窗长固定 10 cycles, 阈值 7 (70% 多数) */
+    wall_entry_thresh = 7;
+    wall_exit_thresh  = 7;
+
     /* 清零窗口缓冲区 (xdata 上电值不确定) */
     for (i = 0; i < 100; i++) {
         ring_vote_win[i] = 0;
     }
+    /* 上墙窗口清零 */
+    for (i = 0; i < 10; i++) {
+        wall_vote_win[i] = 0;
+    }
     ring_win_idx = 0;
     ring_win_cnt = 0;
+    wall_win_idx = 0;
+    wall_win_cnt = 0;
 }
 
 /* adc0 是左 */
@@ -104,6 +160,7 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
 {
     float   abs_pitch;
     uint8_t vote;
+    uint8_t wall_vote;
 
     abs_pitch = (pitch > 0) ? pitch : -pitch;
 
@@ -134,7 +191,26 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
     /* ---- 2. 推入窗口 ---- */
     Ring_Vote_Push(vote);
 
-    /* ---- 3. 状态转换判断 ---- */
+    /* ---- 3. 上墙投票 ---- */
+    switch (*element) {
+    case ELEMENT_STRAIGHT:
+        /* 在直线状态下, pitch 超过进入阈值即投票 1 */
+        wall_vote = (abs_pitch > wall_entry_pitch) ? 1 : 0;
+        break;
+
+    case ELEMENT_WALL:
+        /* 在上墙状态下, pitch 低于退出阈值即投票 1 */
+        wall_vote = (abs_pitch < wall_exit_pitch) ? 1 : 0;
+        break;
+
+    default:
+        /* 其他状态不关心上墙, 投票 0 自然老化 */
+        wall_vote = 0;
+        break;
+    }
+    Wall_Vote_Push(wall_vote);
+
+    /* ---- 4. 状态转换判断 ---- */
     switch (*element) {
     case ELEMENT_STRAIGHT:
         if (ring_win_len == 0) {
@@ -155,6 +231,13 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
                 } else {
                     *element = ELEMENT_RING_LEFT_ENTRANCE;
                 }
+            }
+        }
+
+        /* 上墙检测: 仅从直线状态进入, 且未被环岛抢占 */
+        if (*element == ELEMENT_STRAIGHT) {
+            if (wall_win_cnt >= wall_entry_thresh) {
+                *element = ELEMENT_WALL;
             }
         }
         break;
@@ -196,6 +279,9 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
         break;
 
     case ELEMENT_WALL:
+        if (wall_win_cnt >= wall_exit_thresh) {
+            *element = ELEMENT_STRAIGHT;
+        }
         break;
 
     case ELEMENT_CROSS:

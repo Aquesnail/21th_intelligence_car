@@ -278,9 +278,9 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     val = fan_D;
     memcpy(pData, &val, sizeof(uint16_t));
 }
-static float g_outer_slew_max = 5.0f;       /* 每周期(2ms)最大变化量 deg/s */
-static float g_pid_output_slewed = 0.0f;    /* 斜率限制状态 */
-static float g_pid_output_filtered = 0.0f;  /* 外环最终输出(经斜率+LPF) */
+static float g_outer_slew_max = 5.0f;       /* Err_Angle 每周期(2ms)最大变化量 */
+static float g_err_angle_slewed = 0.0f;     /* Err_Angle 斜率限制状态 */
+static float g_pid_output_filtered = 0.0f;  /* 最终目标角速度 (送入内环) */
 static Lpf_t g_lpf_outer;                    /* 外环低通滤波器 */
 static float g_outer_lpf_fc = 100.0f;        /* 外环LPF截止频率(Hz), 上位机可调 */
 /* 外环方案1+2+3: 陀螺阻尼 + 不完全微分(MA) + 微分死区 */
@@ -289,7 +289,7 @@ static float   g_Kd_diff        = 0.0f;      /* 不完全微分系数 (0=关闭)
 static float   g_diff_deadband  = 0.0f;      /* 微分死区阈值 (0=关闭) */
 static MovingAvg_t g_d_ma;                   /* 微分项移动平均滤波器 */
 static uint8_t g_d_ma_window    = 0;         /* MA窗口 0~100 (0=旁路) */
-static float   g_last_err_angle = 0.0f;      /* 上周期滤波后输出 (微分用) */
+static float   g_last_err_angle = 0.0f;      /* 上周期滤波后 Err_Angle (微分用) */
 static float   g_filtered_d_term = 0.0f;     /* 滤波后微分项 (调试观测) */
 static float   g_tar_yaw_raw    = 0.0f;      /* 组合后原始目标角速度 (调试观测) */
 /* 外环 LPF 截止频率读写回调 (上位机在线调参) */
@@ -470,8 +470,9 @@ void Change_Maunal(){
         g_auto_transition = 1;
         g_auto_fan_tick = xTaskGetTickCount();
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
-        g_pid_output_slewed = 0.0f;    /* 重置外环带宽限制 */
+        g_err_angle_slewed = 0.0f;     /* 重置Err_Angle带宽限制 */
         lpf_reset(&g_lpf_outer, 0.0f);
+        g_pid_output_filtered = 0.0f;   /* 重置目标角速度 */
         g_last_err_angle = 0.0f;       /* 重置微分状态 */
         ma_reset(&g_d_ma, 0.0f);
     }else{
@@ -494,7 +495,16 @@ static float sqrt_negative(float value) {
         return sqrt(value);
     }
 }
-
+static float abs_f(float t){
+    if(t>0.0f){
+        return t;
+    }else{
+        return -t;
+    }
+}
+static float err_angle_filtered;  /* 外环: 滤波后 Err_Angle */
+static uint16_t err_ec_freq = 100;
+static uint16_t err_ec_freq_count = 0;
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
@@ -510,6 +520,7 @@ void Main_Control_Task(void *pvParameters)
     float err_diff;        /* 外环微分用 */
     float raw_d_term;      /* 外环微分用 */
     float slew_diff;       /* 外环斜率限制用 */
+    
     (void)pvParameters;
     
 
@@ -587,15 +598,15 @@ void Main_Control_Task(void *pvParameters)
        
             
                 if(change_inductor == 1){
-                    Err_1 = (float)(sqrt(adc_normalized[0]) - sqrt(adc_normalized[2]));//0,2对应横向电感
-                    Err_2 = (float)(sqrt(adc_normalized[1]) - sqrt(adc_normalized[3]));//1,3对应竖直电感
+                    Err_1 = (float)((adc_normalized[0]) - (adc_normalized[2]));//0,2对应横向电感
+                    Err_2 = (float)((adc_normalized[1]) - (adc_normalized[3]));//1,3对应竖直电感
                     Err_3 = (float)(adc_normalized[0] + adc_normalized[2]);
-                    Err_4 = (float)(adc_normalized[1] + adc_normalized[3]);
+                    Err_4 = abs_f((float)(adc_normalized[1] - adc_normalized[3]));
                 }else{
-                    Err_1 = (float)(sqrt(adc_normalized[1]) - sqrt(adc_normalized[3]));
-                    Err_2 = (float)(sqrt(adc_normalized[0]) - sqrt(adc_normalized[2]));
+                    Err_1 = (float)((adc_normalized[1]) - (adc_normalized[3]));
+                    Err_2 = (float)((adc_normalized[0]) - (adc_normalized[2]));
                     Err_3 = (float)(adc_normalized[1] + adc_normalized[3]);
-                    Err_4 = (float)(adc_normalized[0] + adc_normalized[2]);
+                    Err_4 = abs_f((float)(adc_normalized[0] - adc_normalized[2]));
                 }
                 
                 if(Err_1 < adc_err_zone && Err_1 > -adc_err_zone) Err_1 = 0.0f;
@@ -610,35 +621,35 @@ void Main_Control_Task(void *pvParameters)
                 } else {
                     Err_Angle = numerator / denominator * 100.0f;
                 }
-                pid_output = FuzzyPID_Step(&pid_struct, Err_Angle);
+                /* 外环带宽限制作用于电感原始数据 Err_Angle: 1.斜率限制 → 2.低通滤波 */
+                slew_diff = Err_Angle - g_err_angle_slewed;
+                if (slew_diff > g_outer_slew_max) {
+                    g_err_angle_slewed += g_outer_slew_max;
+                } else if (slew_diff < -g_outer_slew_max) {
+                    g_err_angle_slewed -= g_outer_slew_max;
+                } else {
+                    g_err_angle_slewed = Err_Angle;
+                }
+                err_angle_filtered = lpf_update(&g_lpf_outer, g_err_angle_slewed);
+                pid_output = FuzzyPID_Step(&pid_struct, err_angle_filtered);
                 /* 提前读取陀螺仪, 供方案1陀螺阻尼使用 */
                 actual_yaw_rate = IMU_Get_Gyro_Z();
                 actual_yaw_rate_debug = actual_yaw_rate;
-                /* 方案二+三: 不完全微分(MA)+死区, 基于上一周期滤波后输出 */
-                /* g_pid_output_filtered 当前为 t-1 周期值, g_last_err_angle 为 t-2 周期值 */
-                err_diff = g_pid_output_filtered - g_last_err_angle;
+                /* 方案二+三: 不完全微分(MA)+死区, 对滤波后 Err_Angle 取微分 */
+                err_diff = err_angle_filtered - g_last_err_angle;
                 if (err_diff > -g_diff_deadband && err_diff < g_diff_deadband) {
                     err_diff = 0.0f;  /* 方案三: 微分死区 */
                 }
                 raw_d_term = err_diff / 0.002f;
                 g_filtered_d_term = ma_update(&g_d_ma, raw_d_term);
-                g_last_err_angle = g_pid_output_filtered;  /* t-1 → t-2, 供下一周期 */
+                g_last_err_angle = err_angle_filtered;  /* 保存滤波后 Err_Angle, 供下一周期微分 */
                 /* 方案一+二+三 组合:
-                 *   tar_yaw = P输出 - 陀螺阻尼*实际角速度 + Kd*滤波后微分 */
+                 *   tar_yaw = P输出 - 陀螺阻尼*实际角速度 - Kd*滤波后微分 */
                 g_tar_yaw_raw = pid_output
-                              - g_Kd_gyro * actual_yaw_rate
-                              + g_Kd_diff * g_filtered_d_term;
-                /* 外环带宽限制: 1.斜率限制 → 2.低通滤波 */
-                slew_diff = g_tar_yaw_raw - g_pid_output_slewed;
-                if (slew_diff > g_outer_slew_max) {
-                    g_pid_output_slewed += g_outer_slew_max;
-                } else if (slew_diff < -g_outer_slew_max) {
-                    g_pid_output_slewed -= g_outer_slew_max;
-                } else {
-                    g_pid_output_slewed = g_tar_yaw_raw;
-                }
-                g_pid_output_filtered = lpf_update(&g_lpf_outer, g_pid_output_slewed);
-                /* g_pid_output_filtered 作为目标角速度送入内环 */
+                              //- g_Kd_gyro * actual_yaw_rate
+                              - g_Kd_diff * g_filtered_d_term;
+                /* g_pid_output_filtered = 最终目标角速度, 送入内环 */
+                g_pid_output_filtered = g_tar_yaw_raw;
                 differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
                 speed_target_l.f = common_speed - differential_speed;
                 speed_target_r.f = -(common_speed + differential_speed);
@@ -775,8 +786,9 @@ void Main_Control_Task(void *pvParameters)
                     PWMA_Set(0);
                     g_auto_transition = 0;
                     g_ss_magnitude = 0.0f;  /* 重置缓启动 */
-                    g_pid_output_slewed = 0.0f;    /* 重置外环带宽限制 */
+                    g_err_angle_slewed = 0.0f;     /* 重置Err_Angle带宽限制 */
                     lpf_reset(&g_lpf_outer, 0.0f);
+                    g_pid_output_filtered = 0.0f;   /* 重置目标角速度 */
                     g_last_err_angle = 0.0f;       /* 重置微分状态 */
                     ma_reset(&g_d_ma, 0.0f);
                 }
@@ -823,7 +835,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
     Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
-    Debug_Register("pid_output", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
+    Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &err_angle_filtered);
     /* 注册电机调试变量 */
     // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
