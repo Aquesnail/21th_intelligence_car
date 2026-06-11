@@ -435,6 +435,23 @@ static float speed_target_r_nagtive=0.0f;
 static float numerator, denominator;
 static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
+
+/* ================================================================
+ * 开环过元素 (Open-Loop Element Passing)
+ *   由元素状态机驱动: ENTRANCE → PASS → STRAIGHT
+ *   PASS 状态下覆盖目标角速度, 内环 PI 继续工作
+ *   目标角度供 element.c 引用 (extern), 角速度供本文件使用
+ *   超时帧数在 element.c 的 g_pass_timeout_frames 中配置
+ * ================================================================ */
+
+/* 开环参数 - 左环岛入口 */
+float    g_ol_ring_left_angle   = -30.0f;
+float    g_ol_ring_left_yawrate = -150.0f;
+
+/* 开环参数 - 右环岛入口 */
+float    g_ol_ring_right_angle   = 30.0f;
+float    g_ol_ring_right_yawrate = 150.0f;
+
 #define spd_limit 150.0f
 
 /* ================================================================
@@ -502,9 +519,11 @@ static float abs_f(float t){
         return -t;
     }
 }
-static float err_angle_filtered;  /* 外环: 滤波后 Err_Angle */
-static uint16_t err_ec_freq = 100;
-static uint16_t err_ec_freq_count = 0;
+static float err_angle_filtered = 0.0f;  /* 外环: 滤波后 Err_Angle */
+static float cruising_speed = 45.0f;
+static float ring_speed  = 45.0f;
+static float wall_speed = 30.0f;
+static float barrel_speed = 45.0f;
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
@@ -520,7 +539,7 @@ void Main_Control_Task(void *pvParameters)
     float err_diff;        /* 外环微分用 */
     float raw_d_term;      /* 外环微分用 */
     float slew_diff;       /* 外环斜率限制用 */
-    
+
     (void)pvParameters;
     
 
@@ -555,7 +574,7 @@ void Main_Control_Task(void *pvParameters)
                 // g_left_speed_target = tmp;
                 // tmp.f = -right_speed_target;
                 // g_right_speed_target = tmp;
-               // IMU_Get_Angle(&roll, &pitch, &yaw);
+                IMU_Get_Angle(&roll, &pitch, &yaw);
                 yaw = IMU_Get_Yaw_Unwrapped();
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
@@ -646,10 +665,18 @@ void Main_Control_Task(void *pvParameters)
                 /* 方案一+二+三 组合:
                  *   tar_yaw = P输出 - 陀螺阻尼*实际角速度 - Kd*滤波后微分 */
                 g_tar_yaw_raw = pid_output
-                              //- g_Kd_gyro * actual_yaw_rate
+                              - g_Kd_gyro * actual_yaw_rate
                               - g_Kd_diff * g_filtered_d_term;
                 /* g_pid_output_filtered = 最终目标角速度, 送入内环 */
                 g_pid_output_filtered = g_tar_yaw_raw;
+
+                /* --- 开环过元素: PASS 状态下覆盖角速度目标 --- */
+                if (current_element == ELEMENT_RING_LEFT_PASS) {
+                    g_pid_output_filtered = g_ol_ring_left_yawrate;
+                } else if (current_element == ELEMENT_RING_RIGHT_PASS) {
+                    g_pid_output_filtered = g_ol_ring_right_yawrate;
+                }
+
                 differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
                 speed_target_l.f = common_speed - differential_speed;
                 speed_target_r.f = -(common_speed + differential_speed);
@@ -728,15 +755,21 @@ void Main_Control_Task(void *pvParameters)
                     }
                     
                 }else{
+                    Element_Handle(&current_element,adc_normalized,pitch,roll,yaw);
                     switch(current_element){
                         case ELEMENT_STRAIGHT:
-                           // common_speed = 30.0f;
+                            common_speed = cruising_speed;
                             break;
                         case ELEMENT_RING_LEFT_ENTRANCE:
-                         //   common_speed = 25.0f;
+                        case ELEMENT_RING_LEFT_PASS:
+                            common_speed = ring_speed;
                             break;
                         case ELEMENT_RING_RIGHT_ENTRANCE:
-                          //  common_speed = 25.0f;
+                        case ELEMENT_RING_RIGHT_PASS:
+                            common_speed = ring_speed;
+                            break;
+                        case ELEMENT_WALL:
+                            common_speed = wall_speed;
                             break;
                         default:
                           //  common_speed = 30.0f;
@@ -923,7 +956,16 @@ void Main_Control_Task_Init(void)
 
     Debug_Register("stat",DBG_UINT8,&current_element);
 
+    Debug_Register("Cruising",DBG_FLOAT | STATIC_TYPE,&cruising_speed);
+    Debug_Register("RingSpd",DBG_FLOAT | STATIC_TYPE,&ring_speed);
+    Debug_Register("WallSpd",DBG_FLOAT | STATIC_TYPE,&wall_speed);
+    Debug_Register("Barrel",DBG_FLOAT | STATIC_TYPE,&barrel_speed);
 
+    /* 开环过元素参数 (上位机在线调参, 超时帧数见 element.c 的 PassTmOut) */
+    Debug_Register("OL_L_Ang",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_left_angle);
+    Debug_Register("OL_L_Yaw",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_left_yawrate);
+    Debug_Register("OL_R_Ang",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_right_angle);
+    Debug_Register("OL_R_Yaw",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_right_yawrate);
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
@@ -935,7 +977,7 @@ void Main_Control_Task_Init(void)
     inner_yaw_rate_pi.error_sum = 0.0f;
     inner_yaw_rate_pi.error_sum_max = 50000.0f;
     pid_struct.e_max = 150.0f; /* 根据实际误差范围调整 */
-    pid_struct.Kp0 = 1.2000000476837158f; /* 基础 Kp */
+    pid_struct.Kp0 = 0.17f; /* 基础 Kp */
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.e_max);
     /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
