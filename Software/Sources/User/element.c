@@ -177,6 +177,8 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
     float   abs_pitch;
     uint8_t vote;
     uint8_t wall_vote;
+    float   yaw_delta;   /* PASS 阶段 yaw 变化量 */
+    uint8_t i;           /* 循环/清零用 */
 
     abs_pitch = (pitch > 0) ? pitch : -pitch;
 
@@ -274,8 +276,6 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
 
     case ELEMENT_RING_LEFT_PASS:
         {
-            float yaw_delta;
-            uint8_t i;
             g_pass_frame_cnt++;
             yaw_delta = yaw - g_pass_entry_yaw;
             /* 左转角度达标(负向) OR 超时 → 回到直线, 清投票窗防重触发 */
@@ -293,8 +293,6 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
 
     case ELEMENT_RING_RIGHT_PASS:
         {
-            float yaw_delta;
-            uint8_t i;
             g_pass_frame_cnt++;
             yaw_delta = yaw - g_pass_entry_yaw;
             /* 右转角度达标(正向) OR 超时 → 回到直线, 清投票窗防重触发 */
