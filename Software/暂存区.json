@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-13T03:43:18.682725",
+  "timestamp": "2026-06-13T04:21:05.414806",
   "vars": [
     {
       "id": 13,
@@ -95,7 +95,7 @@
       "name": "FKp0",
       "type": 6,
       "addr": 10608,
-      "value": 0.03500000014901161,
+      "value": 0.05999999865889549,
       "isPeri": false
     },
     {
@@ -103,7 +103,7 @@
       "name": "Fe_max",
       "type": 6,
       "addr": 10612,
-      "value": 200.0,
+      "value": 100.0,
       "isPeri": false
     },
     {
@@ -191,7 +191,7 @@
       "name": "KdDifHi",
       "type": 6,
       "addr": 11644,
-      "value": 0.0,
+      "value": 0.004999999888241291,
       "isPeri": false
     },
     {
@@ -231,7 +231,7 @@
       "name": "Out_Ki",
       "type": 6,
       "addr": 10385,
-      "value": 0.1599999964237213,
+      "value": 0.23000000417232513,
       "isPeri": false
     },
     {
@@ -239,7 +239,7 @@
       "name": "OutILim",
       "type": 6,
       "addr": 10588,
-      "value": 2.5999999046325684,
+      "value": 3.5999999046325684,
       "isPeri": false
     },
     {
@@ -255,7 +255,7 @@
       "name": "OutILo",
       "type": 6,
       "addr": 10526,
-      "value": 0.0,
+      "value": 20.0,
       "isPeri": false
     },
     {
@@ -263,7 +263,7 @@
       "name": "ComSpd",
       "type": 6,
       "addr": 10331,
-      "value": 40.0,
+      "value": 50.0,
       "isPeri": false
     },
     {
@@ -271,7 +271,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10616,
-      "value": 1.5,
+      "value": 1.2999999523162842,
       "isPeri": false
     },
     {
@@ -319,7 +319,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10640,
-      "value": 1.5,
+      "value": 1.2999999523162842,
       "isPeri": false
     },
     {
@@ -343,7 +343,7 @@
       "name": "NormK",
       "type": 6,
       "addr": 10393,
-      "value": 1.0244684219360352,
+      "value": 1.0295226573944092,
       "isPeri": false
     },
     {
@@ -359,7 +359,7 @@
       "name": "NormK",
       "type": 6,
       "addr": 10401,
-      "value": 1.0045686960220337,
+      "value": 0.9874943494796753,
       "isPeri": false
     },
     {
@@ -375,7 +375,7 @@
       "name": "Cruising",
       "type": 6,
       "addr": 11565,
-      "value": 40.0,
+      "value": 50.0,
       "isPeri": false
     },
     {
@@ -527,7 +527,7 @@
       "name": "RingSide",
       "type": 0,
       "addr": 12640,
-      "value": 0,
+      "value": 1,
       "isPeri": false
     },
     {
