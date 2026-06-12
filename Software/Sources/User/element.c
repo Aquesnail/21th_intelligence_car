@@ -1,5 +1,9 @@
 #include "element.h"
 #include "debug_arch.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+extern uint8_t manual_control_flag;
 
 /* ================================================================
  * 环岛 ADC 阈值
@@ -52,6 +56,14 @@ static float   wall_entry_pitch;      /* 进入上墙的 pitch 阈值 (度) */
 static float   wall_exit_pitch;       /* 退出上墙的 pitch 阈值 (度) */
 static uint8_t wall_entry_thresh;     /* 进入阈值: 1 的个数 >= 此值 */
 static uint8_t wall_exit_thresh;      /* 退出阈值: 1 的个数 >= 此值 */
+
+/* ================================================================
+ * 安全停车检测 (Safety Stop)
+ *   离赛道超时: 4路ADC全部丢失超过 g_offtrack_timeout_ms → SAFETY_STOP
+ * ================================================================ */
+static float   g_offtrack_timeout_ms   = 500.0f;  /* 离赛道超时 (ms) */
+static uint32_t g_offtrack_start_tick  = 0;       /* 信号丢失起始 tick */
+static uint8_t  g_offtrack_active      = 0;       /* 当前是否正在计时 */
 
 /* ---- 将投票推入环形窗口, 增量更新计数 ---- */
 static void Ring_Vote_Push(uint8_t vote)
@@ -159,6 +171,9 @@ void Element_Init(void)
     wall_entry_thresh = 7;
     wall_exit_thresh  = 7;
 
+    /* 安全停车参数 (上位机在线调参) */
+    Debug_Register("OffTkMs",   DBG_FLOAT | STATIC_TYPE, &g_offtrack_timeout_ms);
+
     /* 清零窗口缓冲区 (xdata 上电值不确定) */
     for (i = 0; i < 100; i++) {
         ring_vote_win[i] = 0;
@@ -173,18 +188,56 @@ void Element_Init(void)
     wall_win_cnt = 0;
 }
 
+/* ---- 重置离赛道超时计时器 (供 Change_Maunal 等外部调用) ---- */
+void Element_ResetOfftrackTimer(void)
+{
+    g_offtrack_active = 0;
+}
+
 /* adc0 是左 */
 void Element_Handle(element_t *element, float adc_values[], float pitch, float roll, float yaw)
 {
+    /* C89: 所有局部变量声明在开头 */
     float   abs_pitch;
     uint8_t vote;
     uint8_t wall_vote;
     float   yaw_delta;   /* PASS 阶段 yaw 变化量 */
     uint8_t i;           /* 循环/清零用 */
 
-    abs_pitch = (pitch > 0) ? pitch : -pitch;
+    /* 安全检测用局部变量 */
+    uint8_t all_adc_low;
+    uint32_t elapsed_ms;
+    uint32_t now_tick;
+
+    /* ================================================================
+     * 0. 安全检测层 (最高优先级, 可覆盖任意状态)
+     *    离赛道超时: 4路ADC全部丢失超过阈值 → SAFETY_STOP
+     * ================================================================ */
+
+    all_adc_low = (adc_values[0] < 10.0f && adc_values[1] < 10.0f
+                && adc_values[2] < 10.0f && adc_values[3] < 10.0f) ? 1 : 0;
+
+    if (all_adc_low) {
+        if (g_offtrack_active == 0) {
+            g_offtrack_active = 1;
+            g_offtrack_start_tick = xTaskGetTickCount();
+        } else {
+            now_tick = xTaskGetTickCount();
+            elapsed_ms = (now_tick - g_offtrack_start_tick) * portTICK_PERIOD_MS;
+            if (elapsed_ms >= (uint32_t)g_offtrack_timeout_ms) {
+                *element = ELEMENT_SAFETY_STOP;
+                Debug_Log("SAFETY_STOP:OFF_TRACK");
+                g_offtrack_active = 0;
+                return;
+            }
+        }
+    } else {
+        /* 任一 ADC 恢复 → 取消计时 */
+        g_offtrack_active = 0;
+    }
 
     /* ---- 1. 根据当前状态计算本帧投票 ---- */
+    abs_pitch = (pitch > 0) ? pitch : -pitch;
     switch (*element) {
     case ELEMENT_STRAIGHT:
         /* 左环岛(adc2) 或 右环岛(adc0) 任一满足进入条件, 且车身水平 */
@@ -361,6 +414,16 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
         break;
 
     case ELEMENT_CROSS:
+        break;
+
+    case ELEMENT_SAFETY_STOP:
+        /* 任一通道恢复电感值 → 退出安全停车, 切回手动模式 */
+        if (adc_values[0] > 10.0f || adc_values[1] > 10.0f
+            || adc_values[2] > 10.0f || adc_values[3] > 10.0f) {
+            *element = ELEMENT_STRAIGHT;
+            manual_control_flag = 1;
+            g_offtrack_active = 0;  /* 确保离赛道定时器复位, 防止切回自动模式时误触发 */
+        }
         break;
 
     default:

@@ -289,6 +289,9 @@ static float   g_Kd_gyro_high   = 0.0f;      /* 陀螺阻尼系数 (大误差时
 static float   g_Kd_gyro_low    = 0.0f;      /* 陀螺阻尼系数 (小误差时使用) */
 static float   g_Kd_gyro_thresh = 10.0f;     /* 误差阈值, 超过此值切换为高 Kd */
 static float   g_Kd_diff        = 0.0f;      /* 不完全微分系数 (0=关闭) */
+static float   g_Kd_diff_high   = 0.0f;      /* 不完全微分系数 (大误差时使用) */
+static float   g_Kd_diff_low    = 0.0f;      /* 不完全微分系数 (小误差时使用) */
+static float   g_Kd_diff_thresh = 10.0f;     /* 误差阈值, 超过此值切换为高 Kd_diff */
 static float   g_diff_deadband  = 0.0f;      /* 微分死区阈值 (0=关闭) */
 static MovingAvg_t g_d_ma;                   /* 微分项移动平均滤波器 */
 static uint8_t g_d_ma_window    = 0;         /* MA窗口 0~100 (0=旁路) */
@@ -488,6 +491,8 @@ void Change_Maunal(){
         g_pid_output_filtered = 0.0f;   /* 重置目标角速度 */
         g_last_err_angle = 0.0f;       /* 重置微分状态 */
         ma_reset(&g_d_ma, 0.0f);
+        current_element = ELEMENT_STRAIGHT;
+        Element_ResetOfftrackTimer();   /* 重置离赛道定时器, 防止切回自动模式时误触发SAFETY_STOP */
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
@@ -591,8 +596,8 @@ void Main_Control_Task(void *pvParameters)
                         adc_avg = adc_avg_sum / adc_avg_count;
                         adc_avg_sum = 0;
                         adc_avg_count = 0;
-                        if(adc_avg > 1000){
-                            normalized_adc_k[normalize_index] = 2000.0f / (float)adc_avg; // 简单线性归一化
+                        if(adc_avg > 800){
+                            normalized_adc_k[normalize_index] = 1000.0f / (float)adc_avg; // 简单线性归一化
                         }else{
                             normalized_adc_k[normalize_index] = 1.0f; // 不进行归一化
                         }
@@ -663,6 +668,12 @@ void Main_Control_Task(void *pvParameters)
                     g_Kd_gyro = g_Kd_gyro_high;
                 } else {
                     g_Kd_gyro = g_Kd_gyro_low;
+                }
+                /* 根据滤波后误差大小选择不完全微分系数 */
+                if (abs_f(err_angle_filtered) > g_Kd_diff_thresh) {
+                    g_Kd_diff = g_Kd_diff_high;
+                } else {
+                    g_Kd_diff = g_Kd_diff_low;
                 }
                 /* 方案一+二+三 组合:
                  *   tar_yaw = P输出 - 陀螺阻尼*实际角速度 - Kd*滤波后微分 */
@@ -774,6 +785,25 @@ void Main_Control_Task(void *pvParameters)
                         case ELEMENT_WALL:
                             common_speed = wall_speed;
                             break;
+                        case ELEMENT_SAFETY_STOP:
+                            /* 紧急刹车, 留在自动模式等待电感恢复 */
+                            tmp.f = 0.0f;
+                            MOTOR_CS_RESET();
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                            MOTOR_CS_SET();
+                            g_reg_write_pending = 0;
+                            g_drive_direction = DRIVE_STOP;
+                            PWMA_Set(0);
+                            g_auto_transition = 0;
+                            g_ss_magnitude = 0.0f;
+                            g_err_angle_slewed = 0.0f;
+                            lpf_reset(&g_lpf_outer, 0.0f);
+                            g_pid_output_filtered = 0.0f;
+                            g_last_err_angle = 0.0f;
+                            ma_reset(&g_d_ma, 0.0f);
+                            common_speed = 0.0f;
+                            break;
                         default:
                           //  common_speed = 30.0f;
 													break;
@@ -809,26 +839,6 @@ void Main_Control_Task(void *pvParameters)
                     }
 
                 }
-                if(adc_values[0]<10 && adc_values[1]<10 && adc_values[2]<10 && adc_values[3]<10){
-                    /* 赛道丢失, 紧急刹车, 切回手动模式 */
-                    tmp.f = 0.0f;
-                    MOTOR_CS_RESET();
-                    motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                    motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                    MOTOR_CS_SET();
-                    g_reg_write_pending = 0;
-                    g_drive_direction = DRIVE_STOP;
-                    manual_control_flag = 1;
-                    PWMA_Set(0);
-                    g_auto_transition = 0;
-                    g_ss_magnitude = 0.0f;  /* 重置缓启动 */
-                    g_err_angle_slewed = 0.0f;     /* 重置Err_Angle带宽限制 */
-                    lpf_reset(&g_lpf_outer, 0.0f);
-                    g_pid_output_filtered = 0.0f;   /* 重置目标角速度 */
-                    g_last_err_angle = 0.0f;       /* 重置微分状态 */
-                    ma_reset(&g_d_ma, 0.0f);
-                }
-
                 //taskEXIT_CRITICAL();
             }
 
@@ -925,15 +935,18 @@ void Main_Control_Task_Init(void)
     Debug_Register("YawLoLi",DBG_FLOAT|STATIC_TYPE,&inner_yaw_rate_pi.min_sep);
     /* 外环模糊 P 输出 = 目标角速度, 内环实际角速度 (高频, 观察跟随效果) */
     Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
-    Debug_Register("TgtYawF",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_pid_output_filtered);
+ //   Debug_Register("TgtYawF",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_pid_output_filtered);
     Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_outer_slew_max);
     Debug_Register("OutLPFFc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
     Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
-    Debug_Register("Kd_Gyro",   DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro);
+  //  Debug_Register("Kd_Gyro",   DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro);
     Debug_Register("KdGyroHi",  DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro_high);
     Debug_Register("KdGyroLo",  DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro_low);
     Debug_Register("KdGyroTh",  DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro_thresh);
     Debug_Register("Kd_Diff",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff);
+    Debug_Register("KdDifHi",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff_high);
+    Debug_Register("KdDifLo",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff_low);
+    Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff_thresh);
     Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_diff_deadband);
     Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_filtered_d_term);
     Debug_Register("TarYawR",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_tar_yaw_raw);

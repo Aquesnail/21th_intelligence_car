@@ -16,8 +16,10 @@ typedef enum ElementType {
     ELEMENT_BARREL,
     ELEMENT_WALL,
     ELEMENT_CROSS,
+    ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 */
 }element_t;
 
 void Element_Init(void);
 void Element_Handle(element_t *element, float adc_values[], float pitch, float roll, float yaw);
+void Element_ResetOfftrackTimer(void);
 #endif // ELEMENT_H
