@@ -283,6 +283,8 @@ static float g_err_angle_slewed = 0.0f;     /* Err_Angle 斜率限制状态 */
 static float g_pid_output_filtered = 0.0f;  /* 最终目标角速度 (送入内环) */
 static Lpf_t g_lpf_outer;                    /* 外环低通滤波器 */
 static float g_outer_lpf_fc = 100.0f;        /* 外环LPF截止频率(Hz), 上位机可调 */
+static Lpf_t g_lpf_gyro;                     /* 陀螺仪角速度低通滤波器 (D环降噪) */
+static float g_gyro_lpf_fc = 80.0f;          /* 陀螺LPF截止频率(Hz), 上位机可调 */
 /* 外环: 不完全微分(MA) + 微分死区 */
 static float   g_Kd_diff        = 0.0f;      /* 不完全微分系数 (0=关闭) */
 static float   g_Kd_diff_high   = 0.0f;      /* 不完全微分系数 (大误差时使用) */
@@ -300,6 +302,31 @@ static float   g_outer_ilim      = 50.0f;     /* 外环积分输出限幅 */
 static float   g_outer_i_sep_hi  = 80.0f;     /* 积分分离上阈值, |error|>此值分离(防饱和) */
 static float   g_outer_i_sep_lo  = 3.0f;      /* 积分分离下阈值, |error|<此值分离(防震荡) */
 static float   g_tar_yaw_raw    = 0.0f;      /* 组合后原始目标角速度 (调试观测) */
+
+/* 简易字符串转float (C89兼容, 支持负数和小数) */
+static float simple_atof(const char *str)
+{
+    float result = 0.0f;
+    float sign = 1.0f;
+    float frac = 0.0f;
+    float divisor = 1.0f;
+    int in_fraction = 0;
+    if (*str == '-') { sign = -1.0f; str++; }
+    else if (*str == '+') { str++; }
+    while (*str) {
+        if (*str == '.') { in_fraction = 1; str++; continue; }
+        if (*str < '0' || *str > '9') break;
+        if (in_fraction) {
+            divisor *= 10.0f;
+            frac = frac * 10.0f + (float)(*str - '0');
+        } else {
+            result = result * 10.0f + (float)(*str - '0');
+        }
+        str++;
+    }
+    return sign * (result + frac / divisor);
+}
+
 /* 外环 LPF 截止频率读写回调 (上位机在线调参) */
 static void OuterLpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
@@ -323,6 +350,31 @@ static void OuterLpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
     g_lpf_outer.alpha = alpha;
     g_lpf_outer.freq = new_fc;
+    /* 不重置 output, 保持滤波连续性 */
+}
+/* 陀螺仪角速度 LPF 截止频率读写回调 (D环降噪, 上位机在线调参) */
+static void GyroLpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float val;
+    (void)len;
+    (void)peri_addr;
+    val = g_gyro_lpf_fc;
+    memcpy(pData, &val, sizeof(float));
+}
+
+static void GyroLpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float new_fc;
+    float alpha;
+    (void)len;
+    (void)peri_addr;
+    memcpy(&new_fc, pData, sizeof(float));
+    if (new_fc < 1.0f)  new_fc = 1.0f;
+    if (new_fc > 400.0f) new_fc = 400.0f;
+    g_gyro_lpf_fc = new_fc;
+    alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
+    g_lpf_gyro.alpha = alpha;
+    g_lpf_gyro.freq = new_fc;
     /* 不重置 output, 保持滤波连续性 */
 }
 /* 微分移动平均窗口读写回调 (上位机在线调参) */
@@ -360,6 +412,7 @@ static DebugPeriDesc_t g_left_speed_desc  = {REG_B_SPEED_TARGET,Motor_Reg_Read_C
 static DebugPeriDesc_t g_ec_ma_count_desc = {0, EC_MA_Read_Cb, EC_MA_Write_Cb}; /* EC移动平均窗口大小 */
 static DebugPeriDesc_t g_fan_d = {0, Fan_D_Read_Cb, Fan_D_Write_Cb}; /* 风扇占空比寄存器 */
 static DebugPeriDesc_t g_outer_lpf_fc_desc = {0, OuterLpf_Read_Cb, OuterLpf_Write_Cb}; /* 外环LPF截止频率 */
+static DebugPeriDesc_t g_gyro_lpf_fc_desc  = {0, GyroLpf_Read_Cb,  GyroLpf_Write_Cb};  /* 陀螺LPF截止频率 */
 static DebugPeriDesc_t g_d_ma_win_desc     = {0, D_MA_Win_Read_Cb, D_MA_Win_Write_Cb}; /* 微分MA窗口 */
 extern IMU_Filter_t *IMU_Filter_Data;
 
@@ -403,32 +456,6 @@ float  drive_speed  = 150.0f;
 
 static volatile uint8_t g_drive_direction = DRIVE_STOP;
 
-uint8_t Motor_HandleCommand(const char* cmd)
-{
-    if (strcmp(cmd, "forward") == 0) {
-        g_drive_direction = DRIVE_FORWARD;
-        Debug_Log("MOTOR_FWD");
-    } else if (strcmp(cmd, "backward") == 0) {
-        g_drive_direction = DRIVE_BACKWARD;
-        Debug_Log("MOTOR_BCK");
-    } else if (strcmp(cmd, "left") == 0) {
-        g_drive_direction = DRIVE_LEFT;
-        Debug_Log("MOTOR_LFT");
-    } else if (strcmp(cmd, "right") == 0) {
-        g_drive_direction = DRIVE_RIGHT;
-        Debug_Log("MOTOR_RGT");
-    } else if (strcmp(cmd, "stop") == 0) {
-        g_drive_direction = DRIVE_STOP;
-        Debug_Log("MOTOR_STP");
-    } else {
-        return 0;
-    }
-    /* 刷新手动模式超时计时 */
-    g_last_manual_cmd_tick = xTaskGetTickCount();
-    g_manual_cmd_received = 1;
-    return 1;
-}
-
 static FuzzyPID pid_struct={0.0f};
 static float pid_output=0.0f;
 static float common_speed=30.0f;
@@ -443,6 +470,7 @@ static float speed_target_r_nagtive=0.0f;
 static float numerator, denominator;
 static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
+
 
 /* ================================================================
  * 开环过元素 (Open-Loop Element Passing)
@@ -465,11 +493,80 @@ static float g_ss_magnitude = 0.0f;
 static float g_ss_step      = 5.0f;
 #define SS_STEP_DOWN 10.0f
 /* 最终速度目标 slew rate 限制 (每周期 2ms 最大变化量) */
-static float g_spd_slew_up    = 100.0f;   /* 加速 slew rate (0=关闭), 单位: speed/cycle */
-static float g_spd_slew_down  = 200.0f;   /* 减速 slew rate (建议比加速大, 保证刹车响应) */
+static float g_spd_slew_up    = 1.0f;   /* 加速 slew rate (0=关闭), 单位: speed/cycle */
+static float g_spd_slew_down  = 1.0f;   /* 减速 slew rate (建议比加速大, 保证刹车响应) */
 static float g_speed_l_slewed = 0.0f;     /* 左轮 slew 限制后速度 */
 static float g_speed_r_slewed = 0.0f;     /* 右轮 slew 限制后速度 */
 /* 缓启动步进: 加速缓 (step_up), 减速快 (step_down) */
+
+/* 手动模式 PD 内环控制 */
+static uint8_t   g_manual_pd_enabled  = 0;      /* 手动模式下 PD 内环启用标志 */
+static float     g_manual_yaw_target  = 0.0f;    /* 手动 PD 目标角速度 */
+static float     g_manual_step_amp    = 0.0f;    /* 阶跃幅值 (0=非活跃) */
+static TickType_t g_manual_step_tick  = 0;       /* 阶跃开始时刻 */
+void Change_Maunal();
+uint8_t Motor_HandleCommand(const char* cmd)
+{
+    if (strcmp(cmd, "forward") == 0) {
+        g_drive_direction = DRIVE_FORWARD;
+        Debug_Log("MOTOR_FWD");
+    } else if (strcmp(cmd, "backward") == 0) {
+        g_drive_direction = DRIVE_BACKWARD;
+        Debug_Log("MOTOR_BCK");
+    } else if (strcmp(cmd, "left") == 0) {
+        g_drive_direction = DRIVE_LEFT;
+        Debug_Log("MOTOR_LFT");
+    } else if (strcmp(cmd, "right") == 0) {
+        g_drive_direction = DRIVE_RIGHT;
+        Debug_Log("MOTOR_RGT");
+    } else if (strcmp(cmd, "stop") == 0) {
+        g_drive_direction = DRIVE_STOP;
+        Debug_Log("MOTOR_STP");
+    } else if (strcmp(cmd, "pdon") == 0) {
+        if (!manual_control_flag) {
+            /* 当前是自动模式, 先切换到手动模式 */
+            manual_control_flag = 1;
+            PWMA_Set(0);
+            g_auto_transition = 0;
+            g_ss_magnitude = 0.0f;
+            g_speed_l_slewed = 0.0f;
+            g_speed_r_slewed = 0.0f;
+        }
+        g_manual_pd_enabled = 1;
+        g_manual_yaw_target = 0.0f;
+        g_manual_step_amp   = 0.0f;
+        inner_yaw_rate_pd.last_actual = 0.0f;  /* 重置 D 项状态 */
+        PWMA_Set(fan_D);
+        Debug_Log("PD_ON");
+    } else if (strcmp(cmd, "pdoff") == 0) {
+        g_manual_pd_enabled = 0;
+        g_manual_yaw_target = 0.0f;
+        g_manual_step_amp   = 0.0f;
+        PWMA_Set(0);
+        Debug_Log("PD_OFF");
+    } else if (strcmp(cmd, "manual") == 0) {
+        if (manual_control_flag) {
+            /* 已在手动模式, 不做任何事 */
+        } else {
+            Change_Maunal();  /* 自动 → 手动 */
+        }
+        Debug_Log("MODE_MAN");
+    } else if (cmd[0]=='y' && cmd[1]=='a' && cmd[2]=='w' && cmd[3]==' ') {
+        g_manual_yaw_target = simple_atof(cmd + 4);
+        Debug_Log("YAW_SET %f",g_manual_yaw_target);
+    } else if (cmd[0]=='s' && cmd[1]=='t' && cmd[2]=='e' && cmd[3]=='p' && cmd[4]==' ') {
+        g_manual_step_amp  = simple_atof(cmd + 5);
+        g_manual_step_tick = xTaskGetTickCount();
+        Debug_Log("STEP_INJ %f %d",g_manual_step_amp,g_manual_step_tick);
+    } else {
+        return 0;
+    }
+    /* 刷新手动模式超时计时 */
+    g_last_manual_cmd_tick = xTaskGetTickCount();
+    g_manual_cmd_received = 1;
+    return 1;
+}
+
 static float SoftStart_Ramp(float cur, float tgt, float step_up, float step_down)
 {
     float diff;
@@ -509,6 +606,9 @@ void Change_Maunal(){
         PWMA_Set(0);
         g_auto_transition = 0;
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
+        g_manual_pd_enabled = 0;       /* 关闭手动 PD */
+        g_manual_yaw_target = 0.0f;
+        g_manual_step_amp   = 0.0f;
     }
 }
 
@@ -530,6 +630,7 @@ static float abs_f(float t){
         return -t;
     }
 }
+
 static float err_angle_filtered = 0.0f;  /* 外环: 滤波后 Err_Angle */
 static float cruising_speed = 45.0f;
 static float ring_speed  = 45.0f;
@@ -662,8 +763,9 @@ void Main_Control_Task(void *pvParameters)
                 }
                 err_angle_filtered = lpf_update(&g_lpf_outer, g_err_angle_slewed);
                 pid_output = FuzzyPID_Step(&pid_struct, err_angle_filtered);
-                /* 提前读取陀螺仪, 供方案1陀螺阻尼使用 */
+                /* 提前读取陀螺仪, 经LPF滤波后供陀螺阻尼和PD内环使用 */
                 actual_yaw_rate = IMU_Get_Gyro_Z();
+                actual_yaw_rate = lpf_update(&g_lpf_gyro, actual_yaw_rate);
                 actual_yaw_rate_debug = actual_yaw_rate;
                 /* 方案二+三: 不完全微分(MA)+死区, 对滤波后 Err_Angle 取微分 */
                 err_diff = err_angle_filtered - g_last_err_angle;
@@ -706,6 +808,17 @@ void Main_Control_Task(void *pvParameters)
                     g_pid_output_filtered = g_ol_ring_yawrate;
                 }
 
+                /* --- 手动模式 PD 内环: 覆盖角速度目标 & 阶跃自动归零 --- */
+                if (manual_control_flag && g_manual_pd_enabled) {
+                    if (g_manual_step_amp != 0.0f) {
+                        if ((xTaskGetTickCount() - g_manual_step_tick) >= pdMS_TO_TICKS(1000)) {
+                            g_manual_step_amp = 0.0f;  /* 1s 后自动归零 */
+                        }
+                    }
+                    g_pid_output_filtered = g_manual_yaw_target + g_manual_step_amp;
+                    common_speed = g_ss_magnitude;  /* 复用缓启动 ramp 值 */
+                }
+
                 differential_speed = PD_Step(&inner_yaw_rate_pd, g_pid_output_filtered, actual_yaw_rate);
                 speed_target_l.f = common_speed - differential_speed;
                 speed_target_r.f = -(common_speed + differential_speed);
@@ -721,16 +834,11 @@ void Main_Control_Task(void *pvParameters)
                 // motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
                 // MOTOR_CS_SET();
 								
-                /* 处理 Debug 系统延迟的 PID 参数写入 / 手动模式超时保护 / 驾驶指令 */
+                /* ===== 模式状态机: 仅状态更新, 不写电机速度 ===== */
                 if(manual_control_flag){
-                    /* 3s 无指令自动刹车 */
+                    /* 3s 无指令自动刹车 (状态标记, 电机写入在统一出口) */
                     if (g_manual_cmd_received &&
                         (xTaskGetTickCount() - g_last_manual_cmd_tick) >= pdMS_TO_TICKS(3000)) {
-                        tmp.f = 0.0f;
-                        MOTOR_CS_RESET();
-                        motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                        motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                        MOTOR_CS_SET();
                         g_reg_write_pending = 0;
                         g_drive_direction = DRIVE_STOP;
                         g_last_manual_cmd_tick = xTaskGetTickCount();
@@ -744,40 +852,7 @@ void Main_Control_Task(void *pvParameters)
                         g_ss_magnitude = SoftStart_Ramp(g_ss_magnitude, 0.0f, g_ss_step, SS_STEP_DOWN);
                     }
 
-                    /* 执行驾驶指令 (标志位 -> 电机写入) */
-                    if (g_drive_direction != DRIVE_STOP) {
-                        MOTOR_CS_RESET();
-                        if (g_drive_direction == DRIVE_FORWARD) {
-                            tmp.f = drive_speed;
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                           // tmp.f = drive_speed;
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                        } else if (g_drive_direction == DRIVE_BACKWARD) {
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                        } else if (g_drive_direction == DRIVE_LEFT) {
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                        } else if (g_drive_direction == DRIVE_RIGHT) {
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                        }
-                        MOTOR_CS_SET();
-                    }else{
-                            tmp.f = 0.0f;
-                            MOTOR_CS_RESET();
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                            MOTOR_CS_SET();
-                    }
+                    /* 驾驶指令状态 (电机写入移至统一出口) */
                     if (g_reg_write_pending) {
                         if(g_reg_write_addr == REG_A_SPEED_TARGET){
                             g_reg_write_value.f = -g_reg_write_value.f;
@@ -807,11 +882,6 @@ void Main_Control_Task(void *pvParameters)
                             break;
                         case ELEMENT_SAFETY_STOP:
                             /* 紧急刹车, 留在自动模式等待电感恢复 */
-                            tmp.f = 0.0f;
-                            MOTOR_CS_RESET();
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                            MOTOR_CS_SET();
                             g_reg_write_pending = 0;
                             g_drive_direction = DRIVE_STOP;
                             PWMA_Set(0);
@@ -848,20 +918,62 @@ void Main_Control_Task(void *pvParameters)
                         }
                     }
 
-                    /* 仅在过渡完成后写入电机速度目标 */
-                    if (g_auto_transition == 2) {
-                        /* 缓启动: ramp common_speed */
-                     //   g_ss_magnitude = SoftStart_Ramp(g_ss_magnitude, common_speed, g_ss_step, SS_STEP_DOWN); //只用于启动，不阻止跑动时的响应
-                        speed_target_l.f = g_speed_l_slewed;
-                        speed_target_r.f = g_speed_r_slewed;
-                        speed_target_r_nagtive = -speed_target_r.f;
+                    /* 过渡完成后由统一出口写入电机 */
 
+                }
+
+                /* ================================================
+                 * 统一电机速度写入 (手动/自动共用出口)
+                 * ================================================ */
+                if (manual_control_flag) {
+                    if (g_drive_direction == DRIVE_STOP) {
+                        tmp.f = 0.0f;
+                        MOTOR_CS_RESET();
+                        motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                        motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        MOTOR_CS_SET();
+                    } else if (g_manual_pd_enabled) {
+                        /* PD 内环: 写入已计算的 speed_target (含 slew rate) */
+                        speed_target_r_nagtive = -speed_target_r.f;
+                        MOTOR_CS_RESET();
+                        motor_write_reg(REG_A_SPEED_TARGET, speed_target_r);
+                        motor_write_reg(REG_B_SPEED_TARGET, speed_target_l);
+                        MOTOR_CS_SET();
+                    } else {
+                        /* 纯手动直接差速 */
+                        MOTOR_CS_RESET();
+                        if (g_drive_direction == DRIVE_FORWARD) {
+                            tmp.f = -g_ss_magnitude;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = g_ss_magnitude;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        } else if (g_drive_direction == DRIVE_BACKWARD) {
+                            tmp.f = g_ss_magnitude;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = -g_ss_magnitude;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        } else if (g_drive_direction == DRIVE_LEFT) {
+                            tmp.f = -g_ss_magnitude;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = -g_ss_magnitude;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        } else if (g_drive_direction == DRIVE_RIGHT) {
+                            tmp.f = g_ss_magnitude;
+                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
+                            tmp.f = g_ss_magnitude;
+                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                        }
+                        MOTOR_CS_SET();
+                    }
+                } else {
+                    /* 自动模式: 仅在过渡完成且非安全停车时写入 */
+                    if (current_element != ELEMENT_SAFETY_STOP && g_auto_transition == 2) {
+                        speed_target_r_nagtive = -speed_target_r.f;
                         MOTOR_CS_RESET();
                         motor_write_reg(REG_A_SPEED_TARGET, speed_target_r);
                         motor_write_reg(REG_B_SPEED_TARGET, speed_target_l);
                         MOTOR_CS_SET();
                     }
-
                 }
                 //taskEXIT_CRITICAL();
             }
@@ -926,6 +1038,7 @@ void Main_Control_Task_Init(void)
     lpf_init_fc(&g_lpf_left,  400.0f, 0.002f);  /* fc=20Hz, dt=2ms(500Hz) */
     lpf_init_fc(&g_lpf_right, 400.0f, 0.002f);
     lpf_init_fc(&g_lpf_outer, g_outer_lpf_fc, 0.002f);  /* 外环 fc=100Hz, dt=2ms */
+    lpf_init_fc(&g_lpf_gyro,  g_gyro_lpf_fc,  0.002f);  /* 陀螺 fc=80Hz, dt=2ms */
     ma_init(&g_d_ma, g_d_ma_window);                     /* 微分MA滤波器, 默认窗口0=旁路 */
 
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
@@ -939,6 +1052,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
     //Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
     Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
+ //   Debug_Register("PdEn",   DBG_UINT8 | STATIC_TYPE, &g_manual_pd_enabled);
+ //   Debug_Register("ManYaw", DBG_FLOAT | STATIC_TYPE, &g_manual_yaw_target);
     // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
     // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
     // Debug_Register("A_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kd_desc);
@@ -957,10 +1072,11 @@ void Main_Control_Task_Init(void)
     Debug_Register("Yaw_Kp",    DBG_FLOAT | STATIC_TYPE, &inner_yaw_rate_pd.Kp);
     Debug_Register("Yaw_Kd",    DBG_FLOAT | STATIC_TYPE, &inner_yaw_rate_pd.Kd);
     /* 外环模糊 P 输出 = 目标角速度, 内环实际角速度 (高频, 观察跟随效果) */
-    Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
+    Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &g_pid_output_filtered);
  //   Debug_Register("TgtYawF",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_pid_output_filtered);
     Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_outer_slew_max);
     Debug_Register("OutLPFFc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
+    Debug_Register("GyroLPFFc", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_gyro_lpf_fc_desc);
     Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
     Debug_Register("OuterKi",   DBG_FLOAT | STATIC_TYPE, &g_outer_Ki);
     Debug_Register("OutILim",   DBG_FLOAT | STATIC_TYPE, &g_outer_ilim);
@@ -973,7 +1089,6 @@ void Main_Control_Task_Init(void)
     Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff_thresh);
     Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_diff_deadband);
     Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_filtered_d_term);
-    Debug_Register("TarYawR",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_tar_yaw_raw);
     Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &actual_yaw_rate_debug);
 
     Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &common_speed);
