@@ -10,7 +10,7 @@
  *   最大窗口: 100
  * ------------------------------------------------------------------ */
 
-#define MA_MAX_WINDOW 100
+#define MA_MAX_WINDOW 200
 
 typedef struct {
     float   buffer[MA_MAX_WINDOW];

@@ -27,17 +27,16 @@ static uint8_t ring_entry_thresh;     /* 进入阈值: 1 的个数 >= 此值 */
 static uint8_t ring_exit_thresh;      /* 退出阈值: 1 的个数 >= 此值 */
 
 /* ================================================================
- * 开环 PASS 阶段参数
+ * 开环 PASS 阶段参数 (左右环共用, 左环取负值)
  *   进入 ENTRANCE 后立即切入 PASS, 记录起始 yaw, 帧计数
  *   退出条件: yaw 变化量达标 OR 帧数超时
- *   目标角度引用自 app_main_control.c, 上位机可调
  * ================================================================ */
-extern float g_ol_ring_left_angle;
-extern float g_ol_ring_right_angle;
-
-static float    g_pass_entry_yaw = 0.0f;
-static uint16_t g_pass_frame_cnt = 0;
+float    g_ol_ring_angle   = 45.0f;   /* 环岛开环目标角度(绝对值, 度) */
+float    g_ol_ring_yawrate = 3.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
+static float    g_pass_entry_yaw  = 0.0f;
+static uint16_t g_pass_frame_cnt  = 0;
 static uint16_t g_pass_timeout_frames = 200;  /* 默认200帧=400ms, 上位机可调 */
+static uint8_t  g_ring_side = 0;             /* 环内方向: 0=左环(adc[2]), 1=右环(adc[0]) */
 
 /* ================================================================
  * 上墙检测多数投票窗 (Majority Voting Window)
@@ -123,7 +122,10 @@ void Element_Init(void)
     Debug_Register("Ring_ExtThr",  DBG_UINT8 | STATIC_TYPE, &ring_exit_thresh);
 
     /* 开环PASS超时帧数 (上位机可调, 1帧=2ms) */
+    Debug_Register("OL_Ang",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_angle);
+    Debug_Register("OL_Yaw",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_yawrate);
     Debug_Register("PassTmOut",  DBG_UINT16 | STATIC_TYPE, &g_pass_timeout_frames);
+    Debug_Register("RingSide",   DBG_UINT8 | STATIC_TYPE, &g_ring_side);
 
     /* 上墙 pitch 阈值 */
     Debug_Register("Wall_EnPitch", DBG_FLOAT | STATIC_TYPE, &wall_entry_pitch);
@@ -199,6 +201,15 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
     case ELEMENT_RING_RIGHT_ENTRANCE:
         /* adc0 低于退出阈值 即投票 1 */
         vote = (adc_values[0] < RingExit[0]) ? 1 : 0;
+        break;
+
+    case ELEMENT_IN_RING:
+        /* 环内等待出环: 对应通道再次出现尖峰(大于进入阈值)即投票1 */
+        if (g_ring_side == 0) {
+            vote = (adc_values[2] > RingEntrance[2]) ? 1 : 0;
+        } else {
+            vote = (adc_values[0] > RingEntrance[0]) ? 1 : 0;
+        }
         break;
 
     default:
@@ -278,10 +289,11 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
         {
             g_pass_frame_cnt++;
             yaw_delta = yaw - g_pass_entry_yaw;
-            /* 左转角度达标(负向) OR 超时 → 回到直线, 清投票窗防重触发 */
-            if (yaw_delta <= g_ol_ring_left_angle ||
+            /* 左转角度达标(负向) OR 超时 → 进入环内, 清投票窗 */
+            if (yaw_delta <= -g_ol_ring_angle ||
                 g_pass_frame_cnt >= g_pass_timeout_frames) {
-                *element = ELEMENT_STRAIGHT;
+                *element = ELEMENT_IN_RING;
+                g_ring_side = 0;  /* 左环, 出环检测看 adc[2] */
                 for (i = 0; i < ring_win_len; i++) {
                     ring_vote_win[i] = 0;
                 }
@@ -295,15 +307,37 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
         {
             g_pass_frame_cnt++;
             yaw_delta = yaw - g_pass_entry_yaw;
-            /* 右转角度达标(正向) OR 超时 → 回到直线, 清投票窗防重触发 */
-            if (yaw_delta >= g_ol_ring_right_angle ||
+            /* 右转角度达标(正向) OR 超时 → 进入环内, 清投票窗 */
+            if (yaw_delta >= g_ol_ring_angle ||
                 g_pass_frame_cnt >= g_pass_timeout_frames) {
-                *element = ELEMENT_STRAIGHT;
+                *element = ELEMENT_IN_RING;
+                g_ring_side = 1;  /* 右环, 出环检测看 adc[0] */
                 for (i = 0; i < ring_win_len; i++) {
                     ring_vote_win[i] = 0;
                 }
                 ring_win_cnt = 0;
                 ring_win_idx = 0;
+            }
+        }
+        break;
+
+    case ELEMENT_IN_RING:
+        /* 环内正常循迹, 等待对应通道第二个 ADC 尖峰(出环) */
+        if (ring_win_len == 0) {
+            /* 旁路: 即时判断 */
+            if (g_ring_side == 0) {
+                if (adc_values[2] > RingEntrance[2]) {
+                    *element = ELEMENT_STRAIGHT;
+                }
+            } else {
+                if (adc_values[0] > RingEntrance[0]) {
+                    *element = ELEMENT_STRAIGHT;
+                }
+            }
+        } else {
+            /* 多数投票: 尖峰确认后退出 */
+            if (ring_win_cnt >= ring_entry_thresh) {
+                *element = ELEMENT_STRAIGHT;
             }
         }
         break;

@@ -285,6 +285,9 @@ static Lpf_t g_lpf_outer;                    /* 外环低通滤波器 */
 static float g_outer_lpf_fc = 100.0f;        /* 外环LPF截止频率(Hz), 上位机可调 */
 /* 外环方案1+2+3: 陀螺阻尼 + 不完全微分(MA) + 微分死区 */
 static float   g_Kd_gyro        = 0.0f;      /* 陀螺阻尼系数 (0=关闭) */
+static float   g_Kd_gyro_high   = 0.0f;      /* 陀螺阻尼系数 (大误差时使用) */
+static float   g_Kd_gyro_low    = 0.0f;      /* 陀螺阻尼系数 (小误差时使用) */
+static float   g_Kd_gyro_thresh = 10.0f;     /* 误差阈值, 超过此值切换为高 Kd */
 static float   g_Kd_diff        = 0.0f;      /* 不完全微分系数 (0=关闭) */
 static float   g_diff_deadband  = 0.0f;      /* 微分死区阈值 (0=关闭) */
 static MovingAvg_t g_d_ma;                   /* 微分项移动平均滤波器 */
@@ -333,7 +336,7 @@ static void D_MA_Win_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     (void)len;
     (void)peri_addr;
     memcpy(&new_val, pData, sizeof(uint16_t));
-    if (new_val > 100) new_val = 100;
+    if (new_val > MA_MAX_WINDOW) new_val = MA_MAX_WINDOW;
     g_d_ma_window = (uint8_t)new_val;
     ma_set_window(&g_d_ma, g_d_ma_window);
 }
@@ -438,19 +441,12 @@ static element_t current_element = ELEMENT_STRAIGHT;
 
 /* ================================================================
  * 开环过元素 (Open-Loop Element Passing)
- *   由元素状态机驱动: ENTRANCE → PASS → STRAIGHT
+ *   由元素状态机驱动: ENTRANCE → PASS → IN_RING → STRAIGHT
  *   PASS 状态下覆盖目标角速度, 内环 PI 继续工作
- *   目标角度供 element.c 引用 (extern), 角速度供本文件使用
- *   超时帧数在 element.c 的 g_pass_timeout_frames 中配置
+ *   参数定义在 element.c, 左右环共用一套 (左环取负值)
  * ================================================================ */
-
-/* 开环参数 - 左环岛入口 */
-float    g_ol_ring_left_angle   = -30.0f;
-float    g_ol_ring_left_yawrate = -150.0f;
-
-/* 开环参数 - 右环岛入口 */
-float    g_ol_ring_right_angle   = 30.0f;
-float    g_ol_ring_right_yawrate = 150.0f;
+extern float g_ol_ring_angle;
+extern float g_ol_ring_yawrate;
 
 #define spd_limit 150.0f
 
@@ -662,6 +658,12 @@ void Main_Control_Task(void *pvParameters)
                 raw_d_term = err_diff / 0.002f;
                 g_filtered_d_term = ma_update(&g_d_ma, raw_d_term);
                 g_last_err_angle = err_angle_filtered;  /* 保存滤波后 Err_Angle, 供下一周期微分 */
+                /* 根据滤波后误差大小选择陀螺阻尼系数 */
+                if (abs_f(err_angle_filtered) > g_Kd_gyro_thresh) {
+                    g_Kd_gyro = g_Kd_gyro_high;
+                } else {
+                    g_Kd_gyro = g_Kd_gyro_low;
+                }
                 /* 方案一+二+三 组合:
                  *   tar_yaw = P输出 - 陀螺阻尼*实际角速度 - Kd*滤波后微分 */
                 g_tar_yaw_raw = pid_output
@@ -672,9 +674,9 @@ void Main_Control_Task(void *pvParameters)
 
                 /* --- 开环过元素: PASS 状态下覆盖角速度目标 --- */
                 if (current_element == ELEMENT_RING_LEFT_PASS) {
-                    g_pid_output_filtered = g_ol_ring_left_yawrate;
+                    g_pid_output_filtered = -g_ol_ring_yawrate;
                 } else if (current_element == ELEMENT_RING_RIGHT_PASS) {
-                    g_pid_output_filtered = g_ol_ring_right_yawrate;
+                    g_pid_output_filtered = g_ol_ring_yawrate;
                 }
 
                 differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
@@ -762,6 +764,7 @@ void Main_Control_Task(void *pvParameters)
                             break;
                         case ELEMENT_RING_LEFT_ENTRANCE:
                         case ELEMENT_RING_LEFT_PASS:
+                        case ELEMENT_IN_RING:
                             common_speed = ring_speed;
                             break;
                         case ELEMENT_RING_RIGHT_ENTRANCE:
@@ -927,6 +930,9 @@ void Main_Control_Task_Init(void)
     Debug_Register("OutLPFFc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
     Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
     Debug_Register("Kd_Gyro",   DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro);
+    Debug_Register("KdGyroHi",  DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro_high);
+    Debug_Register("KdGyroLo",  DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro_low);
+    Debug_Register("KdGyroTh",  DBG_FLOAT | STATIC_TYPE, &g_Kd_gyro_thresh);
     Debug_Register("Kd_Diff",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff);
     Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_diff_deadband);
     Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_filtered_d_term);
@@ -961,11 +967,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("WallSpd",DBG_FLOAT | STATIC_TYPE,&wall_speed);
     Debug_Register("Barrel",DBG_FLOAT | STATIC_TYPE,&barrel_speed);
 
-    /* 开环过元素参数 (上位机在线调参, 超时帧数见 element.c 的 PassTmOut) */
-    Debug_Register("OL_L_Ang",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_left_angle);
-    Debug_Register("OL_L_Yaw",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_left_yawrate);
-    Debug_Register("OL_R_Ang",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_right_angle);
-    Debug_Register("OL_R_Yaw",  DBG_FLOAT | STATIC_TYPE, &g_ol_ring_right_yawrate);
+    /* 开环过元素参数见 element.c: OL_Ang, OL_Yaw, PassTmOut, RingSide */
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
     ADC2_DMA_Init(adc_dma_buf);
