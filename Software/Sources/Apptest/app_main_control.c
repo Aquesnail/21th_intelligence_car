@@ -543,6 +543,7 @@ void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
     motor_data_t tmp;
+    motor_data_t speed_a, speed_b;
     uint32_t ulNotifiedValue;
     uint16_t raw;  /* TODO: 临时, ADC 尖峰过滤用 */
     float Err_1;
@@ -731,10 +732,7 @@ void Main_Control_Task(void *pvParameters)
                     if (g_manual_cmd_received &&
                         (xTaskGetTickCount() - g_last_manual_cmd_tick) >= pdMS_TO_TICKS(3000)) {
                         tmp.f = 0.0f;
-                        MOTOR_CS_RESET();
-                        motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                        motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                        MOTOR_CS_SET();
+                        motor_write_speed_targets(tmp, tmp);
                         g_reg_write_pending = 0;
                         g_drive_direction = DRIVE_STOP;
                         g_last_manual_cmd_tick = xTaskGetTickCount();
@@ -750,37 +748,23 @@ void Main_Control_Task(void *pvParameters)
 
                     /* 执行驾驶指令 (标志位 -> 电机写入) */
                     if (g_drive_direction != DRIVE_STOP) {
-                        MOTOR_CS_RESET();
                         if (g_drive_direction == DRIVE_FORWARD) {
-                            tmp.f = drive_speed;
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                           // tmp.f = drive_speed;
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                            speed_a.f = -g_ss_magnitude;
+                            speed_b.f = g_ss_magnitude;
                         } else if (g_drive_direction == DRIVE_BACKWARD) {
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                            speed_a.f = g_ss_magnitude;
+                            speed_b.f = -g_ss_magnitude;
                         } else if (g_drive_direction == DRIVE_LEFT) {
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            tmp.f = -g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                            speed_a.f = -g_ss_magnitude;
+                            speed_b.f = -g_ss_magnitude;
                         } else if (g_drive_direction == DRIVE_RIGHT) {
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            tmp.f = g_ss_magnitude;
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
+                            speed_a.f = g_ss_magnitude;
+                            speed_b.f = g_ss_magnitude;
                         }
-                        MOTOR_CS_SET();
+                        motor_write_speed_targets(speed_a, speed_b);
                     }else{
                             tmp.f = 0.0f;
-                            MOTOR_CS_RESET();
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                            MOTOR_CS_SET();
+                            motor_write_speed_targets(tmp, tmp);
                     }
                     if (g_reg_write_pending) {
                         if(g_reg_write_addr == REG_A_SPEED_TARGET){
@@ -817,10 +801,7 @@ void Main_Control_Task(void *pvParameters)
                         case ELEMENT_SAFETY_STOP:
                             /* 紧急刹车, 留在自动模式等待电感恢复 */
                             tmp.f = 0.0f;
-                            MOTOR_CS_RESET();
-                            motor_write_reg(REG_A_SPEED_TARGET, tmp);
-                            motor_write_reg(REG_B_SPEED_TARGET, tmp);
-                            MOTOR_CS_SET();
+                            motor_write_speed_targets(tmp, tmp);
                             g_reg_write_pending = 0;
                             g_drive_direction = DRIVE_STOP;
                             PWMA_Set(0);
@@ -867,10 +848,7 @@ void Main_Control_Task(void *pvParameters)
                         speed_target_r.f = -(common_speed + differential_speed);
                         speed_target_r_nagtive = -speed_target_r.f;
 
-                        MOTOR_CS_RESET();
-                        motor_write_reg(REG_A_SPEED_TARGET, speed_target_r);
-                        motor_write_reg(REG_B_SPEED_TARGET, speed_target_l);
-                        MOTOR_CS_SET();
+                        motor_write_speed_targets(speed_target_r, speed_target_l);
                     }
 
                 }

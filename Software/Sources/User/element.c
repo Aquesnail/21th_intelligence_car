@@ -63,6 +63,8 @@ static float    g_ring_exit_yaw_thresh  = 300.0f;  /* 退环所需 yaw 累计角
 static const uint8_t g_track_table[TRACK_TABLE_LEN] = {
     /* TODO: 按实际赛道顺序填入非 STRAIGHT 元素 */
     ELEMENT_RING_LEFT_ENTRANCE,
+    ELEMENT_CROSS,
+    ELEMENT_CROSS,
     ELEMENT_WALL,
     ELEMENT_BARREL
     /* 继续添加: ELEMENT_WALL, ELEMENT_CROSS, ... */
@@ -476,10 +478,21 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     if (g_mag < 0.01f) { g_mag = 0.01f; }  /* 防除零 */
     tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
 
+    /* ---- 0.6 元素表: 预查当前期望元素 (所有投票类型共用) ---- */
+    if (g_track_table_enabled) {
+        if (g_track_idx < TRACK_TABLE_LEN) {
+            track_expected = g_track_table[g_track_idx];
+        } else {
+            track_expected = ELEMENT_STRAIGHT;  /* 超出表尾, 不再放行任何元素 */
+        }
+    } else {
+        track_expected = ELEMENT_STRAIGHT;  /* 未启用, 不约束 */
+    }
+
     switch (*element) {
     case ELEMENT_STRAIGHT:
         {/* C89: 块作用域声明 */
-            
+
             /* 左环: adc[2]超阈值 且 大于右通道(方向判别) 且 车身水平 */
             left_vote = ((adc_values[2] > RingEntrance[2]) &&
                          (adc_values[2] > adc_values[0]) &&
@@ -487,16 +500,11 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
             /* 右环: adc[0]超阈值 且 大于左通道(方向判别) 且 车身水平 */
             right_vote = ((adc_values[0] > RingEntrance[0]) &&
                           (adc_values[0] > adc_values[2]) &&
-                          (tilt_x < angle_level)) ? 1 : 0; 
+                          (tilt_x < angle_level)) ? 1 : 0;
 
             /* 元素表约束: 非预期方向强制不投票 */
             if (g_track_table_enabled) {
-                if (g_track_idx < TRACK_TABLE_LEN) {
-                    track_expected = g_track_table[g_track_idx];
-                } else {
-                    track_expected = ELEMENT_STRAIGHT;  /* 超出表尾, 不再放行任何环岛 */
-                }
-                if (track_expected != ELEMENT_RING_LEFT_ENTRANCE)  left_vote  = 0;//如果表里面不是对应的环，对应投票清0
+                if (track_expected != ELEMENT_RING_LEFT_ENTRANCE)  left_vote  = 0;
                 if (track_expected != ELEMENT_RING_RIGHT_ENTRANCE) right_vote = 0;
             }
         }
@@ -528,6 +536,8 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     case ELEMENT_STRAIGHT:
         /* 在直线状态下, 倾角超过进入阈值即投票 1 */
         wall_vote = (tilt_x > wall_entry_tilt) ? 1 : 0;
+        /* 元素表约束: 非预期元素强制不投票 */
+        if (g_track_table_enabled && track_expected != ELEMENT_WALL) wall_vote = 0;
         break;
 
     case ELEMENT_WALL:
@@ -547,6 +557,8 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     case ELEMENT_STRAIGHT:
         /* 在直线状态下, 倾角超过进入阈值即投票 1 */
         barrel_vote = (tilt_x > barrel_entry_tilt) ? 1 : 0;
+        /* 元素表约束: 非预期元素强制不投票 */
+        if (g_track_table_enabled && track_expected != ELEMENT_BARREL) barrel_vote = 0;
         break;
 
     case ELEMENT_BARREL:
@@ -567,6 +579,8 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     case ELEMENT_STRAIGHT:
         /* 在直线状态下, 竖直电感和超过进入阈值即投票 1 */
         cross_vote = (cross_adc_sum > cross_entry_sum) ? 1 : 0;
+        /* 元素表约束: 非预期元素强制不投票 */
+        if (g_track_table_enabled && track_expected != ELEMENT_CROSS) cross_vote = 0;
         break;
 
     case ELEMENT_CROSS:
