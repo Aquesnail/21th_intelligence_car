@@ -35,7 +35,6 @@ static uint8_t ring_right_win_cnt;    /* 右环窗口内 1 的个数 (增量维�
 
 static uint8_t ring_win_len;          /* 有效窗长 0~100, 0=旁路 */
 static uint8_t ring_entry_thresh;     /* 进入阈值: 1 的个数 >= 此值 */
-static uint8_t ring_exit_thresh;      /* 退出阈值: 1 的个数 >= 此值 */
 
 /* ================================================================
  * 开环 PASS 阶段参数 (左右环共用, 左环取负值)
@@ -103,6 +102,21 @@ static float   barrel_entry_tilt;     /* 进入滚筒的倾角阈值(度) */
 static float   barrel_exit_tilt;      /* 退出滚筒的倾角阈值(度) */
 static uint8_t barrel_entry_thresh;   /* 进入阈值: 1 的个数 >= 此值 */
 static uint8_t barrel_exit_thresh;    /* 退出阈值: 1 的个数 >= 此值 */
+
+/* ================================================================
+ * 十字检测多数投票窗 (Majority Voting Window)
+ *   窗长固定 10 cycles
+ *   进入条件: 两侧竖直电感(adc[1]+adc[3])之和超过 cross_entry_sum 时投票 1
+ *   退出条件: 两侧竖直电感之和低于 cross_exit_sum  时投票 1
+ *   仅从 STRAIGHT 进入十字, 从 CROSS 退回 STRAIGHT
+ * ================================================================ */
+static uint8_t xdata cross_vote_win[10];
+static uint8_t cross_win_idx;          /* 当前写入位置 (循环) */
+static uint8_t cross_win_cnt;          /* 窗口内 1 的个数 (增量维护) */
+static float   cross_entry_sum;        /* 进入十字的竖直电感和阈值 */
+static float   cross_exit_sum;         /* 退出十字的竖直电感和阈值 */
+static uint8_t cross_entry_thresh;     /* 进入阈值: 1 的个数 >= 此值 */
+static uint8_t cross_exit_thresh;      /* 退出阈值: 1 的个数 >= 此值 */
 
 /* ================================================================
  * 重力矢量滑动平均窗 (Moving Average, 防加速度计尖峰)
@@ -233,6 +247,25 @@ static void Barrel_Vote_Push(uint8_t vote)
     }
 }
 
+/* ---- 将十字投票推入环形窗口, 增量更新计数 ---- */
+static void Cross_Vote_Push(uint8_t vote)
+{
+    uint8_t old_vote;
+
+    old_vote = cross_vote_win[cross_win_idx];
+    if (old_vote == 1) {
+        cross_win_cnt--;
+    }
+    cross_vote_win[cross_win_idx] = vote;
+    if (vote == 1) {
+        cross_win_cnt++;
+    }
+    cross_win_idx++;
+    if (cross_win_idx >= 10) {
+        cross_win_idx = 0;
+    }
+}
+
 void Element_Init(void)
 {
     uint8_t i;
@@ -255,7 +288,6 @@ void Element_Init(void)
     /* 环岛投票窗参数 (上位机可调) */
     Debug_Register("Ring_WinLen",  DBG_UINT8 | STATIC_TYPE, &ring_win_len);
     Debug_Register("Ring_EntThr",  DBG_UINT8 | STATIC_TYPE, &ring_entry_thresh);
-    Debug_Register("Ring_ExtThr",  DBG_UINT8 | STATIC_TYPE, &ring_exit_thresh);
 
     /* 开环PASS超时帧数 (上位机可调, 1帧=2ms) */
     Debug_Register("OL_Ang",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_angle);
@@ -281,21 +313,28 @@ void Element_Init(void)
     Debug_Register("Bar_EntThr",  DBG_UINT8 | STATIC_TYPE, &barrel_entry_thresh);
     Debug_Register("Bar_ExtThr",  DBG_UINT8 | STATIC_TYPE, &barrel_exit_thresh);
 
+    /* 十字竖直电感和阈值 */
+    Debug_Register("Cross_EnSum", DBG_FLOAT | STATIC_TYPE, &cross_entry_sum);
+    Debug_Register("Cross_ExSum", DBG_FLOAT | STATIC_TYPE, &cross_exit_sum);
+
+    /* 十字投票窗参数 (上位机可调) */
+    Debug_Register("Cross_EntThr", DBG_UINT8 | STATIC_TYPE, &cross_entry_thresh);
+    Debug_Register("Cross_ExtThr", DBG_UINT8 | STATIC_TYPE, &cross_exit_thresh);
+
     /* 默认阈值 */
-    RingEntrance[0] = 2500.0f;
+    RingEntrance[0] = 1200.0f;
     RingEntrance[1] = 0.0f;
-    RingEntrance[2] = 2500.0f;
+    RingEntrance[2] = 1200.0f;
     RingEntrance[3] = 0.0f;
 
-    RingExit[0] = 700.0f;
+    RingExit[0] = 1200.0f;
     RingExit[1] = 0.0f;
-    RingExit[2] = 700.0f;
+    RingExit[2] = 1200.0f;
     RingExit[3] = 0.0f;
 
     /* 窗长默认 10 帧 (20ms), 阈值默认 7 (70% 多数) */
     ring_win_len      = 10;
     ring_entry_thresh = 7;
-    ring_exit_thresh  = 7;
 
     /* 上墙倾角默认: 进入 >30°, 退出 <20° (滞回) */
     wall_entry_tilt  = 30.0f;
@@ -313,6 +352,14 @@ void Element_Init(void)
     barrel_entry_thresh = 7;
     barrel_exit_thresh  = 7;
 
+    /* 十字竖直电感和默认: 进入 >2000, 退出 <1500 (滞回) */
+    cross_entry_sum  = 2000.0f;
+    cross_exit_sum   = 1500.0f;
+
+    /* 十字投票: 窗长固定 10 cycles, 阈值 7 (70% 多数) */
+    cross_entry_thresh = 7;
+    cross_exit_thresh  = 7;
+
     /* 安全停车参数 (上位机在线调参) */
     Debug_Register("OffTkMs",   DBG_FLOAT | STATIC_TYPE, &g_offtrack_timeout_ms);
 
@@ -329,6 +376,10 @@ void Element_Init(void)
     for (i = 0; i < 10; i++) {
         barrel_vote_win[i] = 0;
     }
+    /* 十字窗口清零 */
+    for (i = 0; i < 10; i++) {
+        cross_vote_win[i] = 0;
+    }
     /* 重力 MA 窗口清零 */
     for (i = 0; i < GRAVITY_MA_WIN_LEN; i++) {
         g_grav_win_ax[i] = 0.0f;
@@ -343,6 +394,8 @@ void Element_Init(void)
     wall_win_cnt = 0;
     barrel_win_idx = 0;
     barrel_win_cnt = 0;
+    cross_win_idx = 0;
+    cross_win_cnt = 0;
     g_grav_win_idx = 0;
     g_grav_win_cnt = 0;
     g_grav_sum_ax  = 0.0f;
@@ -367,6 +420,8 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     uint8_t right_vote;  /* 右环岛(adc[0])本帧投票 */
     uint8_t wall_vote;
     uint8_t barrel_vote;
+    uint8_t cross_vote;
+    float   cross_adc_sum;  /* adc[1] + adc[3] 竖直电感和 */
     float   yaw_delta;   /* PASS 阶段 yaw 变化量 */
     uint8_t i;           /* 循环/清零用 */
 
@@ -374,7 +429,7 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     uint8_t all_adc_low;
     uint32_t elapsed_ms;
     uint32_t now_tick;
-
+    uint8_t track_expected;
     /* ================================================================
      * 0. 安全检测层 (最高优先级, 可覆盖任意状态)
      *    离赛道超时: 4路ADC全部丢失超过阈值 → SAFETY_STOP
@@ -424,7 +479,7 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     switch (*element) {
     case ELEMENT_STRAIGHT:
         {/* C89: 块作用域声明 */
-            uint8_t track_expected;
+            
             /* 左环: adc[2]超阈值 且 大于右通道(方向判别) 且 车身水平 */
             left_vote = ((adc_values[2] > RingEntrance[2]) &&
                          (adc_values[2] > adc_values[0]) &&
@@ -432,7 +487,7 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
             /* 右环: adc[0]超阈值 且 大于左通道(方向判别) 且 车身水平 */
             right_vote = ((adc_values[0] > RingEntrance[0]) &&
                           (adc_values[0] > adc_values[2]) &&
-                          (tilt_x < angle_level)) ? 1 : 0;
+                          (tilt_x < angle_level)) ? 1 : 0; 
 
             /* 元素表约束: 非预期方向强制不投票 */
             if (g_track_table_enabled) {
@@ -441,20 +496,10 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
                 } else {
                     track_expected = ELEMENT_STRAIGHT;  /* 超出表尾, 不再放行任何环岛 */
                 }
-                if (track_expected != ELEMENT_RING_LEFT_ENTRANCE)  left_vote  = 0;
+                if (track_expected != ELEMENT_RING_LEFT_ENTRANCE)  left_vote  = 0;//如果表里面不是对应的环，对应投票清0
                 if (track_expected != ELEMENT_RING_RIGHT_ENTRANCE) right_vote = 0;
             }
         }
-        break;
-
-    case ELEMENT_RING_LEFT_ENTRANCE:
-        left_vote  = (adc_values[2] < RingExit[2]) ? 1 : 0;
-        right_vote = 0;
-        break;
-
-    case ELEMENT_RING_RIGHT_ENTRANCE:
-        left_vote  = 0;
-        right_vote = (adc_values[0] < RingExit[0]) ? 1 : 0;
         break;
 
     case ELEMENT_IN_RING:
@@ -516,6 +561,26 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     }
     Barrel_Vote_Push(barrel_vote);
 
+    /* ---- 3.6 十字投票 (竖直电感 adc[1]+adc[3] 之和) ---- */
+    cross_adc_sum = adc_values[1] + adc_values[3];
+    switch (*element) {
+    case ELEMENT_STRAIGHT:
+        /* 在直线状态下, 竖直电感和超过进入阈值即投票 1 */
+        cross_vote = (cross_adc_sum > cross_entry_sum) ? 1 : 0;
+        break;
+
+    case ELEMENT_CROSS:
+        /* 在十字状态下, 竖直电感和低于退出阈值即投票 1 */
+        cross_vote = (cross_adc_sum < cross_exit_sum) ? 1 : 0;
+        break;
+
+    default:
+        /* 其他状态不关心十字, 投票 0 自然老化 */
+        cross_vote = 0;
+        break;
+    }
+    Cross_Vote_Push(cross_vote);
+
     /* ---- 4. 状态转换判断 ---- */
     switch (*element) {
     case ELEMENT_STRAIGHT:
@@ -550,6 +615,13 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
         if (*element == ELEMENT_STRAIGHT) {
             if (barrel_win_cnt >= barrel_entry_thresh) {
                 *element = ELEMENT_BARREL;
+            }
+        }
+
+        /* 十字检测: 仅从直线状态进入, 且未被环岛/上墙/滚筒抢占 */
+        if (*element == ELEMENT_STRAIGHT) {
+            if (cross_win_cnt >= cross_entry_thresh) {
+                *element = ELEMENT_CROSS;
             }
         }
         break;
@@ -683,6 +755,11 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
         break;
 
     case ELEMENT_CROSS:
+        /* 十字状态下, 竖直电感和低于退出阈值投票达标 → 退回直线 */
+        if (cross_win_cnt >= cross_exit_thresh) {
+            *element = ELEMENT_STRAIGHT;
+            Track_Advance();
+        }
         break;
 
     case ELEMENT_SAFETY_STOP:
