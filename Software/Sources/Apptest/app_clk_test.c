@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "ws2812.h"
+#include "led_indicator.h"
 #include "adc_user.h"
 #pragma warning disable = 98
 #pragma warning disable = 91
@@ -12,36 +13,92 @@ extern volatile uint8_t g_p54_key_flag;
 extern uint8_t manual_control_flag;
 #define P54_LONG_PRESS_TICKS  40   /* 40 * 25ms = 1000ms */
 extern void Change_Maunal();
+
+/* ================================================================
+ * app_clk_test — LED 动画引擎任务 (25ms 周期)
+ *
+ *   双模式:
+ *     MODE_BREATHING — 彩虹呼吸灯 (手动模式 / 安全停车时)
+ *     MODE_STEADY    — 稳态单色灯 (自动循迹时, 颜色反映当前元素)
+ *
+ *   命令接口 (通过 volatile 全局变量, 由 app_main_control.c 写入):
+ *     g_led_cmd = LED_CMD_STEADY          → 切换到稳态模式
+ *     g_led_cmd = LED_CMD_RESUME_BREATHING → 恢复呼吸灯
+ * ================================================================ */
 void app_clk_test(void)
 {
-    uint16_t hue=0;
-    uint16_t breath_phase=0;
-    uint8_t r=0, g=0, b=0;
-    uint8_t breath=0;
-    uint8_t h_val=0;
-    uint8_t  btn_pressed = 0;
-    uint16_t btn_hold_cnt = 0;
+    /* 呼吸灯状态 */
+    uint16_t hue;
+    uint16_t breath_phase;
+    uint8_t breath;
+    uint8_t h_val;
 
+    /* 稳态颜色 */
+    uint8_t steady_r, steady_g, steady_b;
+
+    /* RGB 输出 */
+    uint8_t r, g, b;
+
+    /* 当前模式 (本地缓存, 与 g_led_mode 同步) */
+    uint8_t mode;
+
+    /* 按键状态 */
+    uint8_t  btn_pressed;
+    uint16_t btn_hold_cnt;
+
+    /* ---- 初始化 ---- */
     hue = 0;
     breath_phase = 0;
+    breath = 0;
+    steady_r = 255;
+    steady_g = 255;
+    steady_b = 255;
+    r = 0;
+    g = 0;
+    b = 0;
+    mode = LED_MODE_BREATHING;
+    g_led_mode = LED_MODE_BREATHING;
+    btn_pressed = 0;
+    btn_hold_cnt = 0;
 
-    for(;;){
-        /* ---- P5.4 按键检测 ---- */
-        if(g_p54_key_flag && !btn_pressed){
+    for (;;) {
+
+        /* ================================================================
+         * 阶段1: 处理外部命令 (主控任务通过全局变量发送)
+         * ================================================================ */
+        if (g_led_cmd == LED_CMD_STEADY) {
+            steady_r = g_led_r;
+            steady_g = g_led_g;
+            steady_b = g_led_b;
+            mode = LED_MODE_STEADY;
+            g_led_mode = LED_MODE_STEADY;
+            g_led_cmd = LED_CMD_NONE;
+        } else if (g_led_cmd == LED_CMD_RESUME_BREATHING) {
+            mode = LED_MODE_BREATHING;
+            g_led_mode = LED_MODE_BREATHING;
+            g_led_cmd = LED_CMD_NONE;
+        }
+
+        /* ================================================================
+         * 阶段2: 按键检测 (P5.4)
+         *   短按: 切换手动/自动模式
+         *   长按: 软件复位
+         * ================================================================ */
+        if (g_p54_key_flag && !btn_pressed) {
             g_p54_key_flag = 0;
             btn_pressed = 1;
             btn_hold_cnt = 0;
         }
-        if(btn_pressed){
-            if(!(P54 == 1)){       /* 按键仍在按下（低电平有效） */
+        if (btn_pressed) {
+            if (!(P54 == 1)) {       /* 按键仍在按下 (低电平有效) */
                 btn_hold_cnt++;
-            } else {                   /* 按键已松开 */
-                if(btn_hold_cnt >= P54_LONG_PRESS_TICKS){
-                    /* 长按：复位 */
+            } else {                 /* 按键已松开 */
+                if (btn_hold_cnt >= P54_LONG_PRESS_TICKS) {
+                    /* 长按: 复位 */
                     IAP_CONTR &= 0x40;
                     IAP_CONTR |= 0x20;
                 } else {
-                    /* 短按：切换手动模式 */
+                    /* 短按: 切换手动模式 (Change_Maunal 内部会发 LED 命令) */
                     Change_Maunal();
                 }
                 btn_pressed = 0;
@@ -49,40 +106,52 @@ void app_clk_test(void)
             }
         }
 
-        /* 三角波呼吸亮度: 0 -> 255 -> 0 */
-        if(breath_phase < 256) {
-            breath = (uint8_t)breath_phase;
+        /* ================================================================
+         * 阶段3: 执行当前 LED 模式
+         * ================================================================ */
+        if (mode == LED_MODE_BREATHING) {
+
+            /* 三角波呼吸亮度: 0 → 255 → 0 */
+            if (breath_phase < 256) {
+                breath = (uint8_t)breath_phase;
+            } else {
+                breath = (uint8_t)(511 - breath_phase);
+            }
+
+            /* 色相转 RGB: 红→黄→绿→青→蓝→紫→红 */
+            h_val = (uint8_t)hue;
+            if      (h_val < 43)  { r = 255; g = h_val * 6; b = 0; }
+            else if (h_val < 86)  { r = 255 - (h_val - 43) * 6;  g = 255; b = 0; }
+            else if (h_val < 129) { r = 0;   g = 255; b = (h_val - 86) * 6; }
+            else if (h_val < 172) { r = 0;   g = 255 - (h_val - 129) * 6; b = 255; }
+            else if (h_val < 215) { r = (h_val - 172) * 6; g = 0; b = 255; }
+            else                  { r = 255; g = 0; b = 255 - (h_val - 215) * 6; }
+
+            /* 应用呼吸亮度 */
+            r = (uint8_t)((uint16_t)r * breath / 255);
+            g = (uint8_t)((uint16_t)g * breath / 255);
+            b = (uint8_t)((uint16_t)b * breath / 255);
+
+            hue++;
+            breath_phase += 3;
+            if (breath_phase >= 512) breath_phase = 0;
+
         } else {
-            breath = (uint8_t)(511 - breath_phase);
+            /* LED_MODE_STEADY: 稳态显示 */
+            r = steady_r;
+            g = steady_g;
+            b = steady_b;
         }
 
-        /* 色相转 RGB: 红 -> 黄 -> 绿 -> 青 -> 蓝 -> 紫 -> 红 */
-        h_val = (uint8_t)hue;
-        if      (h_val < 43)  { r = 255; g = h_val * 6; b = 0; }
-        else if (h_val < 86)  { r = 255 - (h_val - 43) * 6;  g = 255; b = 0; }
-        else if (h_val < 129) { r = 0;   g = 255; b = (h_val - 86) * 6; }
-        else if (h_val < 172) { r = 0;   g = 255 - (h_val - 129) * 6; b = 255; }
-        else if (h_val < 215) { r = (h_val - 172) * 6; g = 0; b = 255; }
-        else                  { r = 255; g = 0; b = 255 - (h_val - 215) * 6; }
-
-        /* 应用呼吸亮度 */
-        r = (uint8_t)((uint16_t)r * breath / 255);
-        g = (uint8_t)((uint16_t)g * breath / 255);
-        b = (uint8_t)((uint16_t)b * breath / 255);
-        // MOTOR_CS_RESET();
-        // motor_write_reg(0x03, (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-        // MOTOR_CS_SET();
+        /* 输出到 WS2812 */
         WS2812_SetColor(0, r, g, b);
         WS2812_Show();
-
-        hue++;
-        breath_phase += 3;
-        if(breath_phase >= 512) breath_phase = 0;
 
         vTaskDelay(pdMS_TO_TICKS(25));
     }
 }
 
-void APP_CLK_TEST_Init(void){
+void APP_CLK_TEST_Init(void)
+{
     xTaskCreate(app_clk_test, "AppClkTest", 256, NULL, tskIDLE_PRIORITY + 1, NULL);
 }

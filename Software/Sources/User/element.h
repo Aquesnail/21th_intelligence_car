@@ -22,4 +22,5 @@ typedef enum ElementType {
 void Element_Init(void);
 void Element_Handle(element_t *element, float adc_values[], float ax, float ay, float az, float yaw);
 void Element_ResetOfftrackTimer(void);
+void Element_ResetTrackIndex(void);  /* 重置赛道元素表索引, 供手动切自动/冲出赛道时调用 */
 #endif // ELEMENT_H

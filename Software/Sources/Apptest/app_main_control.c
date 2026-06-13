@@ -13,6 +13,7 @@
 #include "moving_avg.h"
 #include "fuzzy_pid.h"
 #include "element.h"
+#include "led_indicator.h"
 #include "pwm_user.h"
 #pragma warning disable = 174
 /* ================================================================
@@ -452,7 +453,9 @@ static float speed_target_r_nagtive=0.0f;
 static float numerator, denominator;
 static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
+static element_t prev_element    = ELEMENT_STRAIGHT;  /* 上一次元素, 用于检测切换 */
 
+static float tmp_adc13;
 /* ================================================================
  * 开环过元素 (Open-Loop Element Passing)
  *   由元素状态机驱动: ENTRANCE → PASS → IN_RING → STRAIGHT
@@ -494,6 +497,7 @@ void Change_Maunal(){
         /* 切换到自动模式: 启动风扇, 3s 后再激活电机 */
         manual_control_flag = 0;
         PWMA_Set(fan_D);
+        LED_RequestSteady(255, 255, 255);   /* 切自动 → 稳态白光 */
         g_auto_transition = 1;
         g_auto_fan_tick = xTaskGetTickCount();
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
@@ -507,10 +511,12 @@ void Change_Maunal(){
         inner_yaw_rate_pi.last_error = 0.0f;      /* 重置内环D项 */
         current_element = ELEMENT_STRAIGHT;
         Element_ResetOfftrackTimer();   /* 重置离赛道定时器, 防止切回自动模式时误触发SAFETY_STOP */
+        Element_ResetTrackIndex();      /* 重置元素表索引, 每次切自动都从表头开始 */
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
         PWMA_Set(0);
+        LED_RequestBreathing();              /* 切手动 → 呼吸灯 */
         g_auto_transition = 0;
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
     }
@@ -542,6 +548,7 @@ static float barrel_speed = 45.0f;
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
+    uint8_t led_r, led_g, led_b;   /* LED 颜色临时变量 */
     motor_data_t tmp;
     motor_data_t speed_a, speed_b;
     uint32_t ulNotifiedValue;
@@ -631,7 +638,7 @@ void Main_Control_Task(void *pvParameters)
                     adc_normalized[2] = (adc_values[2] < adc_dead_zone) ? 0.0f : adc_values[2] * normalized_adc_k[2];
                     adc_normalized[3] = (adc_values[3] < adc_dead_zone) ? 0.0f : adc_values[3] * normalized_adc_k[3];
                 }
-       
+                tmp_adc13 = adc_normalized[1]+adc_normalized[3];
             
                 if(change_inductor == 1){
                     Err_1 = (float)((adc_normalized[0]) - (adc_normalized[2]));//0,2对应横向电感
@@ -782,6 +789,18 @@ void Main_Control_Task(void *pvParameters)
                         IMU_Filter_Data->sensor.dat.ay,
                         IMU_Filter_Data->sensor.dat.az,
                         yaw);
+
+                    /* 元素切换时更新 LED 状态 */
+                    if (current_element != prev_element) {
+                        LED_GetElementColor(current_element, &led_r, &led_g, &led_b);
+                        if (current_element == ELEMENT_SAFETY_STOP) {
+                            LED_RequestBreathing();              /* 安全停车 → 呼吸灯 */
+                        } else {
+                            LED_RequestSteady(led_r, led_g, led_b); /* 其他元素 → 稳态对应色 */
+                        }
+                        prev_element = current_element;
+                    }
+
                     switch(current_element){
                         case ELEMENT_STRAIGHT:
                             common_speed = cruising_speed;
@@ -893,6 +912,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[1]);
     Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
     Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
+    Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE,&tmp_adc13);
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
     Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &err_angle_filtered);
     /* 注册电机调试变量 */
