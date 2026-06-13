@@ -793,7 +793,11 @@ void Main_Control_Task(void *pvParameters)
                     }
                     
                 }else{
-                    Element_Handle(&current_element,adc_normalized,pitch,roll,yaw);
+                    Element_Handle(&current_element,adc_normalized,
+                        IMU_Filter_Data->sensor.dat.ax,
+                        IMU_Filter_Data->sensor.dat.ay,
+                        IMU_Filter_Data->sensor.dat.az,
+                        yaw);
                     switch(current_element){
                         case ELEMENT_STRAIGHT:
                             common_speed = cruising_speed;

@@ -20,6 +20,6 @@ typedef enum ElementType {
 }element_t;
 
 void Element_Init(void);
-void Element_Handle(element_t *element, float adc_values[], float pitch, float roll, float yaw);
+void Element_Handle(element_t *element, float adc_values[], float ax, float ay, float az, float yaw);
 void Element_ResetOfftrackTimer(void);
 #endif // ELEMENT_H

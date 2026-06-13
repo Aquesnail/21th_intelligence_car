@@ -13,7 +13,7 @@ extern uint8_t manual_control_flag;
  * ================================================================ */
 static float RingEntrance[4];
 static float RingExit[4];
-static float angle_pitch = 5.0f;
+static float angle_level = 5.0f;   /* 车身水平倾角阈值(度), 重力分量 atan2(|ax|,|az|) */
 
 /* ================================================================
  * 环岛多数投票窗 (Majority Voting Window)
@@ -64,7 +64,8 @@ static float    g_ring_exit_yaw_thresh  = 300.0f;  /* 退环所需 yaw 累计角
 static const uint8_t g_track_table[TRACK_TABLE_LEN] = {
     /* TODO: 按实际赛道顺序填入非 STRAIGHT 元素 */
     ELEMENT_RING_LEFT_ENTRANCE,
-    ELEMENT_RING_RIGHT_ENTRANCE,
+    ELEMENT_WALL,
+    ELEMENT_BARREL
     /* 继续添加: ELEMENT_WALL, ELEMENT_CROSS, ... */
 };
 
@@ -74,32 +75,50 @@ static uint8_t  g_track_idx = 0;             /* 指向下一个预期元素的�
 /* ================================================================
  * 上墙检测多数投票窗 (Majority Voting Window)
  *   窗长固定 10 cycles
- *   进入条件: pitch 超过 wall_entry_pitch 时投票 1
- *   退出条件: pitch 低于 wall_exit_pitch  时投票 1
+ *   进入条件: 倾角 tilt_x 超过 wall_entry_tilt 时投票 1
+ *   退出条件: 倾角 tilt_x 低于 wall_exit_tilt  时投票 1
+ *   倾角 = atan2(|ax|,|az|), 由重力矢量直接计算, 不依赖欧拉角
  *   仅从 STRAIGHT 进入上墙, 从 WALL 退回 STRAIGHT
  * ================================================================ */
 static uint8_t xdata wall_vote_win[10];
 static uint8_t wall_win_idx;          /* 当前写入位置 (循环) */
 static uint8_t wall_win_cnt;          /* 窗口内 1 的个数 (增量维护) */
-static float   wall_entry_pitch;      /* 进入上墙的 pitch 阈值 (度) */
-static float   wall_exit_pitch;       /* 退出上墙的 pitch 阈值 (度) */
+static float   wall_entry_tilt;       /* 进入上墙的倾角阈值(度), 重力 atan2(|ax|,|az|) */
+static float   wall_exit_tilt;        /* 退出上墙的倾角阈值(度), 重力 atan2(|ax|,|az|) */
 static uint8_t wall_entry_thresh;     /* 进入阈值: 1 的个数 >= 此值 */
 static uint8_t wall_exit_thresh;      /* 退出阈值: 1 的个数 >= 此值 */
 
 /* ================================================================
  * 滚筒检测多数投票窗 (Majority Voting Window)
  *   窗长固定 10 cycles
- *   进入条件: roll 超过 barrel_entry_roll 时投票 1
- *   退出条件: roll 低于 barrel_exit_roll  时投票 1
+ *   进入条件: 倾角超过 barrel_entry_tilt 时投票 1
+ *   退出条件: 倾角低于 barrel_exit_tilt  时投票 1
  *   仅从 STRAIGHT 进入滚筒, 从 BARREL 退回 STRAIGHT
+ *   (滚筒也用前后倾角, 与上墙相同算法, 仅阈值不同)
  * ================================================================ */
 static uint8_t xdata barrel_vote_win[10];
 static uint8_t barrel_win_idx;        /* 当前写入位置 (循环) */
 static uint8_t barrel_win_cnt;        /* 窗口内 1 的个数 (增量维护) */
-static float   barrel_entry_roll;     /* 进入滚筒的 roll 阈值 (度) */
-static float   barrel_exit_roll;      /* 退出滚筒的 roll 阈值 (度) */
+static float   barrel_entry_tilt;     /* 进入滚筒的倾角阈值(度) */
+static float   barrel_exit_tilt;      /* 退出滚筒的倾角阈值(度) */
 static uint8_t barrel_entry_thresh;   /* 进入阈值: 1 的个数 >= 此值 */
 static uint8_t barrel_exit_thresh;    /* 退出阈值: 1 的个数 >= 此值 */
+
+/* ================================================================
+ * 重力矢量滑动平均窗 (Moving Average, 防加速度计尖峰)
+ *   窗长可调 (GRAVITY_MA_WIN_LEN 宏, 默认60帧=120ms)
+ *   增量维护累加和, O(1) 无遍历
+ * ================================================================ */
+#define GRAVITY_MA_WIN_LEN  60
+
+static float xdata g_grav_win_ax[GRAVITY_MA_WIN_LEN];
+static float xdata g_grav_win_ay[GRAVITY_MA_WIN_LEN];
+static float xdata g_grav_win_az[GRAVITY_MA_WIN_LEN];
+static uint8_t g_grav_win_idx;    /* 当前写入位置 (循环) */
+static uint8_t g_grav_win_cnt;    /* 已累积样本数 (<= WIN_LEN) */
+static float   g_grav_sum_ax;     /* 窗口内累加和 */
+static float   g_grav_sum_ay;
+static float   g_grav_sum_az;
 
 /* ================================================================
  * 安全停车检测 (Safety Stop)
@@ -142,6 +161,37 @@ static void Track_Advance(void)
 {
     if (g_track_table_enabled && g_track_idx < TRACK_TABLE_LEN) {
         g_track_idx++;
+    }
+}
+
+/* ---- 重力矢量滑动平均: 增量维护累加和, O(1) 无遍历 ---- */
+static void Grav_MA_Push(float ax, float ay, float az)
+{
+    float old_ax, old_ay, old_az;
+
+    if (g_grav_win_cnt >= GRAVITY_MA_WIN_LEN) {
+        /* 窗满: 减去最旧值, 加上新值 */
+        old_ax = g_grav_win_ax[g_grav_win_idx];
+        old_ay = g_grav_win_ay[g_grav_win_idx];
+        old_az = g_grav_win_az[g_grav_win_idx];
+        g_grav_sum_ax += ax - old_ax;
+        g_grav_sum_ay += ay - old_ay;
+        g_grav_sum_az += az - old_az;
+    } else {
+        /* 窗未满: 直接累加 */
+        g_grav_sum_ax += ax;
+        g_grav_sum_ay += ay;
+        g_grav_sum_az += az;
+        g_grav_win_cnt++;
+    }
+
+    g_grav_win_ax[g_grav_win_idx] = ax;
+    g_grav_win_ay[g_grav_win_idx] = ay;
+    g_grav_win_az[g_grav_win_idx] = az;
+
+    g_grav_win_idx++;
+    if (g_grav_win_idx >= GRAVITY_MA_WIN_LEN) {
+        g_grav_win_idx = 0;
     }
 }
 
@@ -200,7 +250,7 @@ void Element_Init(void)
     Debug_Register("RingEx3", DBG_FLOAT | STATIC_TYPE, &RingExit[3]);
 
     /* 环岛角度阈值 */
-    Debug_Register("Ring_AngThr", DBG_FLOAT | STATIC_TYPE, &angle_pitch);
+    Debug_Register("Ring_AngThr", DBG_FLOAT | STATIC_TYPE, &angle_level);
 
     /* 环岛投票窗参数 (上位机可调) */
     Debug_Register("Ring_WinLen",  DBG_UINT8 | STATIC_TYPE, &ring_win_len);
@@ -215,17 +265,17 @@ void Element_Init(void)
     Debug_Register("RingExYaw",  DBG_FLOAT | STATIC_TYPE, &g_ring_exit_yaw_thresh);
     Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
 
-    /* 上墙 pitch 阈值 */
-    Debug_Register("Wall_EnPitch", DBG_FLOAT | STATIC_TYPE, &wall_entry_pitch);
-    Debug_Register("Wall_ExPitch", DBG_FLOAT | STATIC_TYPE, &wall_exit_pitch);
+    /* 上墙倾角阈值 */
+    Debug_Register("Wall_EnTilt", DBG_FLOAT | STATIC_TYPE, &wall_entry_tilt);
+    Debug_Register("Wall_ExTilt", DBG_FLOAT | STATIC_TYPE, &wall_exit_tilt);
 
     /* 上墙投票窗参数 (上位机可调) */
     Debug_Register("Wall_EntThr",  DBG_UINT8 | STATIC_TYPE, &wall_entry_thresh);
     Debug_Register("Wall_ExtThr",  DBG_UINT8 | STATIC_TYPE, &wall_exit_thresh);
 
-    /* 滚筒 roll 阈值 */
-    Debug_Register("Bar_EnRoll",  DBG_FLOAT | STATIC_TYPE, &barrel_entry_roll);
-    Debug_Register("Bar_ExRoll",  DBG_FLOAT | STATIC_TYPE, &barrel_exit_roll);
+    /* 滚筒倾角阈值 */
+    Debug_Register("Bar_EnTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_entry_tilt);
+    Debug_Register("Bar_ExTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
 
     /* 滚筒投票窗参数 (上位机可调) */
     Debug_Register("Bar_EntThr",  DBG_UINT8 | STATIC_TYPE, &barrel_entry_thresh);
@@ -247,17 +297,17 @@ void Element_Init(void)
     ring_entry_thresh = 7;
     ring_exit_thresh  = 7;
 
-    /* 上墙 pitch 默认: 进入 >30°, 退出 <20° (滞回) */
-    wall_entry_pitch  = 30.0f;
-    wall_exit_pitch   = 20.0f;
+    /* 上墙倾角默认: 进入 >30°, 退出 <20° (滞回) */
+    wall_entry_tilt  = 30.0f;
+    wall_exit_tilt   = 20.0f;
 
     /* 上墙投票: 窗长固定 10 cycles, 阈值 7 (70% 多数) */
     wall_entry_thresh = 7;
     wall_exit_thresh  = 7;
 
-    /* 滚筒 roll 默认: 进入 >25°, 退出 <15° (滞回) */
-    barrel_entry_roll  = 25.0f;
-    barrel_exit_roll   = 15.0f;
+    /* 滚筒倾角默认: 进入 >25°, 退出 <15° (滞回) */
+    barrel_entry_tilt  = 25.0f;
+    barrel_exit_tilt   = 15.0f;
 
     /* 滚筒投票: 窗长固定 10 cycles, 阈值 7 (70% 多数) */
     barrel_entry_thresh = 7;
@@ -279,6 +329,12 @@ void Element_Init(void)
     for (i = 0; i < 10; i++) {
         barrel_vote_win[i] = 0;
     }
+    /* 重力 MA 窗口清零 */
+    for (i = 0; i < GRAVITY_MA_WIN_LEN; i++) {
+        g_grav_win_ax[i] = 0.0f;
+        g_grav_win_ay[i] = 0.0f;
+        g_grav_win_az[i] = 0.0f;
+    }
     ring_left_win_idx  = 0;
     ring_left_win_cnt  = 0;
     ring_right_win_idx = 0;
@@ -287,6 +343,11 @@ void Element_Init(void)
     wall_win_cnt = 0;
     barrel_win_idx = 0;
     barrel_win_cnt = 0;
+    g_grav_win_idx = 0;
+    g_grav_win_cnt = 0;
+    g_grav_sum_ax  = 0.0f;
+    g_grav_sum_ay  = 0.0f;
+    g_grav_sum_az  = 0.0f;
 }
 
 /* ---- 重置离赛道超时计时器 (供 Change_Maunal 等外部调用) ---- */
@@ -296,12 +357,13 @@ void Element_ResetOfftrackTimer(void)
 }
 
 /* adc0 是左 */
-void Element_Handle(element_t *element, float adc_values[], float pitch, float roll, float yaw)
+void Element_Handle(element_t *element, float adc_values[], float ax, float ay, float az, float yaw)
 {
     /* C89: 所有局部变量声明在开头 */
-    float   abs_pitch;
-    float   abs_roll;
-    uint8_t left_vote;   /* 左环岛(adc[2])本帧投票 */
+    float   fax, fay, faz;  /* MA 滤波后的重力矢量 */
+    float   tilt_x;         /* 前后倾角(度): atan2(|fax|,|faz|), 替代 pitch */
+    float   g_mag;          /* 重力矢量模长 */
+    uint8_t left_vote;     /* 左环岛(adc[2])本帧投票 */
     uint8_t right_vote;  /* 右环岛(adc[0])本帧投票 */
     uint8_t wall_vote;
     uint8_t barrel_vote;
@@ -346,7 +408,19 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
     }
 
     /* ---- 1. 根据当前状态计算本帧投票 ---- */
-    abs_pitch = (pitch > 0) ? pitch : -pitch;
+    /* 重力矢量滑动平均 → 前后倾角: 防加速度计尖峰, 替代 Mahony 滤波 pitch */
+    Grav_MA_Push(ax, ay, az);
+    if (g_grav_win_cnt > 0) {
+        fax = g_grav_sum_ax / (float)g_grav_win_cnt;
+        fay = g_grav_sum_ay / (float)g_grav_win_cnt;
+        faz = g_grav_sum_az / (float)g_grav_win_cnt;
+    } else {
+        fax = ax; fay = ay; faz = az;  /* 第一帧直接使用 */
+    }
+    g_mag = (float)sqrt(fax * fax + fay * fay + faz * faz);
+    if (g_mag < 0.01f) { g_mag = 0.01f; }  /* 防除零 */
+    tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
+
     switch (*element) {
     case ELEMENT_STRAIGHT:
         {/* C89: 块作用域声明 */
@@ -354,11 +428,11 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
             /* 左环: adc[2]超阈值 且 大于右通道(方向判别) 且 车身水平 */
             left_vote = ((adc_values[2] > RingEntrance[2]) &&
                          (adc_values[2] > adc_values[0]) &&
-                         (abs_pitch < angle_pitch)) ? 1 : 0;
+                         (tilt_x < angle_level)) ? 1 : 0;
             /* 右环: adc[0]超阈值 且 大于左通道(方向判别) 且 车身水平 */
             right_vote = ((adc_values[0] > RingEntrance[0]) &&
                           (adc_values[0] > adc_values[2]) &&
-                          (abs_pitch < angle_pitch)) ? 1 : 0;
+                          (tilt_x < angle_level)) ? 1 : 0;
 
             /* 元素表约束: 非预期方向强制不投票 */
             if (g_track_table_enabled) {
@@ -407,13 +481,13 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
     /* ---- 3. 上墙投票 ---- */
     switch (*element) {
     case ELEMENT_STRAIGHT:
-        /* 在直线状态下, pitch 超过进入阈值即投票 1 */
-        wall_vote = (abs_pitch > wall_entry_pitch) ? 1 : 0;
+        /* 在直线状态下, 倾角超过进入阈值即投票 1 */
+        wall_vote = (tilt_x > wall_entry_tilt) ? 1 : 0;
         break;
 
     case ELEMENT_WALL:
-        /* 在上墙状态下, pitch 低于退出阈值即投票 1 */
-        wall_vote = (abs_pitch < wall_exit_pitch) ? 1 : 0;
+        /* 在上墙状态下, 倾角低于退出阈值即投票 1 */
+        wall_vote = (tilt_x < wall_exit_tilt) ? 1 : 0;
         break;
 
     default:
@@ -423,17 +497,16 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
     }
     Wall_Vote_Push(wall_vote);
 
-    /* ---- 3.5 滚筒投票 ---- */
-    abs_roll = (roll > 0) ? roll : -roll;
+    /* ---- 3.5 滚筒投票 (倾角 = 重力 atan2(|ax|,|az|), 角度) ---- */
     switch (*element) {
     case ELEMENT_STRAIGHT:
-        /* 在直线状态下, roll 超过进入阈值即投票 1 */
-        barrel_vote = (abs_roll > barrel_entry_roll) ? 1 : 0;
+        /* 在直线状态下, 倾角超过进入阈值即投票 1 */
+        barrel_vote = (tilt_x > barrel_entry_tilt) ? 1 : 0;
         break;
 
     case ELEMENT_BARREL:
-        /* 在滚筒状态下, roll 低于退出阈值即投票 1 */
-        barrel_vote = (abs_roll < barrel_exit_roll) ? 1 : 0;
+        /* 在滚筒状态下, 倾角低于退出阈值即投票 1 */
+        barrel_vote = (tilt_x < barrel_exit_tilt) ? 1 : 0;
         break;
 
     default:
@@ -450,11 +523,11 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
             /* 旁路: 即时切换, 加入方向判别, 右环优先 */
             if ((adc_values[0] > RingEntrance[0]) &&
                 (adc_values[0] > adc_values[2]) &&
-                (abs_pitch < angle_pitch)) {
+                (tilt_x < angle_level)) {
                 *element = ELEMENT_RING_RIGHT_ENTRANCE;
             } else if ((adc_values[2] > RingEntrance[2]) &&
                        (adc_values[2] > adc_values[0]) &&
-                       (abs_pitch < angle_pitch)) {
+                       (tilt_x < angle_level)) {
                 *element = ELEMENT_RING_LEFT_ENTRANCE;
             }
         } else {
@@ -595,7 +668,7 @@ void Element_Handle(element_t *element, float adc_values[], float pitch, float r
         break;
 
     case ELEMENT_BARREL:
-        /* 滚筒状态下, roll 低于退出阈值投票达标 → 退回直线 */
+        /* 滚筒状态下, 倾角低于退出阈值投票达标 → 退回直线 */
         if (barrel_win_cnt >= barrel_exit_thresh) {
             *element = ELEMENT_STRAIGHT;
             Track_Advance();
