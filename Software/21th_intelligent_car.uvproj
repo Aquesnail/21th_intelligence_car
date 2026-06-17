@@ -1005,16 +1005,6 @@
               <FilePath>.\Sources\Device\ws2812.h</FilePath>
             </File>
             <File>
-              <FileName>beep.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Device\beep.c</FilePath>
-            </File>
-            <File>
-              <FileName>beep.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Device\beep.h</FilePath>
-            </File>
-            <File>
               <FileName>motor.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Device\motor.c</FilePath>
