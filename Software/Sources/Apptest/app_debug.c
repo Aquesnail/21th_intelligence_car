@@ -5,6 +5,7 @@
 #include "semphr.h"
 /* #include "debug.h" */          /* 包含调试模块 */
 #include <stdio.h>
+#include <string.h>
 #include "delay.h"
 #include "dma_uart_ring.h"
 #include "dma_uart.h"
@@ -13,10 +14,10 @@
 #define DEBUG_TASK_PRIORITY     (tskIDLE_PRIORITY + 2)
 
 /* 全局变量 ---------------------------------------------------------------- */
-debug_port_t        debug_init_structure = {0};
+debug_port_t        debug_init_structure; // 运行时 memset 初始化
 TaskHandle_t        xDebugTaskHandle    = NULL;
 TaskHandle_t        xDebugTaskHandle2   = NULL;
-
+char echoBuf[70]; // 运行时 memset 初始化
 /* 私有函数原型 ------------------------------------------------------------ */
 static void Debug_Write(uint8_t* pData, uint16_t len);
 static uint16_t Debug_Read(uint8_t* pData, uint16_t len);
@@ -54,6 +55,10 @@ void vDebugTaskDelayedStart(void *pvParameters)
     /* 延时等待系统稳定（可选项，当前被注释） */
     /* vTaskDelay(pdMS_TO_TICKS(2000)); */
 
+    /* 运行时初始化大数组/结构体，避免 Flash 镜像占用 */
+    memset(&debug_init_structure, 0, sizeof(debug_init_structure));
+    memset(echoBuf,               0, sizeof(echoBuf));
+
     debug_init_structure.debug_read  = Debug_Read;
     debug_init_structure.debug_write = Debug_Write;
     Debug_Init(&debug_init_structure);
@@ -74,7 +79,7 @@ void vDebugTaskDelayedStart(void *pvParameters)
 extern uint8_t CPUStatus_HandleCommand(const char* cmd);
 extern uint8_t Motor_HandleCommand(const char* cmd);
 extern uint8_t ADC_NormalizeCommand(const char* cmd);
-char echoBuf[70] = {0};
+
 void Debug_OnTextReceived(char* str, uint8_t len)
 {
     if(CPUStatus_HandleCommand(str)){

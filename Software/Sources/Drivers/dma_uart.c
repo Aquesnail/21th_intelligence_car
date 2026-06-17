@@ -1,5 +1,6 @@
 #include "dma_uart.h"
 #include "dma_uart_ring.h"
+#include <string.h>
 
 /* 定义缓冲区大小 */
 #define UART_DMATxBufferLength 512
@@ -8,17 +9,17 @@
 #define UART_RxRingBufferLength 2048
 
 /* 物理与逻辑缓冲区 (必须在 XDATA 或 EDATA) */
-static uint8_t xdata uart2_dma_tx[UART_DMATxBufferLength] = {0};
-static uint8_t xdata uart2_dma_rx[UART_DMARxBufferLength] = {0};
-static uint8_t xdata uart2_ring_tx[UART_TxRingBufferLength] = {0};
-static uint8_t xdata uart2_ring_rx[UART_RxRingBufferLength] = {0};
+static uint8_t xdata uart2_dma_tx[UART_DMATxBufferLength];   // 运行时 memset 初始化
+static uint8_t xdata uart2_dma_rx[UART_DMARxBufferLength];   // 运行时 memset 初始化
+static uint8_t xdata uart2_ring_tx[UART_TxRingBufferLength]; // 运行时 memset 初始化
+static uint8_t xdata uart2_ring_rx[UART_RxRingBufferLength]; // 运行时 memset 初始化
 
 // DMA 状态标志
 static volatile uint8_t isDmaTxBusy = 0;
 
 #define Baudrate 115200
 
-dma_uart_manager_t uart2_mgr = {0};
+dma_uart_manager_t uart2_mgr; // 运行时 memset 初始化
 
 // ==========================================
 // 内部函数声明
@@ -108,6 +109,13 @@ void SetTimer2Baudraye(u16 dat)  // 选择波特率, 2: 使用Timer2做波特率
 }
 
 void UART2_Init(void) {
+    /* 运行时初始化大数组/结构体，避免 Flash 镜像占用 */
+    memset(uart2_dma_tx,  0, sizeof(uart2_dma_tx));
+    memset(uart2_dma_rx,  0, sizeof(uart2_dma_rx));
+    memset(uart2_ring_tx, 0, sizeof(uart2_ring_tx));
+    memset(uart2_ring_rx, 0, sizeof(uart2_ring_rx));
+    memset(&uart2_mgr,    0, sizeof(uart2_mgr));
+
     #ifdef BAUDRATE
 #undef BAUDRATE
 #endif

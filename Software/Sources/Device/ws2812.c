@@ -1,5 +1,6 @@
 #include "ws2812.h"
 #include "pwm_user.h" // 包含AICube生成的pwm初始化函数声明
+#include <string.h>
 
 // 计算所需的缓冲区大小
 // 每个灯24位，每位需要1个结构体(4字节)
@@ -7,7 +8,7 @@
 #define BUFFER_SIZE_PKTS   (WS2812_LED_NUM * 24 + 400)
 
 // 定义DMA缓冲区 (放在 xdata 防止溢出)
-WS2812_DMA_Packet_t xdata ws_buffer[BUFFER_SIZE_PKTS] = {0};
+WS2812_DMA_Packet_t xdata ws_buffer[BUFFER_SIZE_PKTS]; // 运行时 memset 初始化
 
 // 忙碌标志位
 volatile bit ws_dma_busy = 0;
@@ -20,9 +21,10 @@ void WS2812_Init(void)
     // 1. 调用底层的 PWM 初始化 (由 AICube 生成的那个函数)
     // 确保里面的 PWME_Init 已经包含了我们调试好的:
     // PWME_SetReload16(74); 分频1; 4字节突发; EnableUpdate;
-    PWMC_Init(); 
-    DMA_PWMC_EnableTxInt(); 
-    // 2. 清空缓冲区（全0，即灯全灭）
+    PWMC_Init();
+    DMA_PWMC_EnableTxInt();
+    // 2. 运行时初始化缓冲区（替代 Flash 镜像），然后清空
+    memset(ws_buffer, 0, sizeof(ws_buffer));
     WS2812_Clear();
 }
 

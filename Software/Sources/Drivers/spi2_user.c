@@ -39,7 +39,7 @@ static DMA_SPI2_Callback_t spi2_dma_callback = (void code*)NULL;
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8SPI2DMATxBuffer[2048] = {0};   //SPI2 DMA发送缓冲区数组
+uint8_t xdata pu8SPI2DMATxBuffer[2048];   //SPI2 DMA发送缓冲区数组，运行时 memset 初始化
 
 ////////////////////////////////////////
 // SPI2初始化函数
@@ -48,6 +48,9 @@ uint8_t xdata pu8SPI2DMATxBuffer[2048] = {0};   //SPI2 DMA发送缓冲区数组
 ////////////////////////////////////////
 void SPI2_Init(DMA_SPI2_Callback_t callback)
 {
+    /* 运行时初始化 DMA 缓冲区，避免 Flash 镜像占用 */
+    memset(pu8SPI2DMATxBuffer, 0, sizeof(pu8SPI2DMATxBuffer));
+
     SPI2_SwitchP8n();                   //选择SPI数据口: SS(P8.0), MOSI(P8.1), MISO(P8.2), SCLK(P8.3)
 
     SPI2_MasterMode();                  //设置SPI2为主机模式

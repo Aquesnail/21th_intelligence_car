@@ -39,7 +39,7 @@ static DMA_SPI3_Callback_t SPI3_dma_callback = (void code*)NULL;
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8SPI3DMATxBuffer[1024] = {0};   //SPI3 DMA发送缓冲区数组
+uint8_t xdata pu8SPI3DMATxBuffer[1024];   //SPI3 DMA发送缓冲区数组，运行时 memset 初始化
 
 ////////////////////////////////////////
 // SPI3初始化函数
@@ -48,6 +48,9 @@ uint8_t xdata pu8SPI3DMATxBuffer[1024] = {0};   //SPI3 DMA发送缓冲区数组
 ////////////////////////////////////////
 void SPI3_Init(DMA_SPI3_Callback_t callback)
 {
+    /* 运行时初始化 DMA 缓冲区，避免 Flash 镜像占用 */
+    memset(pu8SPI3DMATxBuffer, 0, sizeof(pu8SPI3DMATxBuffer));
+
     SPI3_SwitchP2n();                  
 
     SPI3_MasterMode();                  //设置SPI3为主机模式

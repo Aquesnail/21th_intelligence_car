@@ -13,7 +13,7 @@
 
 #define SIGNAL_MOTOR_SPI_DMA_DONE  (1 << 0)
 
-static uint8_t xdata MOTOR_DMA_TxBuf[32] = {0};
+static uint8_t xdata MOTOR_DMA_TxBuf[32]; // 每次使用前 memset(0xFF)，无需 Flash 镜像
 
 TaskHandle_t xMotorTaskHandle = NULL;
 

@@ -31,10 +31,10 @@
  * ================================================================ */
 
 /* ADC DMA 缓冲区 */
-static uint8_t xdata adc_dma_buf[ADC2_DMASIZE] = {0};
+static uint8_t xdata adc_dma_buf[ADC2_DMASIZE]; // 运行时 memset 初始化
 
 /* ADC 各通道采样值 */
-static float adc_values[ADC2_CH_NUM] = {0};
+static float adc_values[ADC2_CH_NUM]; // 运行时 memset 初始化
 
 /* 电机数据 (500Hz stream 推送) */
 static float    g_left_speed_actual  = 0.0f;
@@ -46,8 +46,8 @@ static Lpf_t g_lpf_left;
 static Lpf_t g_lpf_right;
 
 /* 速度目标 & 误差 */
-static motor_data_t g_left_speed_target  = {0};
-static motor_data_t g_right_speed_target = {0};
+static motor_data_t g_left_speed_target;  // 运行时 memset 初始化
+static motor_data_t g_right_speed_target; // 运行时 memset 初始化
 static float g_left_speed_error  = 0.0f;
 static float g_right_speed_error = 0.0f;
 
@@ -227,7 +227,7 @@ static float adc_avg_sum = 0.0f;
 static float adc_avg = 0.0f;
 static uint16_t adc_avg_count = 0;
 static uint8_t display_adc_original = 0;
-static float adc_normalized[4] = {0.0f};
+static float adc_normalized[4]; // 运行时 memset 初始化
 static void NormalizeADC(uint32_t peri_addr,void *pData,uint8_t len){
     uint8_t* ptr = (uint8_t *)pData;
     (void)peri_addr;
@@ -439,16 +439,16 @@ uint8_t Motor_HandleCommand(const char* cmd)
     return 1;
 }
 
-static FuzzyPID pid_struct={0.0f};
+static FuzzyPID pid_struct; // 运行时 memset 初始化
 static float pid_output=0.0f;
 static float common_speed=50.0f;
 /* 外环带宽限制: 斜率限制 + 低通滤波 */
 
-static PI_Controller inner_yaw_rate_pi = {0};
+static PI_Controller inner_yaw_rate_pi; // 运行时 memset 初始化
 static float actual_yaw_rate_debug = 0.0f;
 static float pid_output_k = 0.10f;
-static motor_data_t speed_target_l={0};
-static motor_data_t speed_target_r={0};
+static motor_data_t speed_target_l; // 运行时 memset 初始化
+static motor_data_t speed_target_r; // 运行时 memset 初始化
 static float speed_target_r_nagtive=0.0f;
 static float numerator, denominator;
 static float err_max = 120.0f;
@@ -905,6 +905,17 @@ void Motor_Data_Ready_INT2_Handle(BaseType_t *xHigherPriorityTaskWoken)
 void Main_Control_Task_Init(void)
 {
     motor_data_t tmp;
+
+    /* 运行时初始化大数组/结构体，避免 Flash 镜像占用 */
+    memset(adc_dma_buf,          0, sizeof(adc_dma_buf));
+    memset(adc_values,           0, sizeof(adc_values));
+    memset(&g_left_speed_target,  0, sizeof(g_left_speed_target));
+    memset(&g_right_speed_target, 0, sizeof(g_right_speed_target));
+    memset(adc_normalized,       0, sizeof(adc_normalized));
+    memset(&pid_struct,          0, sizeof(pid_struct));
+    memset(&inner_yaw_rate_pi,   0, sizeof(inner_yaw_rate_pi));
+    memset(&speed_target_l,      0, sizeof(speed_target_l));
+    memset(&speed_target_r,      0, sizeof(speed_target_r));
 
     // g_ec_ma_count_desc.peri_addr = (uint32_t)&(pid_struct.ec_count); /* EC移动平均已移除 */
     /* 注册 ADC 调试变量 */

@@ -29,11 +29,11 @@ uint16_t icm_fifo_ths = 0;            /* FIFO阈值 */
 
 SemaphoreHandle_t xDmaSemaphore = NULL;
 TaskHandle_t   xImuTaskHandle = NULL;
-static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1] = {0};
-static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1] = {0};
+static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1]; // 运行时 memset 初始化
+static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1]; // 运行时 memset 初始化
 static IMU_Filter_t g_imu_filter;
 IMU_Filter_t *IMU_Filter_Data = &g_imu_filter;
-static ICM42688_Pack16_t IMU_Dat = {0};
+static ICM42688_Pack16_t IMU_Dat; // 运行时 memset 初始化
 
 extern SemaphoreHandle_t xDebugReadySignal;
 
@@ -243,6 +243,11 @@ void vIMUProcessTask(void *pvParameters) {
  * ======================================================= */
 
 void IMU_Init() {
+    /* 运行时初始化缓冲区/结构体，避免 Flash 镜像占用 */
+    memset(FIFO_RxBuffer, 0, sizeof(FIFO_RxBuffer));
+    memset(FIFO_TxBuffer, 0, sizeof(FIFO_TxBuffer));
+    memset(&IMU_Dat,      0, sizeof(IMU_Dat));
+
     /* 初始化 IMU 滤波器默认参数 */
     g_imu_filter.Kp = 1.2f;
     g_imu_filter.Ki = 0.002f;
