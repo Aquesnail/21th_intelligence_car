@@ -83,11 +83,11 @@ void SPI3_Callback(void *pvParameters)
 float xdata g_pid_a_kp = 0.0f;
 float xdata g_pid_a_ki = 0.0f;
 float xdata g_pid_a_kd = 0.0f;
-float xdata g_pid_a_ilim = 2.5f;
+float xdata g_pid_a_ilim = 3.0f;
 float xdata g_pid_b_kp = 0.0f;
 float xdata g_pid_b_ki = 0.0f;
 float xdata g_pid_b_kd = 0.0f;
-float xdata g_pid_b_ilim = 2.5f;
+float xdata g_pid_b_ilim = 3.0f;
 /* ================================================================
  * 电机寄存器 读/写 回调 (供 Debug 系统 PERI_TYPE 使用)
  *   上位机请求 STATIC_REFRESH 时触发读, 写变量时触发写
@@ -218,7 +218,7 @@ static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     if (count > 50) count = 50;
     *(char *)(peri_addr) = (char)count;
 }
-static float normalized_adc_k[4] = {0.9581499695777893f, 1.0557365417480469f, 1.0300761461257935f, 0.9722529053688049f}; // ADC 归一化系数数组
+static float normalized_adc_k[4] = {1.0306345224380493f, 1.0166940689086914f, 0.9944114089012146f, 0.9619343280792236f}; // ADC 归一化系数数组
 static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
 static uint8_t change_inductor = 1;
@@ -265,7 +265,7 @@ uint8_t ADC_NormalizeCommand(const char* cmd) {
     }
     return 0; // 未识别
 }
-static uint16_t fan_D = 300;
+static uint16_t fan_D = 350;
 static void Fan_D_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
     uint16_t new_val;
@@ -284,31 +284,31 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     val = fan_D;
     memcpy(pData, &val, sizeof(uint16_t));
 }
-static float g_outer_slew_max = 5.0f;       /* Err_Angle 每周期(2ms)最大变化量 */
+static float g_outer_slew_max = 20.0f;       /* Err_Angle 每周期(2ms)最大变化量 */
 static float g_err_angle_slewed = 0.0f;     /* Err_Angle 斜率限制状态 */
 static float g_pid_output_filtered = 0.0f;  /* 最终目标角速度 (送入内环) */
 static Lpf_t g_lpf_outer;                    /* 外环低通滤波器 */
 static float g_outer_lpf_fc = 100.0f;        /* 外环LPF截止频率(Hz), 上位机可调 */
 static Lpf_t g_lpf_gyro;                     /* 陀螺仪角速度低通滤波器 */
-static float g_gyro_lpf_fc = 200.0f;         /* 陀螺仪LPF截止频率(Hz), 上位机可调 */
+static float g_gyro_lpf_fc = 100.0f;         /* 陀螺仪LPF截止频率(Hz), 上位机可调 */
 static float g_gyro_filtered = 0.0f;         /* 滤波后陀螺仪角速度 (调试观测) */
 /* 外环方案2+3: 不完全微分(MA) + 微分死区 */
 static float   g_Kd_diff        = 0.0f;      /* 不完全微分系数 (0=关闭) */
 static float   g_Kd_diff_high   = 0.0f;      /* 不完全微分系数 (大误差时使用) */
 static float   g_Kd_diff_low    = 0.0f;      /* 不完全微分系数 (小误差时使用) */
-static float   g_Kd_diff_thresh = 10.0f;     /* 误差阈值, 超过此值切换为高 Kd_diff */
-static float   g_diff_deadband  = 0.0f;      /* 微分死区阈值 (0=关闭) */
+static float   g_Kd_diff_thresh = 100.0f;     /* 误差阈值, 超过此值切换为高 Kd_diff */
+static float   g_diff_deadband  = 0.5f;      /* 微分死区阈值 (0=关闭) */
 static MovingAvg_t g_d_ma;                   /* 微分项移动平均滤波器 */
-static uint8_t g_d_ma_window    = 0;         /* MA窗口 0~100 (0=旁路) */
+static uint8_t g_d_ma_window    = 80;         /* MA窗口 0~100 (0=旁路) */
 static float   g_last_err_angle = 0.0f;      /* 上周期滤波后 Err_Angle (微分用) */
 static float   g_filtered_d_term = 0.0f;     /* 滤波后微分项 (调试观测) */
 static float   g_tar_yaw_raw    = 0.0f;      /* 组合后原始目标角速度 (调试观测) */
 /* 外环积分项 (积分分离: 误差过大或过小均清零) */
-static float   g_outer_Ki       = 0.0f;      /* 外环积分系数 */
+static float   g_outer_Ki       = 0.23f;     /* 外环积分系数 */
 static float   g_outer_i_sum    = 0.0f;      /* 外环积分累加值 */
-static float   g_outer_i_limit  = 50.0f;     /* 外环积分限幅 */
-static float   g_outer_i_sep_hi = 30.0f;     /* 积分分离上限: |error|超过此值清零 */
-static float   g_outer_i_sep_lo = 2.0f;      /* 积分分离下限: |error|低于此值清零 */
+static float   g_outer_i_limit  = 3.6f;     /* 外环积分限幅 */
+static float   g_outer_i_sep_hi = 10000.0f;     /* 积分分离上限: |error|超过此值清零 */
+static float   g_outer_i_sep_lo = 30.0f;      /* 积分分离下限: |error|低于此值清零 */
 static float   g_outer_i_term   = 0.0f;      /* 外环积分项输出 (调试观测) */
 /* 外环 LPF 截止频率读写回调 (上位机在线调参) */
 static void OuterLpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
@@ -395,10 +395,10 @@ float left_speed_target = 0.0f;
 float right_speed_target = 0.0f;
 uint8_t manual_control_flag = 1;
 
-float Err_A_K=25.0f;  //所有adc 标定值为2200左右
-float Err_B_K=120.0f;
+float Err_A_K=2.0f;  //所有adc 标定值为2200左右
+float Err_B_K=6.0f;
 float Err_C_K=3.0f;
-float Err_D_K=4.0f;
+float Err_D_K=3.0f;
 uint16_t adc_dead_zone = 5;
 float adc_err_zone = 0.5f;
 float Err_Angle=0.0f;
@@ -409,7 +409,7 @@ float Err_Angle=0.0f;
 #define DRIVE_BACKWARD 2
 #define DRIVE_LEFT     3
 #define DRIVE_RIGHT    4
-float  drive_speed  = 150.0f;
+float  drive_speed  = 10.0f;
 
 static volatile uint8_t g_drive_direction = DRIVE_STOP;
 
@@ -441,7 +441,7 @@ uint8_t Motor_HandleCommand(const char* cmd)
 
 static FuzzyPID pid_struct={0.0f};
 static float pid_output=0.0f;
-static float common_speed=30.0f;
+static float common_speed=50.0f;
 /* 外环带宽限制: 斜率限制 + 低通滤波 */
 
 static PI_Controller inner_yaw_rate_pi = {0};
@@ -474,7 +474,7 @@ extern float g_ol_ring_yawrate;
  *   SS_STEP_DOWN:   减速步进 (快速响应刹车)
  * ================================================================ */
 static float g_ss_magnitude = 0.0f;
-static float g_ss_step      = 5.0f;
+static float g_ss_step      = 2.0f;
 #define SS_STEP_DOWN 10.0f
 /* 缓启动步进: 加速缓 (step_up), 减速快 (step_down) */
 static float SoftStart_Ramp(float cur, float tgt, float step_up, float step_down)
@@ -541,9 +541,9 @@ static float abs_f(float t){
     }
 }
 static float err_angle_filtered = 0.0f;  /* 外环: 滤波后 Err_Angle */
-static float cruising_speed = 45.0f;
-static float ring_speed  = 45.0f;
-static float wall_speed = 30.0f;
+static float cruising_speed = 50.0f;
+static float ring_speed  = 50.0f;
+static float wall_speed = 45.0f;
 static float barrel_speed = 45.0f;
 void Main_Control_Task(void *pvParameters)
 {
@@ -718,9 +718,9 @@ void Main_Control_Task(void *pvParameters)
 
                 /* --- 开环过元素: PASS 状态下覆盖角速度目标 --- */
                 if (current_element == ELEMENT_RING_LEFT_PASS) {
-                    g_pid_output_filtered = -g_ol_ring_yawrate;
-                } else if (current_element == ELEMENT_RING_RIGHT_PASS) {
                     g_pid_output_filtered = g_ol_ring_yawrate;
+                } else if (current_element == ELEMENT_RING_RIGHT_PASS) {
+                    g_pid_output_filtered = -g_ol_ring_yawrate;
                 }
 
                 differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
@@ -1026,24 +1026,26 @@ void Main_Control_Task_Init(void)
     ADC2_DMA_Start();
 
     /* 内环 PID 控制器初始参数 (上位机可在线调参) */
-    inner_yaw_rate_pi.Kp = 0.15000000596046448f;
-    inner_yaw_rate_pi.Ki = 0.0003000000142492354f;
-    inner_yaw_rate_pi.Kd = 0.0f;
+    inner_yaw_rate_pi.Kp = 5.5f;
+    inner_yaw_rate_pi.Ki = 0.0f;
+    inner_yaw_rate_pi.Kd = 0.10000000149011612f;
     inner_yaw_rate_pi.error_sum = 0.0f;
     inner_yaw_rate_pi.last_error = 0.0f;
-    inner_yaw_rate_pi.error_sum_max = 50000.0f;
+    inner_yaw_rate_pi.error_sum_max = 0.0f;
+    inner_yaw_rate_pi.max_sep = 100000.0f;
+    inner_yaw_rate_pi.min_sep = 0.0f;
     pid_struct.e_max = 150.0f; /* 根据实际误差范围调整 */
-    pid_struct.Kp0 = 0.17f; /* 基础 Kp */
+    pid_struct.Kp0 = 0.06300000101327896f; /* 基础 Kp */
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.e_max);
     /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
-    pid_struct.kp_singletons[FUZZY_NB] = 1.2000000476837158f;
-    pid_struct.kp_singletons[FUZZY_NM] = 1.0f;
-    pid_struct.kp_singletons[FUZZY_NS] = 1.0f;
+    pid_struct.kp_singletons[FUZZY_NB] = 2.0999999046325684f;
+    pid_struct.kp_singletons[FUZZY_NM] = 1.2000000476837158f;
+    pid_struct.kp_singletons[FUZZY_NS] = 1.100000023841858f;
     pid_struct.kp_singletons[FUZZY_ZO] = 1.0f;
-    pid_struct.kp_singletons[FUZZY_PS] = 1.0f;
-    pid_struct.kp_singletons[FUZZY_PM] = 1.0f;
-    pid_struct.kp_singletons[FUZZY_PB] = 1.2000000476837158f;
+    pid_struct.kp_singletons[FUZZY_PS] = 1.100000023841858f;
+    pid_struct.kp_singletons[FUZZY_PM] = 1.2000000476837158f;
+    pid_struct.kp_singletons[FUZZY_PB] = 2.0999999046325684f;
     //vTaskDelay(pdMS_TO_TICKS(10));
     
     /* 创建 Main_Control_Task (低优先级, 2ms 周期) */

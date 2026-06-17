@@ -14,7 +14,7 @@ extern uint8_t manual_control_flag;
  * ================================================================ */
 static float RingEntrance[4];
 static float RingExit[4];
-static float angle_level = 5.0f;   /* 车身水平倾角阈值(度), 重力分量 atan2(|ax|,|az|) */
+static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 重力分量 atan2(|ax|,|az|) */
 
 /* ================================================================
  * 环岛多数投票窗 (Majority Voting Window)
@@ -39,14 +39,17 @@ static uint8_t ring_entry_thresh;     /* 进入/退出阈值: 1 的个数 >= 此
  * ================================================================ */
 float    g_ol_ring_angle   = 45.0f;   /* 环岛开环目标角度(绝对值, 度) */
 float    g_ol_ring_yawrate = 3.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
-static float    g_pass_entry_yaw  = 0.0f;
 static uint16_t g_pass_frame_cnt  = 0;
-static uint16_t g_pass_timeout_frames = 200;  /* 默认200帧=400ms, 上位机可调 */
+static uint16_t g_pass_timeout_frames = 150;  /* 默认150帧=300ms, 上位机可调 */
 static uint8_t  g_ring_side = 0;             /* 环内方向: 0=左环(adc[2]), 1=右环(adc[0]) */
 
 /* 退环 yaw 累计门禁: 入环后 yaw 变化量达标才允许出环 */
 static float    g_ring_entry_yaw        = 0.0f;   /* 进入 IN_RING 时的 yaw */
-static float    g_ring_exit_yaw_thresh  = 300.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
+static float    g_ring_exit_yaw_thresh  = 200.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
+
+/* 出环锁存: 退出环岛后若干帧内禁止再次进入, 防出环尖峰误触发二次进环 */
+static uint16_t g_ring_exit_lockout_frames = 1000;  /* 锁存时长(帧), 上位机可调, 默认1000帧=2s */
+static uint16_t g_ring_exit_lockout_cnt    = 0;    /* 锁存倒计时, 0=未锁存 */
 
 /* ================================================================
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
@@ -66,7 +69,7 @@ static const uint8_t g_track_table[TRACK_TABLE_LEN] = {
     /* 继续添加: ELEMENT_WALL, ELEMENT_CROSS, ... */
 };
 
-static uint8_t  g_track_table_enabled = 0;   /* 上位机可调: 1=启用, 0=旁路(无约束) */
+static uint8_t  g_track_table_enabled = 1;   /* 上位机可调: 1=启用, 0=旁路(无约束) */
 static uint8_t  g_track_idx = 0;             /* 指向下一个预期元素的索引 */
 
 /* 上墙/滚筒/十字投票窗最大长度 (数组容量, 上位机可在 0..MAX 范围内调窗长) */
@@ -144,7 +147,7 @@ static float   g_grav_sum_az;
  * 安全停车检测 (Safety Stop)
  *   离赛道超时: 4路ADC全部丢失超过 g_offtrack_timeout_ms → SAFETY_STOP
  * ================================================================ */
-static float   g_offtrack_timeout_ms   = 500.0f;  /* 离赛道超时 (ms) */
+static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
 static uint32_t g_offtrack_start_tick  = 0;       /* 信号丢失起始 tick */
 static uint8_t  g_offtrack_active      = 0;       /* 当前是否正在计时 */
 
@@ -308,11 +311,12 @@ void Element_Init(void)
     Debug_Register("Ring_EntThr",  DBG_UINT8 | STATIC_TYPE, &ring_entry_thresh);
 
     /* 开环PASS超时帧数 (上位机可调, 1帧=2ms) */
-    Debug_Register("OL_Ang",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_angle);
+   // Debug_Register("OL_Ang",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_angle);
     Debug_Register("OL_Yaw",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_yawrate);
     Debug_Register("PassTmOut",  DBG_UINT16 | STATIC_TYPE, &g_pass_timeout_frames);
     Debug_Register("RingSide",   DBG_UINT8 | STATIC_TYPE, &g_ring_side);
     Debug_Register("RingExYaw",  DBG_FLOAT | STATIC_TYPE, &g_ring_exit_yaw_thresh);
+    Debug_Register("RingExLock", DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
     Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
 
     Debug_Register("Wall_WinLen",  DBG_UINT8 | STATIC_TYPE, &wall_win_len);
@@ -354,14 +358,14 @@ void Element_Init(void)
     RingEntrance[2] = 1200.0f;
     RingEntrance[3] = 0.0f;
 
-    RingExit[0] = 1200.0f;
-    RingExit[1] = 0.0f;
-    RingExit[2] = 1200.0f;
-    RingExit[3] = 0.0f;
+    RingExit[0] = 1000.0f;
+    RingExit[1] = 1000.0f;
+    RingExit[2] = 1000.0f;
+    RingExit[3] = 1000.0f;
 
     /* 窗长默认 10 帧 (20ms), 阈值默认 7 (70% 多数) */
     ring_win_len      = 10;
-    ring_entry_thresh = 7;
+    ring_entry_thresh = 3;
 
     /* 上墙倾角默认: 进入 >30°, 退出 <20° (滞回) */
     wall_entry_tilt  = 30.0f;
@@ -381,9 +385,9 @@ void Element_Init(void)
     barrel_entry_thresh = 7;
     barrel_exit_thresh  = 7;
 
-    /* 十字竖直电感和默认: 进入 >2000, 退出 <1500 (滞回) */
-    cross_entry_sum  = 2000.0f;
-    cross_exit_sum   = 1500.0f;
+    /* 十字竖直电感和默认: 进入 >5020000, 退出 <20000 (滞回) */
+    cross_entry_sum  = 5020000.0f;
+    cross_exit_sum   = 20000.0f;
 
     /* 十字投票: 窗长默认 10, 阈值 7 (70% 多数) */
     cross_win_len      = 10;
@@ -478,7 +482,7 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     uint8_t barrel_vote;
     uint8_t cross_vote;
     float   cross_adc_sum;  /* adc[1] + adc[3] 竖直电感和 */
-    float   yaw_delta;   /* PASS 阶段 yaw 变化量 */
+    float   yaw_delta;   /* IN_RING 出环门禁 yaw 变化量 */
     uint8_t i;           /* 循环/清零用 */
 
     /* 安全检测用局部变量 */
@@ -561,6 +565,12 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
                     track_expected != ELEMENT_RING_RIGHT_ENTRANCE) {
                     ring_vote = 0;
                 }
+            }
+
+            /* 出环锁存: 退出环岛后若干帧内禁止投票, 防出环尖峰误触发二次进环 */
+            if (g_ring_exit_lockout_cnt > 0) {
+                ring_vote = 0;
+                g_ring_exit_lockout_cnt--;
             }
         }
         break;
@@ -728,14 +738,12 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
 
     case ELEMENT_RING_LEFT_ENTRANCE:
         /* 确认进入环岛, 立即切入开环PASS阶段 */
-        g_pass_entry_yaw = yaw;
         g_pass_frame_cnt = 0;
         *element = ELEMENT_RING_LEFT_PASS;
         break;
 
     case ELEMENT_RING_RIGHT_ENTRANCE:
         /* 确认进入环岛, 立即切入开环PASS阶段 */
-        g_pass_entry_yaw = yaw;
         g_pass_frame_cnt = 0;
         *element = ELEMENT_RING_RIGHT_PASS;
         break;
@@ -743,10 +751,8 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     case ELEMENT_RING_LEFT_PASS:
         {
             g_pass_frame_cnt++;
-            yaw_delta = yaw - g_pass_entry_yaw;
-            /* 左转角度达标(负向) OR 超时 → 进入环内, 清投票窗 */
-            if (yaw_delta <= -g_ol_ring_angle ||
-                g_pass_frame_cnt >= g_pass_timeout_frames) {
+            /* 纯超时退出: 规定时间内给固定力矩, 剩下的交给循迹 */
+            if (g_pass_frame_cnt >= g_pass_timeout_frames) {
                 *element = ELEMENT_IN_RING;
                 g_ring_side = 0;  /* 左环, 出环检测看 adc[2] */
                 g_ring_entry_yaw = yaw;  /* 记录入环 yaw, 用于退环门禁 */
@@ -762,10 +768,8 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     case ELEMENT_RING_RIGHT_PASS:
         {
             g_pass_frame_cnt++;
-            yaw_delta = yaw - g_pass_entry_yaw;
-            /* 右转角度达标(正向) OR 超时 → 进入环内, 清投票窗 */
-            if (yaw_delta >= g_ol_ring_angle ||
-                g_pass_frame_cnt >= g_pass_timeout_frames) {
+            /* 纯超时退出: 规定时间内给固定力矩, 剩下的交给循迹 */
+            if (g_pass_frame_cnt >= g_pass_timeout_frames) {
                 *element = ELEMENT_IN_RING;
                 g_ring_side = 1;  /* 右环, 出环检测看 adc[0] */
                 g_ring_entry_yaw = yaw;  /* 记录入环 yaw, 用于退环门禁 */
@@ -781,16 +785,16 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
     case ELEMENT_IN_RING:
         /* 环内正常循迹, 等待对应通道第二个 ADC 尖峰(出环)
          * 前置门禁: yaw 累计变化量达标才允许出环
-         *   左转 yaw 减小(负向) → 左环看负向; 右转 yaw 增加(正向) → 右环看正向 */
+         *   左转 yaw 增加(正向) → 左环看正向; 右转 yaw 减小(负向) → 右环看负向 */
         yaw_delta = yaw - g_ring_entry_yaw;
         if (g_ring_side == 0) {
-            /* 左环: 左转 yaw 减小, yaw_delta 为负, 累计左转足够 → yaw_delta <= -阈值 */
-            if (yaw_delta > -g_ring_exit_yaw_thresh) {
+            /* 左环: 左转 yaw 增加, yaw_delta 为正, 累计左转足够 → yaw_delta >= 阈值 */
+            if (yaw_delta < g_ring_exit_yaw_thresh) {
                 break;
             }
         } else {
-            /* 右环: 右转 yaw 增加, yaw_delta 为正, 累计右转足够 → yaw_delta >= 阈值 */
-            if (yaw_delta < g_ring_exit_yaw_thresh) {
+            /* 右环: 右转 yaw 减小, yaw_delta 为负, 累计右转足够 → yaw_delta <= -阈值 */
+            if (yaw_delta > -g_ring_exit_yaw_thresh) {
                 break;
             }
         }
@@ -882,6 +886,17 @@ void Element_Handle(element_t *element, float adc_values[], float ax, float ay, 
 
     default:
         break;
+    }
+
+    /* ---- 4.5 出环锁存: 退出环岛时启动, 禁止立刻重新进入 ---- */
+    if (element_prev == ELEMENT_IN_RING && *element == ELEMENT_STRAIGHT) {
+        g_ring_exit_lockout_cnt = g_ring_exit_lockout_frames;
+        /* 清空投票窗, 冲刷掉出环尖峰产生的残留票数 */
+        for (i = 0; i < ring_win_len; i++) {
+            ring_vote_win[i] = 0;
+        }
+        ring_win_cnt = 0;
+        ring_win_idx = 0;
     }
 
     /* ---- 5. 状态切换日志 ---- */

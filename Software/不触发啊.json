@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-14T04:17:13.246059",
+  "timestamp": "2026-06-14T05:07:00.456339",
   "vars": [
     {
       "id": 12,
@@ -271,7 +271,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10622,
-      "value": 1.899999976158142,
+      "value": 3.0,
       "isPeri": false
     },
     {
@@ -319,7 +319,7 @@
       "name": "FKp",
       "type": 6,
       "addr": 10646,
-      "value": 1.899999976158142,
+      "value": 3.0,
       "isPeri": false
     },
     {
@@ -406,7 +406,7 @@
       "id": 69,
       "name": "RingEn0",
       "type": 6,
-      "addr": 12638,
+      "addr": 12636,
       "value": 1200.0,
       "isPeri": false
     },
@@ -414,7 +414,7 @@
       "id": 70,
       "name": "RingEn1",
       "type": 6,
-      "addr": 12642,
+      "addr": 12640,
       "value": 0.0,
       "isPeri": false
     },
@@ -422,7 +422,7 @@
       "id": 71,
       "name": "RingEn2",
       "type": 6,
-      "addr": 12646,
+      "addr": 12644,
       "value": 1200.0,
       "isPeri": false
     },
@@ -430,7 +430,7 @@
       "id": 72,
       "name": "RingEn3",
       "type": 6,
-      "addr": 12650,
+      "addr": 12648,
       "value": 0.0,
       "isPeri": false
     },
@@ -438,15 +438,15 @@
       "id": 73,
       "name": "RingEx0",
       "type": 6,
-      "addr": 12597,
-      "value": 1200.0,
+      "addr": 12595,
+      "value": 0.0,
       "isPeri": false
     },
     {
       "id": 74,
       "name": "RingEx1",
       "type": 6,
-      "addr": 12601,
+      "addr": 12599,
       "value": 0.0,
       "isPeri": false
     },
@@ -454,15 +454,15 @@
       "id": 75,
       "name": "RingEx2",
       "type": 6,
-      "addr": 12605,
-      "value": 1200.0,
+      "addr": 12603,
+      "value": 0.0,
       "isPeri": false
     },
     {
       "id": 76,
       "name": "RingEx3",
       "type": 6,
-      "addr": 12609,
+      "addr": 12607,
       "value": 0.0,
       "isPeri": false
     },
@@ -486,36 +486,28 @@
       "id": 79,
       "name": "Ring_EntTh",
       "type": 0,
-      "addr": 12623,
+      "addr": 12621,
       "value": 3,
       "isPeri": false
     },
     {
       "id": 80,
-      "name": "OL_Ang",
+      "name": "OL_Yaw",
       "type": 6,
-      "addr": 12593,
-      "value": -40.0,
+      "addr": 12587,
+      "value": 3.0,
       "isPeri": false
     },
     {
       "id": 81,
-      "name": "OL_Yaw",
-      "type": 6,
-      "addr": 12589,
-      "value": -4.0,
+      "name": "PassTmOut",
+      "type": 2,
+      "addr": 12657,
+      "value": 150,
       "isPeri": false
     },
     {
       "id": 82,
-      "name": "PassTmOut",
-      "type": 2,
-      "addr": 12663,
-      "value": 1000,
-      "isPeri": false
-    },
-    {
-      "id": 83,
       "name": "RingSide",
       "type": 0,
       "addr": 12569,
@@ -523,23 +515,23 @@
       "isPeri": false
     },
     {
-      "id": 84,
+      "id": 83,
       "name": "RingExYaw",
       "type": 6,
-      "addr": 12629,
+      "addr": 12627,
       "value": 300.0,
       "isPeri": false
     },
     {
-      "id": 85,
+      "id": 84,
       "name": "TblEnable",
       "type": 0,
-      "addr": 12693,
+      "addr": 12687,
       "value": 1,
       "isPeri": false
     },
     {
-      "id": 86,
+      "id": 85,
       "name": "Wall_WinLe",
       "type": 0,
       "addr": 12570,
@@ -547,63 +539,63 @@
       "isPeri": false
     },
     {
-      "id": 87,
+      "id": 86,
       "name": "Wall_EnTil",
       "type": 6,
-      "addr": 12669,
+      "addr": 12663,
       "value": 30.0,
       "isPeri": false
     },
     {
-      "id": 88,
+      "id": 87,
       "name": "Wall_ExTil",
       "type": 6,
-      "addr": 12685,
+      "addr": 12679,
       "value": 20.0,
       "isPeri": false
     },
     {
-      "id": 89,
+      "id": 88,
       "name": "Wall_EntTh",
       "type": 0,
-      "addr": 12622,
+      "addr": 12620,
+      "value": 7,
+      "isPeri": false
+    },
+    {
+      "id": 89,
+      "name": "Wall_ExtTh",
+      "type": 0,
+      "addr": 12631,
       "value": 7,
       "isPeri": false
     },
     {
       "id": 90,
-      "name": "Wall_ExtTh",
-      "type": 0,
-      "addr": 12633,
-      "value": 7,
-      "isPeri": false
-    },
-    {
-      "id": 91,
       "name": "Bar_WinLen",
       "type": 0,
-      "addr": 12662,
+      "addr": 12656,
       "value": 10,
       "isPeri": false
     },
     {
-      "id": 92,
+      "id": 91,
       "name": "Bar_EnTilt",
       "type": 6,
-      "addr": 12613,
+      "addr": 12611,
       "value": 25.0,
       "isPeri": false
     },
     {
-      "id": 93,
+      "id": 92,
       "name": "Bar_ExTilt",
       "type": 6,
-      "addr": 12618,
+      "addr": 12616,
       "value": 15.0,
       "isPeri": false
     },
     {
-      "id": 94,
+      "id": 93,
       "name": "Bar_EntThr",
       "type": 0,
       "addr": 12574,
@@ -611,15 +603,15 @@
       "isPeri": false
     },
     {
-      "id": 95,
+      "id": 94,
       "name": "Bar_ExtThr",
       "type": 0,
-      "addr": 12582,
+      "addr": 12584,
       "value": 7,
       "isPeri": false
     },
     {
-      "id": 96,
+      "id": 95,
       "name": "Cross_WinL",
       "type": 0,
       "addr": 12564,
@@ -627,15 +619,15 @@
       "isPeri": false
     },
     {
-      "id": 97,
+      "id": 96,
       "name": "Cross_EnSu",
       "type": 6,
-      "addr": 12689,
+      "addr": 12683,
       "value": 5020000.0,
       "isPeri": false
     },
     {
-      "id": 98,
+      "id": 97,
       "name": "Cross_ExSu",
       "type": 6,
       "addr": 12565,
@@ -643,27 +635,35 @@
       "isPeri": false
     },
     {
-      "id": 99,
+      "id": 98,
       "name": "Cross_EntT",
       "type": 0,
-      "addr": 12617,
+      "addr": 12615,
+      "value": 7,
+      "isPeri": false
+    },
+    {
+      "id": 99,
+      "name": "Cross_ExtT",
+      "type": 0,
+      "addr": 12626,
       "value": 7,
       "isPeri": false
     },
     {
       "id": 100,
-      "name": "Cross_ExtT",
-      "type": 0,
-      "addr": 12628,
-      "value": 7,
+      "name": "OffTkMs",
+      "type": 6,
+      "addr": 12652,
+      "value": 0.0,
       "isPeri": false
     },
     {
       "id": 101,
       "name": "OffTkMs",
       "type": 6,
-      "addr": 12658,
-      "value": 400.0,
+      "addr": 12656,
+      "value": 0,
       "isPeri": false
     }
   ]
