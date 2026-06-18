@@ -20,17 +20,17 @@ extern void key_port_init(void);
 extern void MainControl_Init(void);
 extern void Main_Control_Task_Init();
 void app_init(void){
-    UART2_Init();
+    //UART2_Init();
    // UART4_Init();
     CRC_Init();
    // App_UartTest_Init();
 		App_DebugTask_Init();
-		APP_CLK_TEST_Init();
+	//	APP_CLK_TEST_Init();
     CPU_STATUS_TASK_Init();
    // Beep_Init();
-    IMU_Init();
-    Main_Control_Task_Init();
-    Element_Init();
+   // IMU_Init();
+   // Main_Control_Task_Init();
+   // Element_Init();
     
     //key_port_init();
    // Task_OLED_Test_Init();
