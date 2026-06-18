@@ -894,6 +894,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\spi1_user.h</FilePath>
             </File>
+            <File>
+              <FileName>usart_spi_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\usart_spi_dma.c</FilePath>
+            </File>
+            <File>
+              <FileName>usart_spi_dma.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\usart_spi_dma.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -993,6 +1003,16 @@
               <FileName>storage_mgr.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Device\storage_mgr.h</FilePath>
+            </File>
+            <File>
+              <FileName>spi_flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Device\spi_flash.c</FilePath>
+            </File>
+            <File>
+              <FileName>spi_flash.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Device\spi_flash.h</FilePath>
             </File>
           </Files>
         </Group>
