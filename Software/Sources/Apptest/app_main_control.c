@@ -284,7 +284,7 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     val = fan_D;
     memcpy(pData, &val, sizeof(uint16_t));
 }
-static float g_outer_slew_max = 20.0f;       /* Err_Angle 每周期(2ms)最大变化量 */
+static float g_outer_slew_max = 100.0f;       /* Err_Angle 每周期(2ms)最大变化量 */
 static float g_err_angle_slewed = 0.0f;     /* Err_Angle 斜率限制状态 */
 static float g_pid_output_filtered = 0.0f;  /* 最终目标角速度 (送入内环) */
 static Lpf_t g_lpf_outer;                    /* 外环低通滤波器 */
