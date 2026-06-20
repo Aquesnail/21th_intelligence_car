@@ -428,9 +428,9 @@ static void Debug_ProcessIncoming(void) {
 /*================== 初始化 =================== */
 
 void Debug_Init(debug_port_t* debug_port_initstruct){
-    memset(debugTable, 0, sizeof(debugTable));
     memset(txPkt,     0, sizeof(txPkt));
     memset(print_buf, 0, sizeof(print_buf));
+    /* debugTable 不在此清零 — Debug_Register() 在调度器启动前已填充各 entry */
     if(debug_port_initstruct!=NULL)
         debug_init_struct = debug_port_initstruct;
     xLogMutex = xSemaphoreCreateMutex();
