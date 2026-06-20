@@ -455,15 +455,11 @@ static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
 static element_t prev_element    = ELEMENT_STRAIGHT;  /* 上一次元素, 用于检测切换 */
 
+#if USE_NEW_ELEMENT_FSM
+static ElementCtx_t g_ectx;  /* Phase 3: 新状态机上下文 */
+#endif
+
 static float tmp_adc13;
-/* ================================================================
- * 开环过元素 (Open-Loop Element Passing)
- *   由元素状态机驱动: ENTRANCE → PASS → IN_RING → STRAIGHT
- *   PASS 状态下覆盖目标角速度, 内环 PI 继续工作
- *   参数定义在 element.c, 左右环共用一套 (左环取负值)
- * ================================================================ */
-extern float g_ol_ring_angle;
-extern float g_ol_ring_yawrate;
 
 #define spd_limit 150.0f
 
@@ -510,8 +506,13 @@ void Change_Maunal(){
         g_outer_i_sum = 0.0f;                    /* 重置外环积分 */
         inner_yaw_rate_pi.last_error = 0.0f;      /* 重置内环D项 */
         current_element = ELEMENT_STRAIGHT;
-        Element_ResetOfftrackTimer();   /* 重置离赛道定时器, 防止切回自动模式时误触发SAFETY_STOP */
-        Element_ResetTrackIndex();      /* 重置元素表索引, 每次切自动都从表头开始 */
+        Element_ResetOfftrackTimer(NULL);
+        Element_ResetTrackIndex(NULL);
+#if USE_NEW_ELEMENT_FSM
+        g_ectx.current = ELEMENT_STRAIGHT;
+        g_ectx.exit_lockout_cnt = 0;
+        g_ectx.offtrack_active = 0;
+#endif
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
@@ -541,10 +542,7 @@ static float abs_f(float t){
     }
 }
 static float err_angle_filtered = 0.0f;  /* 外环: 滤波后 Err_Angle */
-static float cruising_speed = 50.0f;
-static float ring_speed  = 50.0f;
-static float wall_speed = 45.0f;
-static float barrel_speed = 45.0f;
+/* 速度变量已迁移至 element.c, 通过 Element_GetProp 查表获取 */
 void Main_Control_Task(void *pvParameters)
 {
     uint8_t i;
@@ -565,7 +563,10 @@ void Main_Control_Task(void *pvParameters)
     float slew_diff;       /* 外环斜率限制用 */
 
     (void)pvParameters;
-    
+
+#if USE_NEW_ELEMENT_FSM
+    Element_Init(&g_ectx);  /* Phase 3: 初始化新状态机上下文 */
+#endif
 
 
 //    xLastWakeTime = xTaskGetTickCount();
@@ -716,11 +717,13 @@ void Main_Control_Task(void *pvParameters)
                 /* g_pid_output_filtered = 最终目标角速度, 送入内环 */
                 g_pid_output_filtered = g_tar_yaw_raw;
 
-                /* --- 开环过元素: PASS 状态下覆盖角速度目标 --- */
-                if (current_element == ELEMENT_RING_LEFT_PASS) {
-                    g_pid_output_filtered = g_ol_ring_yawrate;
-                } else if (current_element == ELEMENT_RING_RIGHT_PASS) {
-                    g_pid_output_filtered = -g_ol_ring_yawrate;
+                /* --- 开环过元素: PASS 状态下覆盖角速度目标 (Phase 2: 通过属性表查询) --- */
+                {
+                    const ElementProp_t *prop;
+                    prop = Element_GetProp(current_element);
+                    if (prop != NULL && prop->ctrl == CTRL_OL_YAW) {
+                        g_pid_output_filtered = (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr);
+                    }
                 }
 
                 differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
@@ -784,11 +787,27 @@ void Main_Control_Task(void *pvParameters)
                     }
                     
                 }else{
+#if USE_NEW_ELEMENT_FSM
+                    /* Phase 3: 新状态机 */
+                    {
+                        unsigned char j;
+                        for (j = 0; j < 4; j++) {
+                            g_ectx.adc[j] = adc_normalized[j];
+                        }
+                        g_ectx.ax  = IMU_Filter_Data->sensor.dat.ax;
+                        g_ectx.ay  = IMU_Filter_Data->sensor.dat.ay;
+                        g_ectx.az  = IMU_Filter_Data->sensor.dat.az;
+                        g_ectx.yaw = yaw;
+                        current_element = Element_Update(&g_ectx);
+                    }
+#else
+                    /* Phase 1-2: 旧 Element_Handle (向后兼容) */
                     Element_Handle(&current_element,adc_normalized,
                         IMU_Filter_Data->sensor.dat.ax,
                         IMU_Filter_Data->sensor.dat.ay,
                         IMU_Filter_Data->sensor.dat.az,
                         yaw);
+#endif
 
                     /* 元素切换时更新 LED 状态 */
                     if (current_element != prev_element) {
@@ -801,22 +820,14 @@ void Main_Control_Task(void *pvParameters)
                         prev_element = current_element;
                     }
 
+                    {
+                        const ElementProp_t *prop;
+                        prop = Element_GetProp(current_element);
+                        if (prop != NULL && prop->speed_ptr != NULL) {
+                            common_speed = *(prop->speed_ptr);
+                        }
+                    }
                     switch(current_element){
-                        case ELEMENT_STRAIGHT:
-                            common_speed = cruising_speed;
-                            break;
-                        case ELEMENT_RING_LEFT_ENTRANCE:
-                        case ELEMENT_RING_LEFT_PASS:
-                        case ELEMENT_IN_RING:
-                            common_speed = ring_speed;
-                            break;
-                        case ELEMENT_RING_RIGHT_ENTRANCE:
-                        case ELEMENT_RING_RIGHT_PASS:
-                            common_speed = ring_speed;
-                            break;
-                        case ELEMENT_WALL:
-                            common_speed = wall_speed;
-                            break;
                         case ELEMENT_SAFETY_STOP:
                             /* 紧急刹车, 留在自动模式等待电感恢复 */
                             tmp.f = 0.0f;
@@ -1024,11 +1035,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[3]);
 
     Debug_Register("stat",DBG_UINT8,&current_element);
-
-    Debug_Register("Cruising",DBG_FLOAT | STATIC_TYPE,&cruising_speed);
-    Debug_Register("RingSpd",DBG_FLOAT | STATIC_TYPE,&ring_speed);
-    Debug_Register("WallSpd",DBG_FLOAT | STATIC_TYPE,&wall_speed);
-    Debug_Register("Barrel",DBG_FLOAT | STATIC_TYPE,&barrel_speed);
+    /* 速度变量已迁移至 element.c: Cruising, RingSpd, WallSpd, BarrelSpd, CrossSpd */
 
     /* 开环过元素参数见 element.c: OL_Ang, OL_Yaw, PassTmOut, RingSide */
     /* 初始化 SPI3, ADC */
