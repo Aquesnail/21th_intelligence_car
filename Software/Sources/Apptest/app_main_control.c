@@ -455,9 +455,7 @@ static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
 static element_t prev_element    = ELEMENT_STRAIGHT;  /* 上一次元素, 用于检测切换 */
 
-#if USE_NEW_ELEMENT_FSM
-static ElementCtx_t g_ectx;  /* Phase 3: 新状态机上下文 */
-#endif
+static ElementCtx_t g_ectx;  /* 元素状态机上下文 */
 
 static float tmp_adc13;
 
@@ -508,11 +506,9 @@ void Change_Maunal(){
         current_element = ELEMENT_STRAIGHT;
         Element_ResetOfftrackTimer(NULL);
         Element_ResetTrackIndex(NULL);
-#if USE_NEW_ELEMENT_FSM
         g_ectx.current = ELEMENT_STRAIGHT;
         g_ectx.exit_lockout_cnt = 0;
         g_ectx.offtrack_active = 0;
-#endif
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
@@ -564,10 +560,7 @@ void Main_Control_Task(void *pvParameters)
 
     (void)pvParameters;
 
-#if USE_NEW_ELEMENT_FSM
-    Element_Init(&g_ectx);  /* Phase 3: 初始化新状态机上下文 */
-#endif
-
+    Element_Init(&g_ectx);  /* 初始化元素状态机上下文 */
 
 //    xLastWakeTime = xTaskGetTickCount();
     vTaskDelay(pdMS_TO_TICKS(100)); /* 启动后延时 100ms 等待系统稳定 */
@@ -787,8 +780,7 @@ void Main_Control_Task(void *pvParameters)
                     }
                     
                 }else{
-#if USE_NEW_ELEMENT_FSM
-                    /* Phase 3: 新状态机 */
+                    /* 填充传感器数据 → 元素状态机一步更新 */
                     {
                         unsigned char j;
                         for (j = 0; j < 4; j++) {
@@ -800,14 +792,6 @@ void Main_Control_Task(void *pvParameters)
                         g_ectx.yaw = yaw;
                         current_element = Element_Update(&g_ectx);
                     }
-#else
-                    /* Phase 1-2: 旧 Element_Handle (向后兼容) */
-                    Element_Handle(&current_element,adc_normalized,
-                        IMU_Filter_Data->sensor.dat.ax,
-                        IMU_Filter_Data->sensor.dat.ay,
-                        IMU_Filter_Data->sensor.dat.az,
-                        yaw);
-#endif
 
                     /* 元素切换时更新 LED 状态 */
                     if (current_element != prev_element) {

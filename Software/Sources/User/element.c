@@ -32,17 +32,13 @@ static VoteWindow_t vote_win_ring;
  * ================================================================ */
 float    g_ol_ring_angle   = 45.0f;   /* 环岛开环目标角度(绝对值, 度) */
 float    g_ol_ring_yawrate = 3.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
-static unsigned short g_pass_frame_cnt  = 0;
 static unsigned short g_pass_timeout_frames = 150;  /* 默认150帧=300ms, 上位机可调 */
-static unsigned char  g_ring_side = 0;             /* 环内方向: 0=左环(adc[2]), 1=右环(adc[0]) */
 
 /* 退环 yaw 累计门禁: 入环后 yaw 变化量达标才允许出环 */
-static float    g_ring_entry_yaw        = 0.0f;   /* 进入 IN_RING 时的 yaw */
 static float    g_ring_exit_yaw_thresh  = 200.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
 
 /* 出环锁存: 退出环岛后若干帧内禁止再次进入, 防出环尖峰误触发二次进环 */
 static unsigned short g_ring_exit_lockout_frames = 1000;  /* 锁存时长(帧), 上位机可调, 默认1000帧=2s */
-static unsigned short g_ring_exit_lockout_cnt    = 0;    /* 锁存倒计时, 0=未锁存 */
 
 /* ================================================================
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
@@ -343,7 +339,6 @@ void Element_Init(ElementCtx_t *ctx)
     /* 开环PASS超时帧数 (上位机可调, 1帧=2ms) */
     Debug_Register("OL_Yaw",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_yawrate);
     Debug_Register("PassTmOut",  DBG_UINT16 | STATIC_TYPE, &g_pass_timeout_frames);
-    Debug_Register("RingSide",   DBG_UINT8 | STATIC_TYPE, &g_ring_side);
     Debug_Register("RingExYaw",  DBG_FLOAT | STATIC_TYPE, &g_ring_exit_yaw_thresh);
     Debug_Register("RingExLock", DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
     Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
@@ -455,406 +450,11 @@ void Element_ResetTrackIndex(ElementCtx_t *ctx)
     g_track_idx = 0;
 }
 
-/* ================================================================
- * Element_Handle — 旧版状态机 (Phase 1-2 兼容)
- *   USE_NEW_ELEMENT_FSM=1 时不编译, 由 Element_Update 替代
- * ================================================================ */
-#if !USE_NEW_ELEMENT_FSM
-/* adc0 是左 */
-void Element_Handle(element_t *element, float adc_values[], float ax, float ay, float az, float yaw)
-{
-    /* C89: 所有局部变量声明在开头 */
-    float   fax, fay, faz;     /* MA 滤波后的重力矢量 */
-    float   tilt_x;            /* 前后倾角(度): atan2(|fax|,|faz|), 替代 pitch */
-    float   g_mag;             /* 重力矢量模长 */
-    unsigned char ring_vote;   /* 环岛统一入口投票 (方向由元素表指定) */
-    unsigned char wall_vote;
-    unsigned char barrel_vote;
-    unsigned char cross_vote;
-    float   cross_adc_sum;     /* adc[1] + adc[3] 竖直电感和 */
-    float   yaw_delta;         /* IN_RING 出环门禁 yaw 变化量 */
-    unsigned char i;           /* 循环/清零用 */
 
-    /* 安全检测用局部变量 */
-    unsigned char all_adc_low;
-    unsigned long elapsed_ms;
-    unsigned long now_tick;
-    unsigned char track_expected;
-
-    /* 状态切换日志用 */
-    element_t element_prev;
-
-    /* ================================================================
-     * 0. 安全检测层 (最高优先级, 可覆盖任意状态)
-     *    离赛道超时: 4路ADC全部丢失超过阈值 → SAFETY_STOP
-     * ================================================================ */
-
-    all_adc_low = (adc_values[0] < 10.0f && adc_values[1] < 10.0f
-                && adc_values[2] < 10.0f && adc_values[3] < 10.0f) ? 1 : 0;
-
-    if (all_adc_low) {
-        if (g_offtrack_active == 0) {
-            g_offtrack_active = 1;
-            g_offtrack_start_tick = xTaskGetTickCount();
-        } else {
-            now_tick = xTaskGetTickCount();
-            elapsed_ms = (now_tick - g_offtrack_start_tick) * portTICK_PERIOD_MS;
-            if (elapsed_ms >= (unsigned long)g_offtrack_timeout_ms) {
-                *element = ELEMENT_SAFETY_STOP;
-                Debug_Log("SAFETY_STOP:OFF_TRACK");
-                g_offtrack_active = 0;
-                return;
-            }
-        }
-    } else {
-        /* 任一 ADC 恢复 → 取消计时 */
-        g_offtrack_active = 0;
-    }
-
-    /* ---- 0.5 元素表: 禁用时每周期复位索引, 确保重新启用时总是从表头开始 ---- */
-    if (!g_track_table_enabled) {
-        g_track_idx = 0;
-    }
-
-    /* ---- 1. 根据当前状态计算本帧投票 ---- */
-    /* 重力矢量滑动平均 → 前后倾角: 防加速度计尖峰, 替代 Mahony 滤波 pitch */
-    Grav_MA_Push(ax, ay, az);
-    if (g_grav_win_cnt > 0) {
-        fax = g_grav_sum_ax / (float)g_grav_win_cnt;
-        fay = g_grav_sum_ay / (float)g_grav_win_cnt;
-        faz = g_grav_sum_az / (float)g_grav_win_cnt;
-    } else {
-        fax = ax; fay = ay; faz = az;  /* 第一帧直接使用 */
-    }
-    g_mag = (float)sqrt(fax * fax + fay * fay + faz * faz);
-    if (g_mag < 0.01f) { g_mag = 0.01f; }  /* 防除零 */
-    tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
-
-    /* ---- 0.6 元素表: 预查当前期望元素 (所有投票类型共用) ---- */
-    if (g_track_table_enabled) {
-        if (g_track_idx < TRACK_TABLE_LEN) {
-            track_expected = g_track_table[g_track_idx];
-        } else {
-            track_expected = ELEMENT_STRAIGHT;  /* 超出表尾, 不再放行任何元素 */
-        }
-    } else {
-        track_expected = ELEMENT_STRAIGHT;  /* 未启用, 不约束 */
-    }
-
-    switch (*element) {
-    case ELEMENT_STRAIGHT:
-        {/* C89: 块作用域声明 */
-
-            /* 统一环岛入口检测: 任一水平电感超阈值 且 车身水平, 方向由元素表指定 */
-            ring_vote = (((adc_values[0] > RingEntrance[0]) ||
-                          (adc_values[2] > RingEntrance[2])) &&
-                         (tilt_x < angle_level)) ? 1 : 0;
-
-            /* 元素表约束: 非环岛入口期强制不投票 (表禁用时不约束, 自由检测) */
-            if (g_track_table_enabled) {
-                if (track_expected != ELEMENT_RING_LEFT_ENTRANCE &&
-                    track_expected != ELEMENT_RING_RIGHT_ENTRANCE) {
-                    ring_vote = 0;
-                }
-            }
-
-            /* 出环锁存: 退出环岛后若干帧内禁止投票, 防出环尖峰误触发二次进环 */
-            if (g_ring_exit_lockout_cnt > 0) {
-                ring_vote = 0;
-                g_ring_exit_lockout_cnt--;
-            }
-        }
-        break;
-
-    case ELEMENT_IN_RING:
-        /* 环内等待出环: 对应通道再次出现尖峰(大于退出阈值, 与进入阈值可独立调谐形成滞回) */
-        if (g_ring_side == 0) {
-            ring_vote = (adc_values[2] > RingExit[2]) ? 1 : 0;
-        } else {
-            ring_vote = (adc_values[0] > RingExit[0]) ? 1 : 0;
-        }
-        break;
-
-    default:
-        ring_vote = 0;
-        break;
-    }
-
-    /* ---- 2. 推入统一窗口 ---- */
-    VoteWin_Push(&vote_win_ring, ring_vote);
-
-    /* ---- 3. 上墙投票 ---- */
-    switch (*element) {
-    case ELEMENT_STRAIGHT:
-        wall_vote = (tilt_x > wall_entry_tilt) ? 1 : 0;
-        if (g_track_table_enabled && track_expected != ELEMENT_WALL) wall_vote = 0;
-        break;
-
-    case ELEMENT_WALL:
-        wall_vote = (tilt_x < wall_exit_tilt) ? 1 : 0;
-        break;
-
-    default:
-        wall_vote = 0;
-        break;
-    }
-    VoteWin_Push(&vote_win_wall, wall_vote);
-
-    /* ---- 3.5 滚筒投票 ---- */
-    switch (*element) {
-    case ELEMENT_STRAIGHT:
-        barrel_vote = (tilt_x > barrel_entry_tilt) ? 1 : 0;
-        if (g_track_table_enabled && track_expected != ELEMENT_BARREL) barrel_vote = 0;
-        break;
-
-    case ELEMENT_BARREL:
-        barrel_vote = (tilt_x < barrel_exit_tilt) ? 1 : 0;
-        break;
-
-    default:
-        barrel_vote = 0;
-        break;
-    }
-    VoteWin_Push(&vote_win_barrel, barrel_vote);
-
-    /* ---- 3.6 十字投票 (竖直电感 adc[1]+adc[3] 之和) ---- */
-    cross_adc_sum = adc_values[1] + adc_values[3];
-    switch (*element) {
-    case ELEMENT_STRAIGHT:
-        cross_vote = (cross_adc_sum > cross_entry_sum) ? 1 : 0;
-        if (g_track_table_enabled && track_expected != ELEMENT_CROSS) cross_vote = 0;
-        break;
-
-    case ELEMENT_CROSS:
-        cross_vote = (cross_adc_sum < cross_exit_sum) ? 1 : 0;
-        break;
-
-    default:
-        cross_vote = 0;
-        break;
-    }
-    VoteWin_Push(&vote_win_cross, cross_vote);
-
-    /* ---- 4. 状态转换判断 ---- */
-    element_prev = *element;
-    switch (*element) {
-    case ELEMENT_STRAIGHT:
-        if (vote_win_ring.len == 0) {
-            /* 旁路: 即时切换 */
-            if (((adc_values[0] > RingEntrance[0]) || (adc_values[2] > RingEntrance[2])) &&
-                (tilt_x < angle_level)) {
-                if (g_track_table_enabled) {
-                    if (track_expected == ELEMENT_RING_RIGHT_ENTRANCE) {
-                        *element = ELEMENT_RING_RIGHT_ENTRANCE;
-                    } else if (track_expected == ELEMENT_RING_LEFT_ENTRANCE) {
-                        *element = ELEMENT_RING_LEFT_ENTRANCE;
-                    }
-                } else {
-                    if (adc_values[0] > RingEntrance[0]) {
-                        *element = ELEMENT_RING_RIGHT_ENTRANCE;
-                    } else {
-                        *element = ELEMENT_RING_LEFT_ENTRANCE;
-                    }
-                }
-            }
-        } else {
-            /* 多数投票: 统一窗票数达标 */
-            if (VoteWin_Reached(&vote_win_ring, vote_win_ring.entry_thresh)) {
-                if (g_track_table_enabled) {
-                    if (track_expected == ELEMENT_RING_RIGHT_ENTRANCE) {
-                        *element = ELEMENT_RING_RIGHT_ENTRANCE;
-                    } else {
-                        *element = ELEMENT_RING_LEFT_ENTRANCE;
-                    }
-                } else {
-                    if (adc_values[0] > RingEntrance[0]) {
-                        *element = ELEMENT_RING_RIGHT_ENTRANCE;
-                    } else {
-                        *element = ELEMENT_RING_LEFT_ENTRANCE;
-                    }
-                }
-            }
-        }
-
-        /* 上墙检测: 仅从直线状态进入, 且未被环岛抢占 */
-        if (*element == ELEMENT_STRAIGHT) {
-            if (vote_win_wall.len == 0) {
-                if (tilt_x > wall_entry_tilt) {
-                    *element = ELEMENT_WALL;
-                }
-            } else if (VoteWin_Reached(&vote_win_wall, vote_win_wall.entry_thresh)) {
-                *element = ELEMENT_WALL;
-            }
-        }
-
-        /* 滚筒检测: 仅从直线状态进入, 且未被环岛/上墙抢占 */
-        if (*element == ELEMENT_STRAIGHT) {
-            if (vote_win_barrel.len == 0) {
-                if (tilt_x > barrel_entry_tilt) {
-                    *element = ELEMENT_BARREL;
-                }
-            } else if (VoteWin_Reached(&vote_win_barrel, vote_win_barrel.entry_thresh)) {
-                *element = ELEMENT_BARREL;
-            }
-        }
-
-        /* 十字检测: 仅从直线状态进入, 且未被环岛/上墙/滚筒抢占 */
-        if (*element == ELEMENT_STRAIGHT) {
-            if (vote_win_cross.len == 0) {
-                if (cross_adc_sum > cross_entry_sum) {
-                    *element = ELEMENT_CROSS;
-                }
-            } else if (VoteWin_Reached(&vote_win_cross, vote_win_cross.entry_thresh)) {
-                *element = ELEMENT_CROSS;
-            }
-        }
-        break;
-
-    case ELEMENT_RING_LEFT_ENTRANCE:
-        g_pass_frame_cnt = 0;
-        *element = ELEMENT_RING_LEFT_PASS;
-        break;
-
-    case ELEMENT_RING_RIGHT_ENTRANCE:
-        g_pass_frame_cnt = 0;
-        *element = ELEMENT_RING_RIGHT_PASS;
-        break;
-
-    case ELEMENT_RING_LEFT_PASS:
-        {
-            g_pass_frame_cnt++;
-            if (g_pass_frame_cnt >= g_pass_timeout_frames) {
-                *element = ELEMENT_IN_RING;
-                g_ring_side = 0;  /* 左环, 出环检测看 adc[2] */
-                g_ring_entry_yaw = yaw;
-                VoteWin_Reset(&vote_win_ring);
-            }
-        }
-        break;
-
-    case ELEMENT_RING_RIGHT_PASS:
-        {
-            g_pass_frame_cnt++;
-            if (g_pass_frame_cnt >= g_pass_timeout_frames) {
-                *element = ELEMENT_IN_RING;
-                g_ring_side = 1;  /* 右环, 出环检测看 adc[0] */
-                g_ring_entry_yaw = yaw;
-                VoteWin_Reset(&vote_win_ring);
-            }
-        }
-        break;
-
-    case ELEMENT_IN_RING:
-        yaw_delta = yaw - g_ring_entry_yaw;
-        if (g_ring_side == 0) {
-            if (yaw_delta < g_ring_exit_yaw_thresh) {
-                break;
-            }
-        } else {
-            if (yaw_delta > -g_ring_exit_yaw_thresh) {
-                break;
-            }
-        }
-
-        if (vote_win_ring.len == 0) {
-            if (g_ring_side == 0) {
-                if (adc_values[2] > RingExit[2]) {
-                    *element = ELEMENT_STRAIGHT;
-                    Track_Advance();
-                }
-            } else {
-                if (adc_values[0] > RingExit[0]) {
-                    *element = ELEMENT_STRAIGHT;
-                    Track_Advance();
-                }
-            }
-        } else {
-            if (VoteWin_Reached(&vote_win_ring, vote_win_ring.entry_thresh)) {
-                *element = ELEMENT_STRAIGHT;
-                Track_Advance();
-            }
-        }
-        break;
-
-    case ELEMENT_RING_LEFT_EXIT:
-        break;
-
-    case ELEMENT_RING_RIGHT_EXIT:
-        break;
-
-    case ELEMENT_SKIP:
-        break;
-
-    case ELEMENT_BARREL:
-        if (vote_win_barrel.len == 0) {
-            if (tilt_x < barrel_exit_tilt) {
-                *element = ELEMENT_STRAIGHT;
-                Track_Advance();
-            }
-        } else if (VoteWin_Reached(&vote_win_barrel, vote_win_barrel.exit_thresh)) {
-            *element = ELEMENT_STRAIGHT;
-            Track_Advance();
-        }
-        break;
-
-    case ELEMENT_WALL:
-        if (vote_win_wall.len == 0) {
-            if (tilt_x < wall_exit_tilt) {
-                *element = ELEMENT_STRAIGHT;
-                Track_Advance();
-            }
-        } else if (VoteWin_Reached(&vote_win_wall, vote_win_wall.exit_thresh)) {
-            *element = ELEMENT_STRAIGHT;
-            Track_Advance();
-        }
-        break;
-
-    case ELEMENT_CROSS:
-        if (vote_win_cross.len == 0) {
-            if (cross_adc_sum < cross_exit_sum) {
-                *element = ELEMENT_STRAIGHT;
-                Track_Advance();
-            }
-        } else if (VoteWin_Reached(&vote_win_cross, vote_win_cross.exit_thresh)) {
-            *element = ELEMENT_STRAIGHT;
-            Track_Advance();
-        }
-        break;
-
-    case ELEMENT_SAFETY_STOP:
-        /* 任一通道恢复电感值 → 退出安全停车, 切回手动模式 */
-        if (adc_values[0] > 10.0f || adc_values[1] > 10.0f
-            || adc_values[2] > 10.0f || adc_values[3] > 10.0f) {
-            *element = ELEMENT_STRAIGHT;
-            manual_control_flag = 1;
-            LED_RequestBreathing();
-            g_offtrack_active = 0;
-            Element_ResetTrackIndex(NULL);
-        }
-        break;
-
-    default:
-        break;
-    }
-
-    /* ---- 4.5 出环锁存: 退出环岛时启动, 禁止立刻重新进入 ---- */
-    if (element_prev == ELEMENT_IN_RING && *element == ELEMENT_STRAIGHT) {
-        g_ring_exit_lockout_cnt = g_ring_exit_lockout_frames;
-        VoteWin_Reset(&vote_win_ring);
-    }
-
-    /* ---- 5. 状态切换日志 ---- */
-    if (*element != element_prev) {
-        Debug_Log(Element_Name(*element));
-    }
-}
-#endif /* !USE_NEW_ELEMENT_FSM */
 
 /* ================================================================
- * Phase 3: Element_Update — 基于转移表的统一状态机
- *   编译开关 USE_NEW_ELEMENT_FSM 在 element.h 中定义
+ * Element_Update — 基于转移表的统一状态机
  * ================================================================ */
-#if USE_NEW_ELEMENT_FSM
 
 /* ---- 转移条件/动作函数签名 ---- */
 typedef unsigned char (*TransitionCheck)(ElementCtx_t *ctx);
@@ -1088,7 +688,7 @@ static void Element_EvaluateTransitions(ElementCtx_t *ctx)
 }
 
 /* ================================================================
- * Element_Update — 统一入口 (替代 Element_Handle)
+ * Element_Update — 统一入口
  *   每帧调用一次 (2ms 周期)
  *   1. 安全检测层
  *   2. 重力矢量 MA + 倾角计算
@@ -1238,5 +838,3 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     return ctx->current;
 }
-
-#endif /* USE_NEW_ELEMENT_FSM */

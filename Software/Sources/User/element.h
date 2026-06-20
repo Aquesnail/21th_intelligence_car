@@ -3,15 +3,6 @@
 
 #include "config.h"
 
-/* ================================================================
- * 编译开关: USE_NEW_ELEMENT_FSM
- *   0 = 使用旧 Element_Handle (默认, 已验证)
- *   1 = 使用新 Element_Update + 转移表 (Phase 3 验证后启用)
- * ================================================================ */
-#ifndef USE_NEW_ELEMENT_FSM
-#define USE_NEW_ELEMENT_FSM  1
-#endif
-
 typedef enum ElementType {
     ELEMENT_STRAIGHT = 0,
     ELEMENT_RING_LEFT_ENTRANCE,
@@ -123,7 +114,6 @@ void VoteWin_SetLen(VoteWindow_t *w, unsigned char len);
  * 元素 API
  * ================================================================ */
 void Element_Init(ElementCtx_t *ctx);
-void Element_Handle(element_t *element, float adc_values[], float ax, float ay, float az, float yaw);
 element_t Element_Update(ElementCtx_t *ctx);
 const ElementProp_t* Element_GetProp(element_t e);
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx);
