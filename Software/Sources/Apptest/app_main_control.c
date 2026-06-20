@@ -470,6 +470,26 @@ static float tmp_adc13;
 static float g_ss_magnitude = 0.0f;
 static float g_ss_step      = 2.0f;
 #define SS_STEP_DOWN 10.0f
+
+/* ================================================================
+ * 速度方向适配宏 (下位机方向约定变更时只需改这 4 个宏)
+ *   WR_SIGN: 写入下位机的最终符号
+ *   RD_SIGN: 上位机读取/显示的符号
+ * ================================================================ */
+#define SPD_WR_SIGN_R  (-1)   /* 右电机 (REG_A) 写入符号 */
+#define SPD_WR_SIGN_L  (-1)   /* 左电机 (REG_B) 写入符号 */
+#define SPD_RD_SIGN_R  (-1)   /* 右电机 读取/显示符号 */
+#define SPD_RD_SIGN_L  (1)    /* 左电机 读取/显示符号 */
+
+/* 统一速度写入包装: 传入逻辑速度, 内部用 WR_SIGN 适配下位机方向 */
+static void Motor_Write_Speeds(float spd_r, float spd_l)
+{
+    motor_data_t dr, dl;
+    dr.f = spd_r * SPD_WR_SIGN_R;
+    dl.f = spd_l * SPD_WR_SIGN_L;
+    motor_write_speed_targets(dr, dl);
+}
+
 /* 缓启动步进: 加速缓 (step_up), 减速快 (step_down) */
 static float SoftStart_Ramp(float cur, float tgt, float step_up, float step_down)
 {
@@ -600,9 +620,9 @@ void Main_Control_Task(void *pvParameters)
                 }
                 MOTOR_CS_SET();
                 tmp = motor_spi_dat_handle(spi_buffer);
-                g_right_speed_actual = -lpf_update(&g_lpf_right, tmp.f);
+                g_right_speed_actual = SPD_RD_SIGN_R * lpf_update(&g_lpf_right, tmp.f);
                 tmp = motor_spi_dat_handle(spi_buffer + 4);
-                g_left_speed_actual = lpf_update(&g_lpf_left, tmp.f);
+                g_left_speed_actual = SPD_RD_SIGN_L * lpf_update(&g_lpf_left, tmp.f);
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
 
@@ -735,7 +755,7 @@ void Main_Control_Task(void *pvParameters)
                     if (g_manual_cmd_received &&
                         (xTaskGetTickCount() - g_last_manual_cmd_tick) >= pdMS_TO_TICKS(3000)) {
                         tmp.f = 0.0f;
-                        motor_write_speed_targets(tmp, tmp);
+                        Motor_Write_Speeds(0.0f, 0.0f);
                         g_reg_write_pending = 0;
                         g_drive_direction = DRIVE_STOP;
                         g_last_manual_cmd_tick = xTaskGetTickCount();
@@ -764,14 +784,14 @@ void Main_Control_Task(void *pvParameters)
                             speed_a.f = g_ss_magnitude;
                             speed_b.f = g_ss_magnitude;
                         }
-                        motor_write_speed_targets(speed_a, speed_b);
+                        Motor_Write_Speeds(speed_a.f, speed_b.f);
                     }else{
                             tmp.f = 0.0f;
-                            motor_write_speed_targets(tmp, tmp);
+                            Motor_Write_Speeds(0.0f, 0.0f);
                     }
                     if (g_reg_write_pending) {
                         if(g_reg_write_addr == REG_A_SPEED_TARGET){
-                            g_reg_write_value.f = -g_reg_write_value.f;
+                            g_reg_write_value.f *= SPD_WR_SIGN_R;
                         }
                         MOTOR_CS_RESET();
                         motor_write_reg(g_reg_write_addr, g_reg_write_value);
@@ -815,7 +835,7 @@ void Main_Control_Task(void *pvParameters)
                         case ELEMENT_SAFETY_STOP:
                             /* 紧急刹车, 留在自动模式等待电感恢复 */
                             tmp.f = 0.0f;
-                            motor_write_speed_targets(tmp, tmp);
+                            Motor_Write_Speeds(0.0f, 0.0f);
                             g_reg_write_pending = 0;
                             g_drive_direction = DRIVE_STOP;
                             PWMA_Set(0);
@@ -862,7 +882,7 @@ void Main_Control_Task(void *pvParameters)
                         speed_target_r.f = -(common_speed + differential_speed);
                         speed_target_r_nagtive = -speed_target_r.f;
 
-                        motor_write_speed_targets(speed_target_r, speed_target_l);
+                        Motor_Write_Speeds(speed_target_r.f, speed_target_l.f);
                     }
 
                 }

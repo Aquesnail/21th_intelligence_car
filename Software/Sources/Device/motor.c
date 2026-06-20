@@ -83,8 +83,6 @@ void motor_write_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t val1, motor
 void motor_write_speed_targets(motor_data_t speed_r, motor_data_t speed_l)
 {
     MOTOR_CS_RESET();
-    speed_r.f = -speed_r.f;
-    speed_l.f = -speed_l.f;
     motor_write_reg(REG_A_SPEED_TARGET, speed_r);
     motor_write_reg(REG_B_SPEED_TARGET, speed_l);
     MOTOR_CS_SET();
