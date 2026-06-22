@@ -3,8 +3,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "led_indicator.h"
-#include <math.h>
-
 extern unsigned char manual_control_flag;
 
 /* ================================================================
@@ -15,7 +13,7 @@ extern unsigned char manual_control_flag;
  * ================================================================ */
 static float RingEntrance[4];
 static float RingExit[4];
-static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 重力分量 atan2(|ax|,|az|) */
+static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
 
 /* ================================================================
  * 环岛多数投票窗缓冲区
@@ -49,10 +47,10 @@ static unsigned short g_ring_exit_lockout_frames = 1000;  /* 锁存时长(帧), 
 #define TRACK_TABLE_LEN  8  /* 根据实际赛道元素数量修改 */
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
-    ELEMENT_RING_LEFT_ENTRANCE,
+   // ELEMENT_RING_LEFT_ENTRANCE,
    /* ELEMENT_CROSS, */
    /* ELEMENT_CROSS, */
-   /* ELEMENT_WALL, */
+    ELEMENT_WALL, 
    /* ELEMENT_BARREL */
 };
 
@@ -105,22 +103,6 @@ static unsigned char xdata cross_vote_buf[CROSS_WIN_MAX];
 static float   cross_entry_sum;
 static float   cross_exit_sum;
 static VoteWindow_t vote_win_cross;
-
-/* ================================================================
- * 重力矢量滑动平均窗 (Moving Average, 防加速度计尖峰)
- *   窗长可调 (GRAVITY_MA_WIN_LEN 宏, 默认60帧=120ms)
- *   增量维护累加和, O(1) 无遍历
- * ================================================================ */
-#define GRAVITY_MA_WIN_LEN  60
-
-static float xdata g_grav_win_ax[GRAVITY_MA_WIN_LEN];
-static float xdata g_grav_win_ay[GRAVITY_MA_WIN_LEN];
-static float xdata g_grav_win_az[GRAVITY_MA_WIN_LEN];
-static unsigned char g_grav_win_idx;    /* 当前写入位置 (循环) */
-static unsigned char g_grav_win_cnt;    /* 已累积样本数 (<= WIN_LEN) */
-static float   g_grav_sum_ax;           /* 窗口内累加和 */
-static float   g_grav_sum_ay;
-static float   g_grav_sum_az;
 
 /* ================================================================
  * 安全停车检测 (Safety Stop)
@@ -290,37 +272,6 @@ static unsigned char Track_CheckExpected(ElementCtx_t *ctx, element_t expected)
     return (exp == expected) ? 1 : 0;
 }
 
-/* ---- 重力矢量滑动平均: 增量维护累加和, O(1) 无遍历 ---- */
-static void Grav_MA_Push(float ax, float ay, float az)
-{
-    float old_ax, old_ay, old_az;
-
-    if (g_grav_win_cnt >= GRAVITY_MA_WIN_LEN) {
-        /* 窗满: 减去最旧值, 加上新值 */
-        old_ax = g_grav_win_ax[g_grav_win_idx];
-        old_ay = g_grav_win_ay[g_grav_win_idx];
-        old_az = g_grav_win_az[g_grav_win_idx];
-        g_grav_sum_ax += ax - old_ax;
-        g_grav_sum_ay += ay - old_ay;
-        g_grav_sum_az += az - old_az;
-    } else {
-        /* 窗未满: 直接累加 */
-        g_grav_sum_ax += ax;
-        g_grav_sum_ay += ay;
-        g_grav_sum_az += az;
-        g_grav_win_cnt++;
-    }
-
-    g_grav_win_ax[g_grav_win_idx] = ax;
-    g_grav_win_ay[g_grav_win_idx] = ay;
-    g_grav_win_az[g_grav_win_idx] = az;
-
-    g_grav_win_idx++;
-    if (g_grav_win_idx >= GRAVITY_MA_WIN_LEN) {
-        g_grav_win_idx = 0;
-    }
-}
-
 /* ---- 元素枚举 → 可读名称 (供 Debug_Log 使用) ---- */
 static const char* Element_Name(element_t e)
 {
@@ -375,7 +326,8 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->current = ELEMENT_STRAIGHT;
         ctx->prev    = ELEMENT_STRAIGHT;
         ctx->frame_cnt = 0;
-        ctx->tilt_x    = 0.0f;
+        ctx->tilt_fb   = 0.0f;
+    ctx->tilt_lr   = 0.0f;
         ctx->wall_frame_cnt  = 0;
 
     }
@@ -527,18 +479,6 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->vote_cross        = vote_win_cross;
     }
 
-    /* 重力 MA 窗口清零 */
-    for (i = 0; i < GRAVITY_MA_WIN_LEN; i++) {
-        g_grav_win_ax[i] = 0.0f;
-        g_grav_win_ay[i] = 0.0f;
-        g_grav_win_az[i] = 0.0f;
-    }
-    g_grav_win_idx = 0;
-    g_grav_win_cnt = 0;
-    g_grav_sum_ax  = 0.0f;
-    g_grav_sum_ay  = 0.0f;
-    g_grav_sum_az  = 0.0f;
-
     /* 显式复位元素表索引 */
     Element_ResetTrackIndex(ctx);
 }
@@ -588,7 +528,7 @@ static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
     }
     if (ctx->vote_ring.len == 0) {
         return ((ctx->adc[0] > RingEntrance[0] || ctx->adc[2] > RingEntrance[2])
-                && ctx->tilt_x < angle_level) ? 1 : 0;
+                && ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) < angle_level)) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.entry_thresh);
 }
@@ -657,7 +597,7 @@ static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
     if (!Track_CheckExpected(ctx, ELEMENT_BARREL)) return 0;
 
     if (ctx->vote_barrel.len == 0) {
-        return (ctx->tilt_x > barrel_entry_tilt) ? 1 : 0;
+        return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) > barrel_entry_tilt) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_barrel, ctx->vote_barrel.entry_thresh);
 }
@@ -666,7 +606,7 @@ static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
 static unsigned char Check_BarrelExit(ElementCtx_t *ctx)
 {
     if (ctx->vote_barrel.len == 0) {
-        return (ctx->tilt_x < barrel_exit_tilt) ? 1 : 0;
+        return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) < barrel_exit_tilt) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_barrel, ctx->vote_barrel.exit_thresh);
 }
@@ -869,9 +809,8 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned char all_adc_low;
     unsigned long elapsed_ms;
     unsigned long now_tick;
-    float fax, fay, faz;
-    float g_mag;
     float cross_adc_sum;
+    float tilt_fb_abs;
     unsigned char ring_vote;
     unsigned char wall_vote;
     unsigned char wall_climb_vote;
@@ -923,18 +862,8 @@ element_t Element_Update(ElementCtx_t *ctx)
         g_track_idx = 0;
     }
 
-    /* ---- 1. 重力矢量 MA + 倾角计算 ---- */
-    // Grav_MA_Push(ctx->ax, ctx->ay, ctx->az);
-    // if (g_grav_win_cnt > 0) {
-    //     fax = g_grav_sum_ax / (float)g_grav_win_cnt;
-    //     fay = g_grav_sum_ay / (float)g_grav_win_cnt;
-    //     faz = g_grav_sum_az / (float)g_grav_win_cnt;
-    // } else {
-    //     fax = ctx->ax; fay = ctx->ay; faz = ctx->az;
-    // }
-    // g_mag = (float)sqrt(fax * fax + fay * fay + faz * faz);
-    // if (g_mag < 0.01f) { g_mag = 0.01f; }
-    // ctx->tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
+    /* ---- 1. 倾角绝对值 (四元数前后倾角, 供投票使用) ---- */
+    tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
 
     /* ---- 2. 投票生成 (所有元素类型的投票在此统一计算) ---- */
 
@@ -943,7 +872,7 @@ element_t Element_Update(ElementCtx_t *ctx)
         /* 入口票: 两侧电感 OR + 车身水平 */
         ring_vote = (((ctx->adc[0] > RingEntrance[0]) ||
                       (ctx->adc[2] > RingEntrance[2])) &&
-                     (ctx->tilt_x < angle_level)) ? 1 : 0;
+                     (tilt_fb_abs < angle_level)) ? 1 : 0;
     } else if (ctx->current == ELEMENT_IN_RING) {
         /* 出口票: 两侧电感 OR (不区分左右环) */
         ring_vote = (ctx->adc[2] > RingExit[2] || ctx->adc[0] > RingExit[0]) ? 1 : 0;
@@ -1005,9 +934,9 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* 滚筒投票 */
     if (ctx->current == ELEMENT_STRAIGHT) {
-        barrel_vote = (ctx->tilt_x > barrel_entry_tilt) ? 1 : 0;
+        barrel_vote = (tilt_fb_abs > barrel_entry_tilt) ? 1 : 0;
     } else if (ctx->current == ELEMENT_BARREL) {
-        barrel_vote = (ctx->tilt_x < barrel_exit_tilt) ? 1 : 0;
+        barrel_vote = (tilt_fb_abs < barrel_exit_tilt) ? 1 : 0;
     } else {
         barrel_vote = 0;
     }
