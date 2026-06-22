@@ -252,6 +252,14 @@ static element_t Track_GetExpected(ElementCtx_t *ctx)
     }
 }
 
+/* ---- 统一入口把关: 查赛道表是否允许进入指定元素, 封装 Track_GetExpected + 比较 ---- */
+static unsigned char Track_CheckExpected(ElementCtx_t *ctx, element_t expected)
+{
+    element_t exp;
+    exp = Track_GetExpected(ctx);
+    return (exp == expected) ? 1 : 0;
+}
+
 /* ---- 重力矢量滑动平均: 增量维护累加和, O(1) 无遍历 ---- */
 static void Grav_MA_Push(float ax, float ay, float az)
 {
@@ -503,27 +511,21 @@ static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
 /* ---- 环岛左入口: 赛道表把关 + 统一物理检测 ---- */
 static unsigned char Check_RingLeftEntry(ElementCtx_t *ctx)
 {
-    element_t expected;
-    expected = Track_GetExpected(ctx);
-    if (expected != ELEMENT_RING_LEFT_ENTRANCE) return 0;
+    if (!Track_CheckExpected(ctx, ELEMENT_RING_LEFT_ENTRANCE)) return 0;
     return Check_RingEntry_Physical(ctx);
 }
 
 /* ---- 环岛右入口: 赛道表把关 + 统一物理检测 ---- */
 static unsigned char Check_RingRightEntry(ElementCtx_t *ctx)
 {
-    element_t expected;
-    expected = Track_GetExpected(ctx);
-    if (expected != ELEMENT_RING_RIGHT_ENTRANCE) return 0;
+    if (!Track_CheckExpected(ctx, ELEMENT_RING_RIGHT_ENTRANCE)) return 0;
     return Check_RingEntry_Physical(ctx);
 }
 
 /* ---- 上墙进入: 赛道表把关 + 倾角检测 ---- */
 static unsigned char Check_WallEntry(ElementCtx_t *ctx)
 {
-    element_t expected;
-    expected = Track_GetExpected(ctx);
-    if (expected != ELEMENT_WALL) return 0;
+    if (!Track_CheckExpected(ctx, ELEMENT_WALL)) return 0;
 
     if (ctx->vote_wall.len == 0) {
         return (ctx->tilt_x > wall_entry_tilt) ? 1 : 0;
@@ -543,9 +545,7 @@ static unsigned char Check_WallExit(ElementCtx_t *ctx)
 /* ---- 滚筒进入: 赛道表把关 + 倾角检测 ---- */
 static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
 {
-    element_t expected;
-    expected = Track_GetExpected(ctx);
-    if (expected != ELEMENT_BARREL) return 0;
+    if (!Track_CheckExpected(ctx, ELEMENT_BARREL)) return 0;
 
     if (ctx->vote_barrel.len == 0) {
         return (ctx->tilt_x > barrel_entry_tilt) ? 1 : 0;
@@ -566,10 +566,8 @@ static unsigned char Check_BarrelExit(ElementCtx_t *ctx)
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
 {
     float cross_adc_sum;
-    element_t expected;
 
-    expected = Track_GetExpected(ctx);
-    if (expected != ELEMENT_CROSS) return 0;
+    if (!Track_CheckExpected(ctx, ELEMENT_CROSS)) return 0;
 
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
@@ -653,15 +651,19 @@ static void Enter_InRing(ElementCtx_t *ctx)
     VoteWin_Reset(&ctx->vote_ring);
 }
 
+/* ---- 统一退出到 STRAIGHT: 推进赛道元素表 (所有元素退出共用) ---- */
+static void Enter_ExitToStraight(ElementCtx_t *ctx)
+{
+    (void)ctx;
+    Track_Advance();
+}
+
 /* ---- 退出环岛: 启动锁存, 推进元素表, 清空投票窗 ---- */
 static void Enter_RingExit(ElementCtx_t *ctx)
 {
     ctx->exit_lockout_cnt = g_ring_exit_lockout_frames;
     VoteWin_Reset(&ctx->vote_ring);
-    /* 推进赛道元素表 */
-    if (g_track_table_enabled && g_track_idx < TRACK_TABLE_LEN) {
-        g_track_idx++;
-    }
+    Enter_ExitToStraight(ctx);
 }
 
 /* ================================================================
@@ -687,9 +689,9 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_IN_RING, ELEMENT_STRAIGHT, 0, Check_RingExit, Enter_RingExit },
 
     /* 退出各元素 → STRAIGHT */
-    { ELEMENT_WALL,   ELEMENT_STRAIGHT, 0, Check_WallExit,   NULL },
-    { ELEMENT_BARREL, ELEMENT_STRAIGHT, 0, Check_BarrelExit, NULL },
-    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossExit,  NULL },
+    { ELEMENT_WALL,   ELEMENT_STRAIGHT, 0, Check_WallExit,   Enter_ExitToStraight },
+    { ELEMENT_BARREL, ELEMENT_STRAIGHT, 0, Check_BarrelExit, Enter_ExitToStraight },
+    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossExit,  Enter_ExitToStraight },
 };
 
 #define TRANSITION_COUNT  (sizeof(g_transitions) / sizeof(g_transitions[0]))

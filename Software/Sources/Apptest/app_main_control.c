@@ -578,6 +578,7 @@ void Main_Control_Task(void *pvParameters)
     float raw_d_term;      /* 外环微分用 */
     float slew_diff;       /* 外环斜率限制用 */
     float gx_body, gy_body, gz_body, gz_abs;  /* 重力向量倾角计算 */
+    float g_horiz, tilt_total, inv_horiz;     /* 总倾角+分解 (大倾角稳定) */
 
     (void)pvParameters;
 
@@ -616,12 +617,25 @@ void Main_Control_Task(void *pvParameters)
                 IMU_Get_Angle(&roll, &pitch, &yaw);
                 yaw = IMU_Get_Yaw_Unwrapped();
 
-                /* ---- 四元数重力向量倾角 (无运动加速度污染, 无万向节死锁) ---- */
+                /* ---- 四元数重力向量倾角 (总倾角+按比例分解, 大倾角稳定) ---- */
                 IMU_GetGravityVector(&gx_body, &gy_body, &gz_body);
-                gz_abs = (gz_body > 0 ? gz_body : -gz_body);
-                if (gz_abs < 0.001f) { gz_abs = 0.001f; }
-                g_ectx.tilt_fb = (float)atan2((gx_body > 0 ? gx_body : -gx_body), gz_abs) * 57.29578f;
-                g_ectx.tilt_lr = (float)atan2((gy_body > 0 ? gy_body : -gy_body), gz_abs) * 57.29578f;
+
+                /* 水平分量幅值: g_horiz²+gz²=1 (四元数归一化保证) */
+                g_horiz = (float)sqrt(gx_body * gx_body + gy_body * gy_body);
+                gz_abs  = (gz_body > 0.0f) ? gz_body : -gz_body;
+
+                /* 总倾角 = atan2(水平, 垂直) — 大倾角时 g_horiz→1, 无小分母 */
+                tilt_total = (float)atan2(g_horiz, gz_abs) * 57.29578f;
+
+                /* 按比例分解为前后/左右分量, 保留符号区分方向 */
+                if (g_horiz > 0.001f) {
+                    inv_horiz = 1.0f / g_horiz;
+                    g_ectx.tilt_fb = tilt_total * gx_body * inv_horiz;
+                    g_ectx.tilt_lr = tilt_total * gy_body * inv_horiz;
+                } else {
+                    g_ectx.tilt_fb = 0.0f;
+                    g_ectx.tilt_lr = 0.0f;
+                }
 
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
