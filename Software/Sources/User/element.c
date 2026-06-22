@@ -1,13 +1,11 @@
 #include "element.h"
 #include "debug_arch.h"
-#include "imu_filter.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "led_indicator.h"
 #include <math.h>
 
 extern unsigned char manual_control_flag;
-extern IMU_Filter_t *IMU_Filter_Data;
 
 /* ================================================================
  * 环岛 ADC 阈值
@@ -92,15 +90,6 @@ static float   cross_exit_sum;
 static VoteWindow_t vote_win_cross;
 
 /* ================================================================
- * 四元数重力向量倾角 (上位机观测, 暂不参与状态机)
- *   tilt_fb = atan2(|vx|, |vz|)  前后倾角
- *   tilt_lr = atan2(|vy|, |vz|)  侧倾角
- *   来源: Mahony 互补滤波推算的重力方向, 无运动加速度污染, 无万向节死锁
- * ================================================================ */
-static float g_tilt_fb;
-static float g_tilt_lr;
-
-/* ================================================================
  * 重力矢量滑动平均窗 (Moving Average, 防加速度计尖峰)
  *   窗长可调 (GRAVITY_MA_WIN_LEN 宏, 默认60帧=120ms)
  *   增量维护累加和, O(1) 无遍历
@@ -160,11 +149,6 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
     /* [9] ELEMENT_SAFETY_STOP */
     { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 255, 0, 0, CTRL_BRAKE, NULL, 0 },
 };
-
-/* ================================================================
- * 运行时上下文 (单例, 供 Phase 3 Element_Update 使用)
- * ================================================================ */
-static ElementCtx_t g_ectx;
 
 /* ================================================================
  * 通用投票窗 API (Phase 1)
@@ -399,10 +383,6 @@ void Element_Init(ElementCtx_t *ctx)
     /* 十字投票窗参数 (上位机可调) */
     Debug_Register("Cross_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.entry_thresh);
     Debug_Register("Cross_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.exit_thresh);
-
-    /* 四元数重力向量倾角 (观测用) */
-    Debug_Register("TiltFB",    DBG_FLOAT | STATIC_TYPE, &g_tilt_fb);
-    Debug_Register("TiltLR",    DBG_FLOAT | STATIC_TYPE, &g_tilt_lr);
 
     /* 安全停车参数 (上位机在线调参) */
     Debug_Register("OffTkMs",   DBG_FLOAT | STATIC_TYPE, &g_offtrack_timeout_ms);
@@ -754,7 +734,6 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned long elapsed_ms;
     unsigned long now_tick;
     float fax, fay, faz;
-    float gx_body, gy_body, gz_body, gz_abs;
     float g_mag;
     float cross_adc_sum;
     unsigned char ring_vote;
@@ -815,15 +794,6 @@ element_t Element_Update(ElementCtx_t *ctx)
     g_mag = (float)sqrt(fax * fax + fay * fay + faz * faz);
     if (g_mag < 0.01f) { g_mag = 0.01f; }
     ctx->tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
-
-    /* ---- 1.5 四元数重力向量倾角 (观测用, 暂不参与状态机) ---- */
-    gx_body = IMU_Filter_Data->gx_body;
-    gy_body = IMU_Filter_Data->gy_body;
-    gz_body = IMU_Filter_Data->gz_body;
-    gz_abs  = (gz_body > 0 ? gz_body : -gz_body);
-    if (gz_abs < 0.001f) { gz_abs = 0.001f; }
-    g_tilt_fb = (float)atan2((gx_body > 0 ? gx_body : -gx_body), gz_abs) * 57.29578f;
-    g_tilt_lr = (float)atan2((gy_body > 0 ? gy_body : -gy_body), gz_abs) * 57.29578f;
 
     /* ---- 2. 投票生成 (所有元素类型的投票在此统一计算) ---- */
 

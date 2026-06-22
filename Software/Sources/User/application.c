@@ -30,7 +30,7 @@ void app_init(void){
    // Beep_Init();
     IMU_Init();
     Main_Control_Task_Init();
-    Element_Init(NULL);  /* Phase 1: ctx 暂未使用 */
+   // Element_Init(NULL);  /* Phase 1: ctx 暂未使用 */
     
     //key_port_init();
    // Task_OLED_Test_Init();

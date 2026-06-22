@@ -577,6 +577,7 @@ void Main_Control_Task(void *pvParameters)
     float err_diff;        /* 外环微分用 */
     float raw_d_term;      /* 外环微分用 */
     float slew_diff;       /* 外环斜率限制用 */
+    float gx_body, gy_body, gz_body, gz_abs;  /* 重力向量倾角计算 */
 
     (void)pvParameters;
 
@@ -614,6 +615,14 @@ void Main_Control_Task(void *pvParameters)
                 // g_right_speed_target = tmp;
                 IMU_Get_Angle(&roll, &pitch, &yaw);
                 yaw = IMU_Get_Yaw_Unwrapped();
+
+                /* ---- 四元数重力向量倾角 (无运动加速度污染, 无万向节死锁) ---- */
+                IMU_GetGravityVector(&gx_body, &gy_body, &gz_body);
+                gz_abs = (gz_body > 0 ? gz_body : -gz_body);
+                if (gz_abs < 0.001f) { gz_abs = 0.001f; }
+                g_ectx.tilt_fb = (float)atan2((gx_body > 0 ? gx_body : -gx_body), gz_abs) * 57.29578f;
+                g_ectx.tilt_lr = (float)atan2((gy_body > 0 ? gy_body : -gy_body), gz_abs) * 57.29578f;
+
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
                     spi_buffer[i] = MOTOR_SPI_TxRx(0xFFu);
@@ -1039,6 +1048,11 @@ void Main_Control_Task_Init(void)
     Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[3]);
 
     Debug_Register("stat",DBG_UINT8,&current_element);
+
+    /* 四元数重力向量倾角 */
+    Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);
+    Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_lr);
+
     /* 速度变量已迁移至 element.c: Cruising, RingSpd, WallSpd, BarrelSpd, CrossSpd */
 
     /* 开环过元素参数见 element.c: OL_Ang, OL_Yaw, PassTmOut, RingSide */

@@ -71,7 +71,9 @@ typedef struct {
     float yaw;
 
     /* ---- 计算中间量 ---- */
-    float tilt_x;                 /* 前后倾角(度) */
+    float tilt_x;                 /* 前后倾角(度), 加速度计版 */
+    float tilt_fb;                /* 前后倾角(度), 四元数重力向量版 */
+    float tilt_lr;                /* 侧倾角(度),   四元数重力向量版 */
 
     /* ---- 投票窗（4 个实例共享同一 VoteWin_Push 逻辑） ---- */
     VoteWindow_t vote_ring;

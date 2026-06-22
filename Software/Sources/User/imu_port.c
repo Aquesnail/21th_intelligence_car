@@ -35,6 +35,9 @@ static IMU_Filter_t g_imu_filter;
 IMU_Filter_t *IMU_Filter_Data = &g_imu_filter;
 static ICM42688_Pack16_t IMU_Dat; // 运行时 memset 初始化
 
+/* 诊断: 重力向量 (从本文件直接读取, 绕开跨文件extern) */
+static float g_imu_gx, g_imu_gy, g_imu_gz;
+
 extern SemaphoreHandle_t xDebugReadySignal;
 
 /* =======================================================
@@ -218,6 +221,9 @@ void vIMUProcessTask(void *pvParameters) {
                     last_imu_sample_time=IMU_Dat.sensor.dat.sample_time;
                     IMU_Filter_Data->sensor = IMU_Dat.sensor;
                     IMU_Filter_Update(IMU_Filter_Data); /* 内部会使用这个 dt 进行陀螺仪积分 */
+                    g_imu_gx = IMU_Filter_Data->gx_body;
+                    g_imu_gy = IMU_Filter_Data->gy_body;
+                    g_imu_gz = IMU_Filter_Data->gz_body;
                     ptr += 16; /* 移动到下一个包 */
                     
                     
@@ -256,16 +262,21 @@ void IMU_Init() {
     g_imu_filter.bias_gz = 0.0f;
     g_imu_filter.is_calibrated = 0;
 
+    /* 诊断: 重力向量 (本文件直接注册, 对照 element.c 的 GXv/GYv/GZv) */
+  //  Debug_Register("IGXv", DBG_FLOAT | HIGH_FREQ_TYPE, &g_imu_gx);
+   // Debug_Register("IGYv", DBG_FLOAT | HIGH_FREQ_TYPE, &g_imu_gy);
+   // Debug_Register("IGZv", DBG_FLOAT | HIGH_FREQ_TYPE, &g_imu_gz);
+
     xTaskCreate(vIMUProcessTask, "IMU", 728-500, NULL, tskIDLE_PRIORITY + 4, NULL);
 
-		//Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
-    //Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
-    //Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
+//	Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
+  //  Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
+  //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
    // Debug_Register("imu_k",DBG_FLOAT | STATIC_TYPE,&imu_slope_k);
  //   Debug_Register("imu_k", DBG_FLOAT | STATIC_TYPE, &(imu_slope_k));
     //Debug_Register("pitch", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->pitch));
     //Debug_Register("roll", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->roll));
-    Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
+  //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
   //  Debug_Register("Kp", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Kp));
    // Debug_Register("Ki", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Ki));
   //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
@@ -284,6 +295,12 @@ void IMU_Get_Angle(float* roll, float* pitch, float* yaw) {
     *roll = IMU_Filter_Data->roll;
     *pitch = IMU_Filter_Data->pitch;
     *yaw = IMU_Filter_Data->yaw;
+}
+
+void IMU_GetGravityVector(float *gx, float *gy, float *gz) {
+    *gx = IMU_Filter_Data->gx_body;
+    *gy = IMU_Filter_Data->gy_body;
+    *gz = IMU_Filter_Data->gz_body;
 }
 
 /* =======================================================

@@ -19,6 +19,7 @@ typedef struct{
 }IMU_Filter_t;
 
 void IMU_Filter_Update(IMU_Filter_t* dat);
+void IMU_GetGravityVector(float *gx, float *gy, float *gz);
 
 
 
