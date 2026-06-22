@@ -7,20 +7,27 @@ typedef enum ElementType {
     ELEMENT_STRAIGHT = 0,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_RING_RIGHT_ENTRANCE,
+    ELEMENT_WALL,
+    ELEMENT_CROSS,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+    
     ELEMENT_RING_LEFT_PASS,       /* 左环岛开环通过中 */
     ELEMENT_RING_RIGHT_PASS,      /* 右环岛开环通过中 */
     ELEMENT_IN_RING,              /* 环内行驶, 等待出环检测 */
-    ELEMENT_BARREL,
-    ELEMENT_WALL,
-    ELEMENT_CROSS,
+    
+    ELEMENT_WALL_CLIMB,           /* 上墙子状态1: 上爬, TiltB < -60 进入, |TiltR| > 70 退出 */
+    ELEMENT_WALL_HORIZONTAL,      /* 上墙子状态2: 墙上水平, |TiltR| > 70 进入, |TiltR| < 70 退出 */
+    ELEMENT_WALL_DESCEND,         /* 上墙子状态3: 下行冲刺, |TiltR| < 70 进入, TiltB > 60 退出 */
+    
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
     /* 以下保留，暂未使用 */
     ELEMENT_RING_LEFT_EXIT,
     ELEMENT_RING_RIGHT_EXIT,
-    ELEMENT_SKIP,
+    
 } element_t;
 
-#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 10 个活跃元素 */
+#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 14 个活跃元素 (含 WALL 3 子状态) */
 
 /* ================================================================
  * 控制策略枚举
@@ -78,6 +85,9 @@ typedef struct {
     /* ---- 投票窗（4 个实例共享同一 VoteWin_Push 逻辑） ---- */
     VoteWindow_t vote_ring;
     VoteWindow_t vote_wall;
+    VoteWindow_t vote_wall_climb;
+    VoteWindow_t vote_wall_horiz;
+    VoteWindow_t vote_wall_descend;
     VoteWindow_t vote_barrel;
     VoteWindow_t vote_cross;
 
@@ -86,6 +96,9 @@ typedef struct {
     unsigned short pass_frame_cnt;
     float          ring_entry_yaw;
     unsigned short exit_lockout_cnt;    /* 出环锁存倒计时 */
+
+    /* ---- 上墙专用状态 ---- */
+    unsigned short wall_frame_cnt;      /* 上墙帧计数 (超时兜底) */
 
     /* ---- 元素表 ---- */
     unsigned char track_idx;
