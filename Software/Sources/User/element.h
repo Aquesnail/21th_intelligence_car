@@ -33,9 +33,10 @@ typedef enum ElementType {
  * 控制策略枚举
  * ================================================================ */
 typedef enum {
-    CTRL_NORMAL,     /* 正常 PID 循迹 */
-    CTRL_OL_YAW,     /* 开环角速度覆盖（PASS 阶段） */
-    CTRL_BRAKE,      /* 紧急刹车（SAFETY_STOP） */
+    CTRL_NORMAL,     /* 正常 PID 循迹 → 写电机 */
+    CTRL_OL_YAW,     /* 开环角速度覆盖（PASS 阶段） → 写电机 */
+    CTRL_BRAKE,      /* 紧急刹车（SAFETY_STOP） → 写0 */
+    CTRL_FREEWHEEL,  /* 自由滑行（推车调试） → 写0, 元素检测/LED照跑 */
 } ControlStrategy_t;
 
 /* ================================================================
@@ -131,6 +132,7 @@ void VoteWin_SetLen(VoteWindow_t *w, unsigned char len);
 void Element_Init(ElementCtx_t *ctx);
 element_t Element_Update(ElementCtx_t *ctx);
 const ElementProp_t* Element_GetProp(element_t e);
+ControlStrategy_t Element_GetEffectiveCtrl(element_t e);
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx);
 void Element_ResetTrackIndex(ElementCtx_t *ctx);
 

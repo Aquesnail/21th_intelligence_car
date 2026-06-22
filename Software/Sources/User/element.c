@@ -134,6 +134,8 @@ static unsigned char  g_offtrack_active      = 0; /* 当前是否正在计时 */
  * 速度变量 (供元素属性表 speed_ptr 指向 + Debug_Register 在线调参)
  *   Phase 2: 从 app_main_control.c 迁移过来, 作为单一真相来源
  * ================================================================ */
+static unsigned char g_debug_push_mode = 0;   /* 推车调试: 1=关电机+关风扇, 元素检测/LED照跑 */
+
 static float g_speed_cruising     = 50.0f;
 static float g_speed_ring         = 50.0f;
 static float g_speed_wall         = 45.0f;
@@ -340,6 +342,22 @@ const ElementProp_t* Element_GetProp(element_t e)
     return &g_element_props[e];
 }
 
+/* ---- 获取有效控制策略 (push mode 下全部覆盖为 FREEWHEEL, BRAKE 除外) ---- */
+ControlStrategy_t Element_GetEffectiveCtrl(element_t e)
+{
+    const ElementProp_t *prop;
+    ControlStrategy_t ctrl;
+
+    prop = Element_GetProp(e);
+    if (prop == NULL) return CTRL_NORMAL;
+    ctrl = prop->ctrl;
+
+    if (g_debug_push_mode && ctrl != CTRL_BRAKE) {
+        return CTRL_FREEWHEEL;
+    }
+    return ctrl;
+}
+
 void Element_Init(ElementCtx_t *ctx)
 {
     unsigned char i;
@@ -360,14 +378,6 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->tilt_x    = 0.0f;
         ctx->wall_frame_cnt  = 0;
 
-        /* 绑定投票窗: 共享底层缓冲区 */
-        ctx->vote_ring         = vote_win_ring;
-        ctx->vote_wall         = vote_win_wall;
-        ctx->vote_wall_climb   = vote_win_wall_climb;
-        ctx->vote_wall_horiz   = vote_win_wall_horiz;
-        ctx->vote_wall_descend = vote_win_wall_descend;
-        ctx->vote_barrel       = vote_win_barrel;
-        ctx->vote_cross        = vote_win_cross;
     }
 
     /* 环岛进入 ADC 阈值 */
@@ -396,6 +406,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("RingExLock", DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
     Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
     Debug_Register("DbgElem",    DBG_UINT8 | STATIC_TYPE, &g_single_element_debug);
+    Debug_Register("PushMode",   DBG_UINT8 | STATIC_TYPE, &g_debug_push_mode);
 
     Debug_Register("Wall_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
     /* 上墙入口阈值: STRAIGHT→WALL TiltB */
@@ -504,6 +515,17 @@ void Element_Init(ElementCtx_t *ctx)
     cross_exit_sum   = 20000.0f;
     vote_win_cross.entry_thresh = 7;
     vote_win_cross.exit_thresh  = 7;
+
+    /* 绑定投票窗到上下文 (必须在 VoteWin_Init + 参数设置之后, 确保 buf/len/thresh 有效) */
+    if (ctx != NULL) {
+        ctx->vote_ring         = vote_win_ring;
+        ctx->vote_wall         = vote_win_wall;
+        ctx->vote_wall_climb   = vote_win_wall_climb;
+        ctx->vote_wall_horiz   = vote_win_wall_horiz;
+        ctx->vote_wall_descend = vote_win_wall_descend;
+        ctx->vote_barrel       = vote_win_barrel;
+        ctx->vote_cross        = vote_win_cross;
+    }
 
     /* 重力 MA 窗口清零 */
     for (i = 0; i < GRAVITY_MA_WIN_LEN; i++) {
@@ -681,11 +703,10 @@ static unsigned char Check_PassTimeout(ElementCtx_t *ctx)
     return (ctx->pass_frame_cnt >= g_pass_timeout_frames) ? 1 : 0;
 }
 
-/* ---- 环岛退出 (yaw 门禁 + 投票) ---- */
+/* ---- 环岛退出 (yaw 门禁 + 任一外侧电感超过退出阈值) ---- */
 static unsigned char Check_RingExit(ElementCtx_t *ctx)
 {
     float yaw_delta;
-    unsigned char ring_vote;
 
     /* yaw 门禁: 累计转向不足则不允许出环 */
     yaw_delta = ctx->yaw - ctx->ring_entry_yaw;
@@ -694,24 +715,11 @@ static unsigned char Check_RingExit(ElementCtx_t *ctx)
         if (yaw_delta < g_ring_exit_yaw_thresh) return 0;
     } else {
         /* 右环: 右转 yaw 减小 */
-        if (yaw_delta > -g_ring_exit_yaw_thresh) return 0;
+        if (yaw_delta > -g_ring_exit_yaw_thresh) return 0; //票仍然在票仓里，只是这里返回0不通过
     }
 
-    /* 投票判断 */
-    // if (ctx->vote_ring.len == 0) {
-    //     if (ctx->ring_side == 0) {
-    //         ring_vote = (ctx->adc[2] > RingExit[2]) ? 1 : 0;
-    //     } else {
-    //         ring_vote = (ctx->adc[0] > RingExit[0]) ? 1 : 0;
-    //     }
-    //     return ring_vote;
-    // }
-    if(ctx->adc[2] > RingExit[2] || ctx->adc[0] > RingExit[0]){
-        return 1;
-    }else{
-        return 0;
-    }
-    return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.entry_thresh);
+    /* 投票窗判断 (窗口内 OR 两侧电感) */
+    return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.exit_thresh);//条件都满足了才会开始检查票数是否足够
 }
 
 /* ================================================================
@@ -736,7 +744,7 @@ static void Enter_RingEntry(ElementCtx_t *ctx)
     }
 }
 
-/* ---- 进入 IN_RING: 记录 yaw, 重置投票窗 ---- */
+/* ---- 进入 IN_RING: 记录 yaw, 重置投票窗 (开始攒出口票) ---- */
 static void Enter_InRing(ElementCtx_t *ctx)
 {
     ctx->ring_entry_yaw = ctx->yaw;
@@ -833,7 +841,7 @@ static void Element_EvaluateTransitions(ElementCtx_t *ctx)
         t = &g_transitions[i];
         if (t->from != ctx->current) continue;
 
-        if (t->check == NULL || t->check(ctx)) {
+        if (t->check == NULL || t->check(ctx)) {//如果t0>check(ctx)发现投票满足条件
             ctx->prev = ctx->current;
             ctx->current = t->to;
 
@@ -855,6 +863,7 @@ static void Element_EvaluateTransitions(ElementCtx_t *ctx)
  *   3. 投票生成 + 推入窗口
  *   4. 状态转移评估
  * ================================================================ */
+//投票在这里push进去，由Check决定是否放行
 element_t Element_Update(ElementCtx_t *ctx)
 {
     unsigned char all_adc_low;
@@ -915,31 +924,29 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
 
     /* ---- 1. 重力矢量 MA + 倾角计算 ---- */
-    Grav_MA_Push(ctx->ax, ctx->ay, ctx->az);
-    if (g_grav_win_cnt > 0) {
-        fax = g_grav_sum_ax / (float)g_grav_win_cnt;
-        fay = g_grav_sum_ay / (float)g_grav_win_cnt;
-        faz = g_grav_sum_az / (float)g_grav_win_cnt;
-    } else {
-        fax = ctx->ax; fay = ctx->ay; faz = ctx->az;
-    }
-    g_mag = (float)sqrt(fax * fax + fay * fay + faz * faz);
-    if (g_mag < 0.01f) { g_mag = 0.01f; }
-    ctx->tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
+    // Grav_MA_Push(ctx->ax, ctx->ay, ctx->az);
+    // if (g_grav_win_cnt > 0) {
+    //     fax = g_grav_sum_ax / (float)g_grav_win_cnt;
+    //     fay = g_grav_sum_ay / (float)g_grav_win_cnt;
+    //     faz = g_grav_sum_az / (float)g_grav_win_cnt;
+    // } else {
+    //     fax = ctx->ax; fay = ctx->ay; faz = ctx->az;
+    // }
+    // g_mag = (float)sqrt(fax * fax + fay * fay + faz * faz);
+    // if (g_mag < 0.01f) { g_mag = 0.01f; }
+    // ctx->tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
 
     /* ---- 2. 投票生成 (所有元素类型的投票在此统一计算) ---- */
 
-    /* 环岛投票 */
+    /* 环岛投票 (入口 + 出口共用 vote_ring 窗口) */
     if (ctx->current == ELEMENT_STRAIGHT) {
+        /* 入口票: 两侧电感 OR + 车身水平 */
         ring_vote = (((ctx->adc[0] > RingEntrance[0]) ||
                       (ctx->adc[2] > RingEntrance[2])) &&
                      (ctx->tilt_x < angle_level)) ? 1 : 0;
     } else if (ctx->current == ELEMENT_IN_RING) {
-        if (ctx->ring_side == 0) {
-            ring_vote = (ctx->adc[2] > RingExit[2]) ? 1 : 0;
-        } else {
-            ring_vote = (ctx->adc[0] > RingExit[0]) ? 1 : 0;
-        }
+        /* 出口票: 两侧电感 OR (不区分左右环) */
+        ring_vote = (ctx->adc[2] > RingExit[2] || ctx->adc[0] > RingExit[0]) ? 1 : 0;
     } else {
         ring_vote = 0;
     }

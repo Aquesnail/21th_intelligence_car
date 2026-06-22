@@ -753,11 +753,11 @@ void Main_Control_Task(void *pvParameters)
                 /* g_pid_output_filtered = 最终目标角速度, 送入内环 */
                 g_pid_output_filtered = g_tar_yaw_raw;
 
-                /* --- 开环过元素: PASS 状态下覆盖角速度目标 (Phase 2: 通过属性表查询) --- */
+                /* --- 开环过元素: PASS 状态下覆盖角速度目标 (通过有效控制策略查询) --- */
                 {
                     const ElementProp_t *prop;
                     prop = Element_GetProp(current_element);
-                    if (prop != NULL && prop->ctrl == CTRL_OL_YAW) {
+                    if (prop != NULL && Element_GetEffectiveCtrl(current_element) == CTRL_OL_YAW) {
                         g_pid_output_filtered = (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr);
                     }
                 }
@@ -886,9 +886,9 @@ void Main_Control_Task(void *pvParameters)
                         g_reg_write_pending = 0;
                     }
 
-                    /* 风扇启动后等待 3s 再激活电机 */
+                    /* 风扇启动后等待 2s 再激活电机 */
                     if (g_auto_transition == 1) {
-                        if ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(3000)) {
+                        if ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)) {
                             g_auto_transition = 2;
                             lpf_reset(&g_lpf_gyro, 0.0f);             /* 重置陀螺仪LPF */
                             inner_yaw_rate_pi.error_sum = 0.0f;
@@ -897,15 +897,29 @@ void Main_Control_Task(void *pvParameters)
                         }
                     }
 
-                    /* 仅在过渡完成后写入电机速度目标 */
+                    /* 仅在过渡完成后写入电机速度目标 (统一控制策略派发) */
                     if (g_auto_transition == 2) {
-                        /* 缓启动: ramp common_speed */
-                     //   g_ss_magnitude = SoftStart_Ramp(g_ss_magnitude, common_speed, g_ss_step, SS_STEP_DOWN); //只用于启动，不阻止跑动时的响应
+                        ControlStrategy_t ctrl;
+
+                        ctrl = Element_GetEffectiveCtrl(current_element);
+
+                        /* 始终更新 debug 变量, 上位机可观察 PID 输出 */
                         speed_target_l.f = common_speed - differential_speed;
                         speed_target_r.f = -(common_speed + differential_speed);
                         speed_target_r_nagtive = -speed_target_r.f;
 
-                        Motor_Write_Speeds(speed_target_r.f, speed_target_l.f);
+                        switch (ctrl) {
+                        case CTRL_NORMAL:
+                        case CTRL_OL_YAW:
+                            Motor_Write_Speeds(speed_target_r.f, speed_target_l.f);
+                            break;
+                        case CTRL_BRAKE:
+                        case CTRL_FREEWHEEL:
+                        default:
+                            Motor_Write_Speeds(0.0f, 0.0f);
+                            PWMA_Set(0);       /* 关负压风扇 (推车调试时每帧覆盖) */
+                            break;
+                        }
                     }
 
                 }
