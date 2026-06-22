@@ -115,6 +115,11 @@ void IMU_Filter_Update(IMU_Filter_t* dat){
     vy = 2.0f * (q0 * q1 + q2 * q3);
     vz = q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3;
 
+    /* 导出重力方向向量，供上层计算倾角 (绕开欧拉角死锁) */
+    dat->gx_body = vx;
+    dat->gy_body = vy;
+    dat->gz_body = vz;
+
     /* 误差叉乘 */
     ex = (ay * vz - az * vy);
     ey = (az * vx - ax * vz);

@@ -11,6 +11,7 @@ typedef struct{
     float pitch;
     float yaw;
     float roll;
+    float gx_body, gy_body, gz_body;  /* 四元数推算的重力方向 (车体坐标系, 单位向量) */
     IMU_SensorData_u sensor;  /* 共享union：包含 ax,ay,az,gx,gy,gz,temp,sample_time */
     float Kp,Ki;
     float bias_gx,bias_gy,bias_gz;

@@ -1,11 +1,13 @@
 #include "element.h"
 #include "debug_arch.h"
+#include "imu_filter.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "led_indicator.h"
 #include <math.h>
 
 extern unsigned char manual_control_flag;
+extern IMU_Filter_t *IMU_Filter_Data;
 
 /* ================================================================
  * 环岛 ADC 阈值
@@ -56,8 +58,9 @@ static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
    /* ELEMENT_BARREL */
 };
 
-static unsigned char  g_track_table_enabled = 1;   /* 上位机可调: 1=启用, 0=旁路(无约束) */
+static unsigned char  g_track_table_enabled = 1;   /* 上位机可调: 1=启用, 0=旁路(单元素调试) */
 static unsigned char  g_track_idx = 0;             /* 指向下一个预期元素的索引 */
+static element_t g_single_element_debug = ELEMENT_STRAIGHT; /* 单元素调试: track_table_enabled=0时反复触发 */
 
 /* 上墙/滚筒/十字投票窗最大长度 (数组容量, 上位机可在 0..MAX 范围内调窗长) */
 #define WALL_WIN_MAX    20
@@ -87,6 +90,15 @@ static unsigned char xdata cross_vote_buf[CROSS_WIN_MAX];
 static float   cross_entry_sum;
 static float   cross_exit_sum;
 static VoteWindow_t vote_win_cross;
+
+/* ================================================================
+ * 四元数重力向量倾角 (上位机观测, 暂不参与状态机)
+ *   tilt_fb = atan2(|vx|, |vz|)  前后倾角
+ *   tilt_lr = atan2(|vy|, |vz|)  侧倾角
+ *   来源: Mahony 互补滤波推算的重力方向, 无运动加速度污染, 无万向节死锁
+ * ================================================================ */
+static float g_tilt_fb;
+static float g_tilt_lr;
 
 /* ================================================================
  * 重力矢量滑动平均窗 (Moving Average, 防加速度计尖峰)
@@ -239,6 +251,23 @@ static void Track_Advance(void)
     }
 }
 
+/* ---- 统一查询: 下一个期望元素 (正式模式→查顺序表, 调试模式→返回单元素) ---- */
+static element_t Track_GetExpected(ElementCtx_t *ctx)
+{
+    (void)ctx;
+
+    if (g_track_table_enabled) {
+        /* 正式模式: 查赛道顺序表 */
+        if (g_track_idx < TRACK_TABLE_LEN) {
+            return (element_t)g_track_table[g_track_idx];
+        }
+        return ELEMENT_STRAIGHT;  /* 表跑完, 无约束 */
+    } else {
+        /* 单元素调试模式: 反复触发同一个元素 */
+        return g_single_element_debug;
+    }
+}
+
 /* ---- 重力矢量滑动平均: 增量维护累加和, O(1) 无遍历 ---- */
 static void Grav_MA_Push(float ax, float ay, float az)
 {
@@ -342,6 +371,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("RingExYaw",  DBG_FLOAT | STATIC_TYPE, &g_ring_exit_yaw_thresh);
     Debug_Register("RingExLock", DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
     Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
+    Debug_Register("DbgElem",    DBG_UINT8 | STATIC_TYPE, &g_single_element_debug);
 
     Debug_Register("Wall_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
     /* 上墙倾角阈值 */
@@ -369,6 +399,10 @@ void Element_Init(ElementCtx_t *ctx)
     /* 十字投票窗参数 (上位机可调) */
     Debug_Register("Cross_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.entry_thresh);
     Debug_Register("Cross_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.exit_thresh);
+
+    /* 四元数重力向量倾角 (观测用) */
+    Debug_Register("TiltFB",    DBG_FLOAT | STATIC_TYPE, &g_tilt_fb);
+    Debug_Register("TiltLR",    DBG_FLOAT | STATIC_TYPE, &g_tilt_lr);
 
     /* 安全停车参数 (上位机在线调参) */
     Debug_Register("OffTkMs",   DBG_FLOAT | STATIC_TYPE, &g_offtrack_timeout_ms);
@@ -472,35 +506,45 @@ typedef struct {
  * 条件函数
  * ================================================================ */
 
-/* ---- 环岛左入口: 水平电感 adc[0] 超阈值 + 车身水平 + 投票达标 ---- */
+/* ---- 环岛入口统一物理检测: 任意水平电感 + 车身水平 + 退出锁存 + 投票达标 ---- */
+static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
+{
+    if (ctx->exit_lockout_cnt > 0) {
+        ctx->exit_lockout_cnt--;
+        return 0;
+    }
+    if (ctx->vote_ring.len == 0) {
+        return ((ctx->adc[0] > RingEntrance[0] || ctx->adc[2] > RingEntrance[2])
+                && ctx->tilt_x < angle_level) ? 1 : 0;
+    }
+    return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.entry_thresh);
+}
+
+/* ---- 环岛左入口: 赛道表把关 + 统一物理检测 ---- */
 static unsigned char Check_RingLeftEntry(ElementCtx_t *ctx)
 {
-    if (ctx->exit_lockout_cnt > 0) {
-        ctx->exit_lockout_cnt--;
-        return 0;
-    }
-    if (ctx->vote_ring.len == 0) {
-        return (ctx->adc[0] > RingEntrance[0] && ctx->tilt_x < angle_level) ? 1 : 0;
-    }
-    return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.entry_thresh);
+    element_t expected;
+    expected = Track_GetExpected(ctx);
+    if (expected != ELEMENT_RING_LEFT_ENTRANCE) return 0;
+    return Check_RingEntry_Physical(ctx);
 }
 
-/* ---- 环岛右入口: 水平电感 adc[2] 超阈值 + 车身水平 + 投票达标 ---- */
+/* ---- 环岛右入口: 赛道表把关 + 统一物理检测 ---- */
 static unsigned char Check_RingRightEntry(ElementCtx_t *ctx)
 {
-    if (ctx->exit_lockout_cnt > 0) {
-        ctx->exit_lockout_cnt--;
-        return 0;
-    }
-    if (ctx->vote_ring.len == 0) {
-        return (ctx->adc[2] > RingEntrance[2] && ctx->tilt_x < angle_level) ? 1 : 0;
-    }
-    return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.entry_thresh);
+    element_t expected;
+    expected = Track_GetExpected(ctx);
+    if (expected != ELEMENT_RING_RIGHT_ENTRANCE) return 0;
+    return Check_RingEntry_Physical(ctx);
 }
 
-/* ---- 上墙进入 ---- */
+/* ---- 上墙进入: 赛道表把关 + 倾角检测 ---- */
 static unsigned char Check_WallEntry(ElementCtx_t *ctx)
 {
+    element_t expected;
+    expected = Track_GetExpected(ctx);
+    if (expected != ELEMENT_WALL) return 0;
+
     if (ctx->vote_wall.len == 0) {
         return (ctx->tilt_x > wall_entry_tilt) ? 1 : 0;
     }
@@ -516,9 +560,13 @@ static unsigned char Check_WallExit(ElementCtx_t *ctx)
     return VoteWin_Reached(&ctx->vote_wall, ctx->vote_wall.exit_thresh);
 }
 
-/* ---- 滚筒进入 ---- */
+/* ---- 滚筒进入: 赛道表把关 + 倾角检测 ---- */
 static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
 {
+    element_t expected;
+    expected = Track_GetExpected(ctx);
+    if (expected != ELEMENT_BARREL) return 0;
+
     if (ctx->vote_barrel.len == 0) {
         return (ctx->tilt_x > barrel_entry_tilt) ? 1 : 0;
     }
@@ -534,10 +582,15 @@ static unsigned char Check_BarrelExit(ElementCtx_t *ctx)
     return VoteWin_Reached(&ctx->vote_barrel, ctx->vote_barrel.exit_thresh);
 }
 
-/* ---- 十字进入 ---- */
+/* ---- 十字进入: 赛道表把关 + 竖直电感和检测 ---- */
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
 {
     float cross_adc_sum;
+    element_t expected;
+
+    expected = Track_GetExpected(ctx);
+    if (expected != ELEMENT_CROSS) return 0;
+
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
         return (cross_adc_sum > cross_entry_sum) ? 1 : 0;
@@ -626,8 +679,8 @@ static void Enter_RingExit(ElementCtx_t *ctx)
     ctx->exit_lockout_cnt = g_ring_exit_lockout_frames;
     VoteWin_Reset(&ctx->vote_ring);
     /* 推进赛道元素表 */
-    if (ctx->track_table_enabled && ctx->track_idx < TRACK_TABLE_LEN) {
-        ctx->track_idx++;
+    if (g_track_table_enabled && g_track_idx < TRACK_TABLE_LEN) {
+        g_track_idx++;
     }
 }
 
@@ -700,8 +753,8 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned char all_adc_low;
     unsigned long elapsed_ms;
     unsigned long now_tick;
-    unsigned char track_expected;
     float fax, fay, faz;
+    float gx_body, gy_body, gz_body, gz_abs;
     float g_mag;
     float cross_adc_sum;
     unsigned char ring_vote;
@@ -746,8 +799,8 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
 
     /* ---- 0.5 元素表 ---- */
-    if (!ctx->track_table_enabled) {
-        ctx->track_idx = 0;
+    if (!g_track_table_enabled) {
+        g_track_idx = 0;
     }
 
     /* ---- 1. 重力矢量 MA + 倾角计算 ---- */
@@ -763,31 +816,22 @@ element_t Element_Update(ElementCtx_t *ctx)
     if (g_mag < 0.01f) { g_mag = 0.01f; }
     ctx->tilt_x = (float)atan2((fax > 0 ? fax : -fax), (faz > 0 ? faz : -faz)) * 57.29578f;
 
-    /* ---- 2. 元素表预查 (投票生成时使用) ---- */
-    if (ctx->track_table_enabled) {
-        if (ctx->track_idx < TRACK_TABLE_LEN) {
-            track_expected = g_track_table[ctx->track_idx];
-        } else {
-            track_expected = ELEMENT_STRAIGHT;
-        }
-    } else {
-        track_expected = ELEMENT_STRAIGHT;
-    }
+    /* ---- 1.5 四元数重力向量倾角 (观测用, 暂不参与状态机) ---- */
+    gx_body = IMU_Filter_Data->gx_body;
+    gy_body = IMU_Filter_Data->gy_body;
+    gz_body = IMU_Filter_Data->gz_body;
+    gz_abs  = (gz_body > 0 ? gz_body : -gz_body);
+    if (gz_abs < 0.001f) { gz_abs = 0.001f; }
+    g_tilt_fb = (float)atan2((gx_body > 0 ? gx_body : -gx_body), gz_abs) * 57.29578f;
+    g_tilt_lr = (float)atan2((gy_body > 0 ? gy_body : -gy_body), gz_abs) * 57.29578f;
 
-    /* ---- 3. 投票生成 (所有元素类型的投票在此统一计算) ---- */
+    /* ---- 2. 投票生成 (所有元素类型的投票在此统一计算) ---- */
 
     /* 环岛投票 */
     if (ctx->current == ELEMENT_STRAIGHT) {
         ring_vote = (((ctx->adc[0] > RingEntrance[0]) ||
                       (ctx->adc[2] > RingEntrance[2])) &&
                      (ctx->tilt_x < angle_level)) ? 1 : 0;
-
-        if (ctx->track_table_enabled) {
-            if (track_expected != ELEMENT_RING_LEFT_ENTRANCE &&
-                track_expected != ELEMENT_RING_RIGHT_ENTRANCE) {
-                ring_vote = 0;
-            }
-        }
     } else if (ctx->current == ELEMENT_IN_RING) {
         if (ctx->ring_side == 0) {
             ring_vote = (ctx->adc[2] > RingExit[2]) ? 1 : 0;
@@ -802,7 +846,6 @@ element_t Element_Update(ElementCtx_t *ctx)
     /* 上墙投票 */
     if (ctx->current == ELEMENT_STRAIGHT) {
         wall_vote = (ctx->tilt_x > wall_entry_tilt) ? 1 : 0;
-        if (ctx->track_table_enabled && track_expected != ELEMENT_WALL) wall_vote = 0;
     } else if (ctx->current == ELEMENT_WALL) {
         wall_vote = (ctx->tilt_x < wall_exit_tilt) ? 1 : 0;
     } else {
@@ -813,7 +856,6 @@ element_t Element_Update(ElementCtx_t *ctx)
     /* 滚筒投票 */
     if (ctx->current == ELEMENT_STRAIGHT) {
         barrel_vote = (ctx->tilt_x > barrel_entry_tilt) ? 1 : 0;
-        if (ctx->track_table_enabled && track_expected != ELEMENT_BARREL) barrel_vote = 0;
     } else if (ctx->current == ELEMENT_BARREL) {
         barrel_vote = (ctx->tilt_x < barrel_exit_tilt) ? 1 : 0;
     } else {
@@ -825,7 +867,6 @@ element_t Element_Update(ElementCtx_t *ctx)
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
     if (ctx->current == ELEMENT_STRAIGHT) {
         cross_vote = (cross_adc_sum > cross_entry_sum) ? 1 : 0;
-        if (ctx->track_table_enabled && track_expected != ELEMENT_CROSS) cross_vote = 0;
     } else if (ctx->current == ELEMENT_CROSS) {
         cross_vote = (cross_adc_sum < cross_exit_sum) ? 1 : 0;
     } else {
