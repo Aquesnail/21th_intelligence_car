@@ -1972,7 +1972,7 @@
 		<P2PDestination>0</P2PDestination>
 	</SPI3>
 	<I2C1>
-		<PeriEnable>0</PeriEnable>
+		<PeriEnable>1</PeriEnable>
 		<EnableMasterInt>0</EnableMasterInt>
 		<EnableSlaveSTAInt>0</EnableSlaveSTAInt>
 		<EnableSlaveSTOInt>0</EnableSlaveSTOInt>
@@ -1983,7 +1983,7 @@
 		<EnableTMOInt>0</EnableTMOInt>
 		<BroadcastAddress>0</BroadcastAddress>
 		<SlaveAddress>0</SlaveAddress>
-		<I2CPort>-1</I2CPort>
+		<I2CPort>3</I2CPort>
 		<I2CMode>1</I2CMode>
 		<I2CClockDivider>200</I2CClockDivider>
 		<TMOInterval>10</TMOInterval>
@@ -1995,7 +1995,7 @@
 		<TxDMAInterval>0</TxDMAInterval>
 		<TxDMAIntPriority>0</TxDMAIntPriority>
 		<TxDMABusPriority>0</TxDMABusPriority>
-		<EnableRxDMA>0</EnableRxDMA>
+		<EnableRxDMA>1</EnableRxDMA>
 		<EnableRxDMAInt>0</EnableRxDMAInt>
 		<RxDMAAmount>16</RxDMAAmount>
 		<RxDMAInterval>0</RxDMAInterval>
@@ -3535,28 +3535,30 @@
 		<Pin05Map>1</Pin05Map>
 		<Pin06Map>2</Pin06Map>
 		<Pin07Map>1</Pin07Map>
-		<Pin17Map>255</Pin17Map>
+		<Pin17Map>-1</Pin17Map>
 		<Pin23Map>4</Pin23Map>
 		<Pin24Map>4</Pin24Map>
-		<Pin25Map>255</Pin25Map>
-		<Pin26Map>255</Pin26Map>
-		<Pin28Map>255</Pin28Map>
-		<Pin29Map>255</Pin29Map>
-		<Pin30Map>255</Pin30Map>
+		<Pin25Map>-1</Pin25Map>
+		<Pin26Map>-1</Pin26Map>
+		<Pin28Map>-1</Pin28Map>
+		<Pin29Map>-1</Pin29Map>
+		<Pin30Map>-1</Pin30Map>
 		<Pin32Map>16</Pin32Map>
 		<Pin33Map>16</Pin33Map>
 		<Pin34Map>16</Pin34Map>
 		<Pin35Map>16</Pin35Map>
 		<Pin41Map>16</Pin41Map>
-		<Pin44Map>255</Pin44Map>
+		<Pin44Map>-1</Pin44Map>
+		<Pin47Map>8</Pin47Map>
+		<Pin48Map>8</Pin48Map>
 		<Pin56Map>1</Pin56Map>
-		<Pin67Map>255</Pin67Map>
+		<Pin67Map>-1</Pin67Map>
 		<Pin73Map>8</Pin73Map>
 		<Pin85Map>8</Pin85Map>
 		<Pin86Map>4</Pin86Map>
 		<Pin87Map>4</Pin87Map>
 		<Pin88Map>4</Pin88Map>
-		<Pin92Map>255</Pin92Map>
+		<Pin92Map>-1</Pin92Map>
 		<Pin95Map>1</Pin95Map>
 		<Pin96Map>1</Pin96Map>
 		<Pin97Map>1</Pin97Map>
