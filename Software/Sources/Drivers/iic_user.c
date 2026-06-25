@@ -22,7 +22,7 @@ uint8_t xdata pu8I2C1DMARxBuffer[16];   //I2C1 DMA接收缓冲区数组
 ////////////////////////////////////////
 void I2C1_Init(void)
 {
-    I2C1_SwitchP3332();                 //选择I2C1数据口: SCL(P3.2), SDA(P3.3)
+    I2C1_SwitchP7677();                 //选择I2C1数据口: SCL(P3.2), SDA(P3.3)
 
     I2C1_MasterMode();                  //设置I2C1为主机模式
     I2C1_SetClockDivider(200);          //设置I2C1为主机模式时钟
@@ -102,7 +102,7 @@ void I2C1_MasterStop(void)
 // 函数返回: 0   (接收的应答信号为ACK)
 //           1   (接收的应答信号为NAK)
 ////////////////////////////////////////
-BOOL I2C1_MasterSendByte(uint8_t dat)
+uint8_t I2C1_MasterSendByte(uint8_t dat)
 {
     I2C1_WriteData(dat);                //将数据写入I2C1数据寄存器
     I2C1_SendData();                    //触发主机模式写数据命令
@@ -120,7 +120,7 @@ BOOL I2C1_MasterSendByte(uint8_t dat)
 // 入口参数: ack (待发送的应答信号)
 // 函数返回:     (接收的字节数据)
 ////////////////////////////////////////
-uint8_t I2C1_MasterReadByte(BOOL ack)
+uint8_t I2C1_MasterReadByte(uint8_t ack)
 {
     uint8_t dat;
 

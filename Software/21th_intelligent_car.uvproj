@@ -894,6 +894,16 @@
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\spi1_user.h</FilePath>
             </File>
+            <File>
+              <FileName>iic_user.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\iic_user.c</FilePath>
+            </File>
+            <File>
+              <FileName>iic_user.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\iic_user.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

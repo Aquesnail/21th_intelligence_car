@@ -37,8 +37,8 @@ void GPIO_Init(void) {
 
     // --- P3口配置 ---
     // P3.1, P3.0高阻(10), 其余准双向(00)
-    P3M1 = (PIN_1 | PIN_0 | PIN_3 | PIN_2);
-    P3M0 = (PIN_3 | PIN_2);
+    P3M1 = (PIN_1 | PIN_0 );//| PIN_3 | PIN_2);
+    P3M0 = 0x00;//(PIN_3 | PIN_2);
     P3IE = 0xFF;
 
     // --- P4口配置 ---
@@ -71,7 +71,7 @@ void GPIO_Init(void) {
     P6INTE |= ( PIN_5 | PIN_7);
 
     // --- P7口配置 ---
-    P7M1 = 0x00; P7M0 = 0x00;           // 全准双向
+    P7M1 = PIN_7 | PIN_6; P7M0 = PIN_7 | PIN_6;           // 全准双向
 
     // --- P8口配置 ---
     // P8.3, P8.1, P8.0推挽(01), 其余准双向(00)

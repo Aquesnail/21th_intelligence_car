@@ -19,8 +19,8 @@ void I2C1_Init(void);
 void I2C1_MasterWait(void);
 void I2C1_MasterStart(void);
 void I2C1_MasterStop(void);
-BOOL I2C1_MasterSendByte(uint8_t dat);
-uint8_t I2C1_MasterReadByte(BOOL ack);
+uint8_t I2C1_MasterSendByte(uint8_t dat);
+uint8_t I2C1_MasterReadByte(uint8_t ack);
 
 extern BOOL fI2C1MasterBusy;
 extern uint8_t xdata pu8I2C1DMATxBuffer[16];
