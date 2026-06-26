@@ -26,58 +26,58 @@ extern "C" {
 
 
 VL53L1_Error VL53L1_init_refspadchar_config_struct(
-	VL53L1_refspadchar_config_t     *pdata);
+	VL53L1_refspadchar_config_t     *pdat);
 
 
 
 
 VL53L1_Error VL53L1_init_ssc_config_struct(
-	VL53L1_ssc_config_t     *pdata);
+	VL53L1_ssc_config_t     *pdat);
 
 
 
 
 VL53L1_Error VL53L1_init_xtalk_config_struct(
 		VL53L1_customer_nvm_managed_t *pnvm,
-		VL53L1_xtalk_config_t   *pdata);
+		VL53L1_xtalk_config_t   *pdat);
 
 
 
 VL53L1_Error VL53L1_init_xtalk_extract_config_struct(
-		VL53L1_xtalkextract_config_t   *pdata);
+		VL53L1_xtalkextract_config_t   *pdat);
 
 
 
 VL53L1_Error VL53L1_init_offset_cal_config_struct(
-	VL53L1_offsetcal_config_t   *pdata);
+	VL53L1_offsetcal_config_t   *pdat);
 
 
 
 VL53L1_Error VL53L1_init_zone_cal_config_struct(
-	VL53L1_zonecal_config_t   *pdata);
+	VL53L1_zonecal_config_t   *pdat);
 
 
 
 VL53L1_Error VL53L1_init_hist_post_process_config_struct(
 	uint8_t                              xtalk_compensation_enable,
-	VL53L1_hist_post_process_config_t   *pdata);
+	VL53L1_hist_post_process_config_t   *pdat);
 
 
 
 
 VL53L1_Error VL53L1_init_dmax_calibration_data_struct(
-	VL53L1_dmax_calibration_data_t   *pdata);
+	VL53L1_dmax_calibration_data_t   *pdat);
 
 
 
 
 VL53L1_Error VL53L1_init_tuning_parm_storage_struct(
-	VL53L1_tuning_parm_storage_t   *pdata);
+	VL53L1_tuning_parm_storage_t   *pdat);
 
 
 
 VL53L1_Error VL53L1_init_hist_gen3_dmax_config_struct(
-	VL53L1_hist_gen3_dmax_config_t   *pdata);
+	VL53L1_hist_gen3_dmax_config_t   *pdat);
 
 
 

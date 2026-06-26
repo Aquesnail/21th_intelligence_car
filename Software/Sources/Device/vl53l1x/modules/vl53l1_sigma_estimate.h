@@ -44,7 +44,7 @@ uint16_t VL53L1_f_042(
 	uint8_t	 sigma_estimator__effective_pulse_width_ns,
 	uint8_t  sigma_estimator__effective_ambient_width_ns,
 	uint8_t	 sigma_estimator__sigma_ref_mm,
-	VL53L1_range_data_t  *pdata);
+	VL53L1_range_data_t  *pdat);
 
 
 
@@ -53,7 +53,7 @@ uint16_t VL53L1_f_044(
 	uint8_t	 sigma_estimator__effective_pulse_width_ns,
 	uint8_t  sigma_estimator__effective_ambient_width_ns,
 	uint8_t	 sigma_estimator__sigma_ref_mm,
-	VL53L1_range_data_t *pdata);
+	VL53L1_range_data_t *pdat);
 
 
 

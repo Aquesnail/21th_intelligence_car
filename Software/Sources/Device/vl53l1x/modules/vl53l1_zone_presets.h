@@ -33,7 +33,7 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 	uint8_t y_zones,
 	uint8_t width,
 	uint8_t height,
-	VL53L1_zone_config_t   *pdata);
+	VL53L1_zone_config_t   *pdat);
 
 
 
@@ -45,7 +45,7 @@ VL53L1_Error VL53L1_zone_preset_xtalk_planar(
 
 
 VL53L1_Error VL53L1_init_zone_config_histogram_bins(
-	VL53L1_zone_config_t   *pdata);
+	VL53L1_zone_config_t   *pdat);
 
 #ifdef __cplusplus
 }

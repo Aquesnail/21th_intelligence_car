@@ -65,7 +65,7 @@ VL53L1_Error VL53L1_CommsClose(
  *
  * @param[in]   pdev      : pointer to device structure (device handle)
  * @param[in]   index     : uint16_t register index value
- * @param[in]   pdata     : pointer to uint8_t (byte) buffer containing the data to be written
+ * @param[in]   pdat     : pointer to uint8_t (byte) buffer containing the data to be written
  * @param[in]   count     : number of bytes in the supplied byte buffer
  *
  * @return   VL53L1_ERROR_NONE    Success
@@ -75,7 +75,7 @@ VL53L1_Error VL53L1_CommsClose(
 VL53L1_Error VL53L1_WriteMulti(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint8_t      *pdata,
+		uint8_t      *pdat,
 		uint32_t      count);
 
 
@@ -84,7 +84,7 @@ VL53L1_Error VL53L1_WriteMulti(
  *
  * @param[in]   pdev      : pointer to device structure (device handle)
  * @param[in]   index     : uint16_t register index value
- * @param[out]  pdata     : pointer to the uint8_t (byte) buffer to store read data
+ * @param[out]  pdat     : pointer to the uint8_t (byte) buffer to store read data
  * @param[in]   count     : number of bytes to read
  *
  * @return   VL53L1_ERROR_NONE    Success
@@ -94,7 +94,7 @@ VL53L1_Error VL53L1_WriteMulti(
 VL53L1_Error VL53L1_ReadMulti(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint8_t      *pdata,
+		uint8_t      *pdat,
 		uint32_t      count);
 
 
@@ -161,7 +161,7 @@ VL53L1_Error VL53L1_WrDWord(
  *
  * @param[in]   pdev      : pointer to device structure (device handle)
  * @param[in]   index     : uint16_t register index
- * @param[out]  pdata     : pointer to uint8_t data value
+ * @param[out]  pdat     : pointer to uint8_t data value
  *
  * @return   VL53L1_ERROR_NONE    Success
  * @return  "Other error code"    See ::VL53L1_Error
@@ -171,7 +171,7 @@ VL53L1_Error VL53L1_WrDWord(
 VL53L1_Error VL53L1_RdByte(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint8_t      *pdata);
+		uint8_t      *pdat);
 
 
 /**
@@ -181,7 +181,7 @@ VL53L1_Error VL53L1_RdByte(
  *
  * @param[in]   pdev      : pointer to device structure (device handle)
  * @param[in]   index     : uint16_t register index value
- * @param[out]  pdata     : pointer to uint16_t data value
+ * @param[out]  pdat     : pointer to uint16_t data value
  *
  * @return   VL53L1_ERROR_NONE    Success
  * @return  "Other error code"    See ::VL53L1_Error
@@ -190,7 +190,7 @@ VL53L1_Error VL53L1_RdByte(
 VL53L1_Error VL53L1_RdWord(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint16_t     *pdata);
+		uint16_t     *pdat);
 
 
 /**
@@ -200,7 +200,7 @@ VL53L1_Error VL53L1_RdWord(
  *
  * @param[in]   pdev      : pointer to device structure (device handle)
  * @param[in]   index     : uint16_t register index value
- * @param[out]  pdata     : pointer to uint32_t data value
+ * @param[out]  pdat     : pointer to uint32_t data value
  *
  * @return   VL53L1_ERROR_NONE    Success
  * @return  "Other error code"    See ::VL53L1_Error
@@ -209,7 +209,7 @@ VL53L1_Error VL53L1_RdWord(
 VL53L1_Error VL53L1_RdDWord(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint32_t     *pdata);
+		uint32_t     *pdat);
 
 
 
