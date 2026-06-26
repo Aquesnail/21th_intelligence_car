@@ -37,10 +37,10 @@ typedef struct {
 } DebugObj_t;
 
 /* ================= 静态变量 ================= */
-static DebugObj_t debugTable[MAX_DEBUG_VARS] = {0};
+static DebugObj_t debugTable[MAX_DEBUG_VARS];
 static uint8_t debugVarCount = 0;
-static uint8_t xdata txPkt[TX_BUF_SIZE] = {0}; // 统一发送缓冲
-static char xdata print_buf[512] = {0};
+static uint8_t xdata txPkt[TX_BUF_SIZE]; // 统一发送缓冲
+static char xdata print_buf[512];
 
 /*================== 互斥锁   ================= */
 
@@ -286,7 +286,7 @@ static void Debug_SendBulkHighFreqPacket(void) {
 }
 
 // [核心精简] 统一接收处理
-static uint8_t xdata rxBuf[RX_BUF_SIZE] = {0};
+static uint8_t xdata rxBuf[RX_BUF_SIZE];
 static void Debug_ProcessIncoming(void) {
     
     uint16_t crc_calc, crc_recv;
@@ -403,6 +403,10 @@ static void Debug_ProcessIncoming(void) {
 /*================== 初始化 =================== */
 
 void Debug_Init(debug_port_t* debug_port_initstruct){
+    memset(debugTable, 0, sizeof(debugTable));
+    memset(txPkt, 0, sizeof(txPkt));
+    memset(print_buf, 0, sizeof(print_buf));
+    memset(rxBuf, 0, sizeof(rxBuf));
     if(debug_port_initstruct!=NULL)
         debug_init_struct = debug_port_initstruct;
     xLogMutex = xSemaphoreCreateMutex();

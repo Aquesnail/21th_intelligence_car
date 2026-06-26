@@ -19,17 +19,19 @@
 #include "config.h"
 
 /*
- * ─── C251 keyword workarounds ───
- * 'pdat' and 'data' are Keil C251 memory-space keywords.
- * ST driver headers use them as parameter/local-variable names
- * pervasively. These macros transparently rename every occurrence.
+ * ——— C251 keyword workarounds ———
  *
- * Safe: the project uses LARGE memory model and never uses 'pdat'
- *       or 'data' as memory-space qualifiers.
- *       Struct fields use capital-D 'Data' (unaffected).
+ * 'data' and 'pdat' are Keil C251 memory-space keywords.
+ * ST driver sources use them pervasively as variable/parameter names.
+ *
+ * All occurrences in the VL53L1X driver source files have been renamed:
+ *   data  → dat
+ *   pdat  → p_data
+ *
+ * This avoids the fragile global-macro approach (#define data _data)
+ * which breaks any third-party header that uses 'data' as a C251
+ * memory-space qualifier (e.g. FreeRTOS portmacro.h).
  */
-#define pdat _pdat
-#define data  _data
 
 #include <stddef.h>
 #include <string.h>

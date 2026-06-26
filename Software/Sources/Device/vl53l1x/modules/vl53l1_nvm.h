@@ -43,7 +43,7 @@ VL53L1_Error VL53L1_nvm_read(
 	VL53L1_DEV     Dev,
 	uint8_t        start_address,
 	uint8_t        count,
-	uint8_t       *pdat);
+	uint8_t       *p_data);
 
 
 
@@ -57,7 +57,7 @@ VL53L1_Error VL53L1_nvm_disable(
 VL53L1_Error VL53L1_nvm_format_decode(
 	uint16_t                   buf_size,
 	uint8_t                   *pbuffer,
-	VL53L1_decoded_nvm_data_t *pdat);
+	VL53L1_decoded_nvm_data_t *p_data);
 
 
 
@@ -65,7 +65,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 VL53L1_Error VL53L1_nvm_decode_optical_centre(
 	uint16_t                             buf_size,
 	uint8_t                             *pbuffer,
-	VL53L1_optical_centre_t             *pdat);
+	VL53L1_optical_centre_t             *p_data);
 
 
 
@@ -73,7 +73,7 @@ VL53L1_Error VL53L1_nvm_decode_optical_centre(
 VL53L1_Error VL53L1_nvm_decode_cal_peak_rate_map(
 	uint16_t                             buf_size,
 	uint8_t                             *pbuffer,
-	VL53L1_cal_peak_rate_map_t          *pdat);
+	VL53L1_cal_peak_rate_map_t          *p_data);
 
 
 
@@ -81,7 +81,7 @@ VL53L1_Error VL53L1_nvm_decode_cal_peak_rate_map(
 VL53L1_Error VL53L1_nvm_decode_additional_offset_cal_data(
 	uint16_t                             buf_size,
 	uint8_t                             *pbuffer,
-	VL53L1_additional_offset_cal_data_t *pdat);
+	VL53L1_additional_offset_cal_data_t *p_data);
 
 
 
@@ -89,7 +89,7 @@ VL53L1_Error VL53L1_nvm_decode_additional_offset_cal_data(
 VL53L1_Error VL53L1_nvm_decode_fmt_range_results_data(
 	uint16_t                             buf_size,
 	uint8_t                             *pbuffer,
-	VL53L1_decoded_nvm_fmt_range_data_t *pdat);
+	VL53L1_decoded_nvm_fmt_range_data_t *p_data);
 
 
 
@@ -97,7 +97,7 @@ VL53L1_Error VL53L1_nvm_decode_fmt_range_results_data(
 VL53L1_Error VL53L1_nvm_decode_fmt_info(
 	uint16_t                       buf_size,
 	uint8_t                       *pbuffer,
-	VL53L1_decoded_nvm_fmt_info_t *pdat);
+	VL53L1_decoded_nvm_fmt_info_t *p_data);
 
 
 
@@ -105,7 +105,7 @@ VL53L1_Error VL53L1_nvm_decode_fmt_info(
 VL53L1_Error VL53L1_nvm_decode_ews_info(
 	uint16_t                       buf_size,
 	uint8_t                       *pbuffer,
-	VL53L1_decoded_nvm_ews_info_t *pdat);
+	VL53L1_decoded_nvm_ews_info_t *p_data);
 
 
 

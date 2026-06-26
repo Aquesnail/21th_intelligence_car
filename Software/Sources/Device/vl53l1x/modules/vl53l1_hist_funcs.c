@@ -79,7 +79,7 @@ VL53L1_Error VL53L1_hist_process_data(
 	VL53L1_histogram_bin_data_t             bins_averaged;
 	VL53L1_histogram_bin_data_t           *pbins_averaged = &bins_averaged;
 
-	VL53L1_range_data_t                   *pdat;
+	VL53L1_range_data_t                   *p_data;
 
 	uint32_t xtalk_rate_kcps               = 0;
 	uint32_t max_xtalk_rate_per_spad_kcps  = 0;
@@ -190,10 +190,10 @@ VL53L1_Error VL53L1_hist_process_data(
 
 
 		if (presults->active_results == 0) {
-			pdat = &(presults->VL53L1_p_002[0]);
-			pdat->ambient_count_rate_mcps =
+			p_data = &(presults->VL53L1_p_002[0]);
+			p_data->ambient_count_rate_mcps =
 				pdmax_algo_gen3->VL53L1_p_001;
-			pdat->VL53L1_p_006 =
+			p_data->VL53L1_p_006 =
 				pdmax_algo_gen3->VL53L1_p_006;
 		}
 
@@ -206,30 +206,30 @@ VL53L1_Error VL53L1_hist_process_data(
 
 		for (t = 0 ; t < presults->active_results ; t++) {
 
-			pdat = &(presults->VL53L1_p_002[t]);
+			p_data = &(presults->VL53L1_p_002[t]);
 
 
 
-			if (pdat->max_range_mm > pdat->min_range_mm)
+			if (p_data->max_range_mm > p_data->min_range_mm)
 				delta_mm =
-					pdat->max_range_mm -
-					pdat->min_range_mm;
+					p_data->max_range_mm -
+					p_data->min_range_mm;
 			else
 				delta_mm =
-					pdat->min_range_mm -
-					pdat->max_range_mm;
+					p_data->min_range_mm -
+					p_data->max_range_mm;
 
 			XtalkDetectMaxSigma =
 				ppost_cfg->algo__crosstalk_detect_max_sigma_mm;
 			XtalkDetectMaxSigma *= (uint32_t)(*HistMergeNumber);
 			XtalkDetectMaxSigma <<= 5;
-			if (pdat->median_range_mm  >
+			if (p_data->median_range_mm  >
 			ppost_cfg->algo__crosstalk_detect_min_valid_range_mm &&
-			pdat->median_range_mm  <
+			p_data->median_range_mm  <
 			ppost_cfg->algo__crosstalk_detect_max_valid_range_mm &&
-			pdat->VL53L1_p_012 <
+			p_data->VL53L1_p_012 <
 			max_xtalk_rate_per_spad_kcps &&
-			pdat->VL53L1_p_005 < XtalkDetectMaxSigma &&
+			p_data->VL53L1_p_005 < XtalkDetectMaxSigma &&
 			delta_mm <
 			ppost_cfg->algo__crosstalk_detect_min_max_tolerance) {
 
@@ -237,7 +237,7 @@ VL53L1_Error VL53L1_hist_process_data(
 
 				memcpy(
 					&(presults->xmonitor),
-					pdat,
+					p_data,
 					sizeof(VL53L1_range_data_t));
 
 			}

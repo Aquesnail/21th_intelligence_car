@@ -11,6 +11,7 @@
 #include "debug_arch.h"
 #include "storage_port.h"
 #include <stdarg.h>
+#include <string.h>
 #include "timer.h"
 
 
@@ -31,10 +32,10 @@ uint16_t icm_fifo_ths = 0;            /* FIFO阈值 */
 
 SemaphoreHandle_t xDmaSemaphore = NULL;
 TaskHandle_t   xImuTaskHandle = NULL;
-static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1] = {0};
-static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1] = {0};
+static uint8_t xdata FIFO_RxBuffer[FIFO_Packets*16 +1];
+static uint8_t xdata FIFO_TxBuffer[FIFO_Packets*16 +1];
 IMU_Filter_t *IMU_Filter_Data = NULL;
-static ICM42688_Pack16_t IMU_Dat = {0};
+static ICM42688_Pack16_t IMU_Dat;
 
 extern SemaphoreHandle_t xDebugReadySignal;
 
@@ -239,6 +240,9 @@ void vIMUProcessTask(void *pvParameters) {
 extern UserParams_t *UserParams;
 
 void IMU_Init() {
+    memset(FIFO_RxBuffer, 0, sizeof(FIFO_RxBuffer));
+    memset(FIFO_TxBuffer, 0, sizeof(FIFO_TxBuffer));
+    memset(&IMU_Dat, 0, sizeof(IMU_Dat));
     xTaskCreate(vIMUProcessTask, "IMU", 728, NULL, tskIDLE_PRIORITY + 4, NULL);
 
 		//Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));

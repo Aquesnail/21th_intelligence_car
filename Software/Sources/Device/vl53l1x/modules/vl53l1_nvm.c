@@ -124,7 +124,7 @@ VL53L1_Error VL53L1_nvm_read(
 	VL53L1_DEV    Dev,
 	uint8_t       start_address,
 	uint8_t       count,
-	uint8_t      *pdat)
+	uint8_t      *p_data)
 {
 
 
@@ -180,17 +180,17 @@ VL53L1_Error VL53L1_nvm_read(
 			status = VL53L1_ReadMulti(
 				Dev,
 				VL53L1_RANGING_CORE__NVM_CTRL__DATAOUT_MMM,
-				pdat,
+				p_data,
 				4);
 
 		trace_print(
 			VL53L1_TRACE_LEVEL_INFO,
 			"NVM address : 0x%02X = 0x%02X%02X%02X%02X\n",
-			nvm_addr, *pdat, *(pdat+1), *(pdat+2), *(pdat+3));
+			nvm_addr, *p_data, *(p_data+1), *(p_data+2), *(p_data+3));
 
 
 
-		pdat = pdat + 4;
+		p_data = p_data + 4;
 
 
 	}
@@ -244,7 +244,7 @@ VL53L1_Error VL53L1_nvm_disable(
 VL53L1_Error VL53L1_nvm_format_decode(
 	uint16_t                   buf_size,
 	uint8_t                   *pbuffer,
-	VL53L1_decoded_nvm_data_t *pdat)
+	VL53L1_decoded_nvm_data_t *p_data)
 {
 
 
@@ -260,49 +260,49 @@ VL53L1_Error VL53L1_nvm_format_decode(
 	if (buf_size < VL53L1_NVM_SIZE_IN_BYTES)
 		return VL53L1_ERROR_BUFFER_TOO_SMALL;
 
-	pdat->nvm__identification_model_id =
+	p_data->nvm__identification_model_id =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__IDENTIFICATION__MODEL_ID,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__identification_module_type =
+	p_data->nvm__identification_module_type =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__IDENTIFICATION__MODULE_TYPE,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__identification_revision_id =
+	p_data->nvm__identification_revision_id =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__IDENTIFICATION__REVISION_ID,
 			0x0000000F,
 			0,
 			0);
-	pdat->nvm__identification_module_id =
+	p_data->nvm__identification_module_id =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__IDENTIFICATION__MODULE_ID,
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__i2c_valid =
+	p_data->nvm__i2c_valid =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__I2C_VALID,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__i2c_device_address_ews =
+	p_data->nvm__i2c_device_address_ews =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__I2C_SLAVE__DEVICE_ADDRESS,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__ews__fast_osc_frequency =
+	p_data->nvm__ews__fast_osc_frequency =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer +
@@ -310,28 +310,28 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__ews__fast_osc_trim_max =
+	p_data->nvm__ews__fast_osc_trim_max =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__FAST_OSC_TRIM_MAX,
 			0x0000007F,
 			0,
 			0);
-	pdat->nvm__ews__fast_osc_freq_set =
+	p_data->nvm__ews__fast_osc_freq_set =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__FAST_OSC_FREQ_SET,
 			0x00000007,
 			0,
 			0);
-	pdat->nvm__ews__slow_osc_calibration =
+	p_data->nvm__ews__slow_osc_calibration =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__EWS__SLOW_OSC_CALIBRATION,
 			0x000003FF,
 			0,
 			0);
-	pdat->nvm__fmt__fast_osc_frequency =
+	p_data->nvm__fmt__fast_osc_frequency =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer +
@@ -339,63 +339,63 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__fmt__fast_osc_trim_max =
+	p_data->nvm__fmt__fast_osc_trim_max =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FAST_OSC_TRIM_MAX,
 			0x0000007F,
 			0,
 			0);
-	pdat->nvm__fmt__fast_osc_freq_set =
+	p_data->nvm__fmt__fast_osc_freq_set =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FAST_OSC_FREQ_SET,
 			0x00000007,
 			0,
 			0);
-	pdat->nvm__fmt__slow_osc_calibration =
+	p_data->nvm__fmt__slow_osc_calibration =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__FMT__SLOW_OSC_CALIBRATION,
 			0x000003FF,
 			0,
 			0);
-	pdat->nvm__vhv_config_unlock =
+	p_data->nvm__vhv_config_unlock =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__VHV_CONFIG_UNLOCK,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__ref_selvddpix =
+	p_data->nvm__ref_selvddpix =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__REF_SELVDDPIX,
 			0x0000000F,
 			0,
 			0);
-	pdat->nvm__ref_selvquench =
+	p_data->nvm__ref_selvquench =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__REF_SELVQUENCH,
 			0x00000078,
 			3,
 			0);
-	pdat->nvm__regavdd1v2_sel =
+	p_data->nvm__regavdd1v2_sel =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__REGAVDD1V2_SEL_REGDVDD1V2_SEL,
 			0x0000000C,
 			2,
 			0);
-	pdat->nvm__regdvdd1v2_sel =
+	p_data->nvm__regdvdd1v2_sel =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__REGAVDD1V2_SEL_REGDVDD1V2_SEL,
 			0x00000003,
 			0,
 			0);
-	pdat->nvm__vhv_timeout__macrop =
+	p_data->nvm__vhv_timeout__macrop =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer +
@@ -403,7 +403,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x00000003,
 			0,
 			0);
-	pdat->nvm__vhv_loop_bound =
+	p_data->nvm__vhv_loop_bound =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer +
@@ -411,112 +411,112 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x000000FC,
 			2,
 			0);
-	pdat->nvm__vhv_count_threshold =
+	p_data->nvm__vhv_count_threshold =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__VHV_CONFIG__COUNT_THRESH,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__vhv_offset =
+	p_data->nvm__vhv_offset =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__VHV_CONFIG__OFFSET,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__vhv_init_enable =
+	p_data->nvm__vhv_init_enable =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__VHV_CONFIG__INIT,
 			0x00000080,
 			7,
 			0);
-	pdat->nvm__vhv_init_value =
+	p_data->nvm__vhv_init_value =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__VHV_CONFIG__INIT,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_vcsel_trim_ll =
+	p_data->nvm__laser_safety_vcsel_trim_ll =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__VCSEL_TRIM_LL,
 			0x00000007,
 			0,
 			0);
-	pdat->nvm__laser_safety_vcsel_selion_ll =
+	p_data->nvm__laser_safety_vcsel_selion_ll =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__VCSEL_SELION_LL,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_vcsel_selion_max_ll =
+	p_data->nvm__laser_safety_vcsel_selion_max_ll =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__VCSEL_SELION_MAX_LL,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_mult_ll =
+	p_data->nvm__laser_safety_mult_ll =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__MULT_LL,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_clip_ll =
+	p_data->nvm__laser_safety_clip_ll =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__CLIP_LL,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_vcsel_trim_ld =
+	p_data->nvm__laser_safety_vcsel_trim_ld =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__VCSEL_TRIM_LD,
 			0x00000007,
 			0,
 			0);
-	pdat->nvm__laser_safety_vcsel_selion_ld =
+	p_data->nvm__laser_safety_vcsel_selion_ld =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__VCSEL_SELION_LD,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_vcsel_selion_max_ld =
+	p_data->nvm__laser_safety_vcsel_selion_max_ld =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__VCSEL_SELION_MAX_LD,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_mult_ld =
+	p_data->nvm__laser_safety_mult_ld =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__MULT_LD,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_clip_ld =
+	p_data->nvm__laser_safety_clip_ld =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY__CLIP_LD,
 			0x0000003F,
 			0,
 			0);
-	pdat->nvm__laser_safety_lock_byte =
+	p_data->nvm__laser_safety_lock_byte =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY_LOCK_BYTE,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__laser_safety_unlock_byte =
+	p_data->nvm__laser_safety_unlock_byte =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__LASER_SAFETY_UNLOCK_BYTE,
@@ -528,40 +528,40 @@ VL53L1_Error VL53L1_nvm_format_decode(
 
 	ptmp = pbuffer + VL53L1_NVM__EWS__SPAD_ENABLES_RTN_0_;
 	for (i = 0 ; i < VL53L1_RTN_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__ews__spad_enables_rtn[i] = *ptmp++;
+		p_data->nvm__ews__spad_enables_rtn[i] = *ptmp++;
 
 	ptmp = pbuffer + VL53L1_NVM__EWS__SPAD_ENABLES_REF__LOC1_0_;
 	for (i = 0 ; i < VL53L1_REF_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__ews__spad_enables_ref__loc1[i] = *ptmp++;
+		p_data->nvm__ews__spad_enables_ref__loc1[i] = *ptmp++;
 
 	ptmp = pbuffer + VL53L1_NVM__EWS__SPAD_ENABLES_REF__LOC2_0_;
 	for (i = 0 ; i < VL53L1_REF_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__ews__spad_enables_ref__loc2[i] = *ptmp++;
+		p_data->nvm__ews__spad_enables_ref__loc2[i] = *ptmp++;
 
 	ptmp = pbuffer + VL53L1_NVM__EWS__SPAD_ENABLES_REF__LOC3_0_;
 	for (i = 0 ; i < VL53L1_REF_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__ews__spad_enables_ref__loc3[i] = *ptmp++;
+		p_data->nvm__ews__spad_enables_ref__loc3[i] = *ptmp++;
 
 
 
 	ptmp = pbuffer + VL53L1_NVM__FMT__SPAD_ENABLES_RTN_0_;
 	for (i = 0 ; i < VL53L1_RTN_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__fmt__spad_enables_rtn[i] = *ptmp++;
+		p_data->nvm__fmt__spad_enables_rtn[i] = *ptmp++;
 
 	ptmp = pbuffer + VL53L1_NVM__FMT__SPAD_ENABLES_REF__LOC1_0_;
 	for (i = 0 ; i < VL53L1_REF_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__fmt__spad_enables_ref__loc1[i] = *ptmp++;
+		p_data->nvm__fmt__spad_enables_ref__loc1[i] = *ptmp++;
 
 	ptmp = pbuffer + VL53L1_NVM__FMT__SPAD_ENABLES_REF__LOC2_0_;
 	for (i = 0 ; i < VL53L1_REF_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__fmt__spad_enables_ref__loc2[i] = *ptmp++;
+		p_data->nvm__fmt__spad_enables_ref__loc2[i] = *ptmp++;
 
 	ptmp = pbuffer + VL53L1_NVM__FMT__SPAD_ENABLES_REF__LOC3_0_;
 	for (i = 0 ; i < VL53L1_REF_SPAD_BUFFER_SIZE ; i++)
-		pdat->nvm__fmt__spad_enables_ref__loc3[i] = *ptmp++;
+		p_data->nvm__fmt__spad_enables_ref__loc3[i] = *ptmp++;
 
 
-	pdat->nvm__fmt__roi_config__mode_roi_centre_spad =
+	p_data->nvm__fmt__roi_config__mode_roi_centre_spad =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer +
@@ -569,7 +569,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__fmt__roi_config__mode_roi_x_size =
+	p_data->nvm__fmt__roi_config__mode_roi_x_size =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer +
@@ -577,14 +577,14 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x000000F0,
 			4,
 			0);
-	pdat->nvm__fmt__roi_config__mode_roi_y_size =
+	p_data->nvm__fmt__roi_config__mode_roi_y_size =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__ROI_CONFIG__MODE_ROI_XY_SIZE,
 			0x0000000F,
 			0,
 			0);
-	pdat->nvm__fmt__ref_spad_apply__num_requested_ref_spad =
+	p_data->nvm__fmt__ref_spad_apply__num_requested_ref_spad =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer +
@@ -592,28 +592,28 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__fmt__ref_spad_man__ref_location =
+	p_data->nvm__fmt__ref_spad_man__ref_location =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__REF_SPAD_MAN__REF_LOCATION,
 			0x00000003,
 			0,
 			0);
-	pdat->nvm__fmt__mm_config__inner_offset_mm =
+	p_data->nvm__fmt__mm_config__inner_offset_mm =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__FMT__MM_CONFIG__INNER_OFFSET_MM,
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__fmt__mm_config__outer_offset_mm =
+	p_data->nvm__fmt__mm_config__outer_offset_mm =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__FMT__MM_CONFIG__OUTER_OFFSET_MM,
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__fmt__algo_part_to_part_range_offset_mm =
+	p_data->nvm__fmt__algo_part_to_part_range_offset_mm =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer +
@@ -621,7 +621,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x00000FFF,
 			0,
 			0);
-	pdat->nvm__fmt__algo__crosstalk_compensation_plane_offset_kcps =
+	p_data->nvm__fmt__algo__crosstalk_compensation_plane_offset_kcps =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 		2,
 		pbuffer +
@@ -629,7 +629,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 		0x0000FFFF,
 		0,
 		0);
-	pdat->nvm__fmt__algo__crosstalk_compensation_x_plane_gradient_kcps =
+	p_data->nvm__fmt__algo__crosstalk_compensation_x_plane_gradient_kcps =
 	(uint16_t)VL53L1_i2c_decode_with_mask(
 	2,
 	pbuffer +
@@ -637,7 +637,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 	0x0000FFFF,
 	0,
 	0);
-	pdat->nvm__fmt__algo__crosstalk_compensation_y_plane_gradient_kcps =
+	p_data->nvm__fmt__algo__crosstalk_compensation_y_plane_gradient_kcps =
 	(uint16_t)VL53L1_i2c_decode_with_mask(
 	2,
 	pbuffer +
@@ -645,7 +645,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 	0x0000FFFF,
 	0,
 	0);
-	pdat->nvm__fmt__spare__host_config__nvm_config_spare_0 =
+	p_data->nvm__fmt__spare__host_config__nvm_config_spare_0 =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer +
@@ -653,7 +653,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__fmt__spare__host_config__nvm_config_spare_1 =
+	p_data->nvm__fmt__spare__host_config__nvm_config_spare_1 =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer +
@@ -661,21 +661,21 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__customer_space_programmed =
+	p_data->nvm__customer_space_programmed =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__CUSTOMER_NVM_SPACE_PROGRAMMED,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__cust__i2c_device_address =
+	p_data->nvm__cust__i2c_device_address =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__CUST__I2C_SLAVE__DEVICE_ADDRESS,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__cust__ref_spad_apply__num_requested_ref_spad =
+	p_data->nvm__cust__ref_spad_apply__num_requested_ref_spad =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 		1,
 		pbuffer +
@@ -683,28 +683,28 @@ VL53L1_Error VL53L1_nvm_format_decode(
 		0x000000FF,
 		0,
 		0);
-	pdat->nvm__cust__ref_spad_man__ref_location =
+	p_data->nvm__cust__ref_spad_man__ref_location =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__CUST__REF_SPAD_MAN__REF_LOCATION,
 			0x00000003,
 			0,
 			0);
-	pdat->nvm__cust__mm_config__inner_offset_mm =
+	p_data->nvm__cust__mm_config__inner_offset_mm =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__CUST__MM_CONFIG__INNER_OFFSET_MM,
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__cust__mm_config__outer_offset_mm =
+	p_data->nvm__cust__mm_config__outer_offset_mm =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__CUST__MM_CONFIG__OUTER_OFFSET_MM,
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__cust__algo_part_to_part_range_offset_mm =
+	p_data->nvm__cust__algo_part_to_part_range_offset_mm =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer +
@@ -712,7 +712,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			0x00000FFF,
 			0,
 			0);
-	pdat->nvm__cust__algo__crosstalk_compensation_plane_offset_kcps =
+	p_data->nvm__cust__algo__crosstalk_compensation_plane_offset_kcps =
 	(uint16_t)VL53L1_i2c_decode_with_mask(
 	2,
 	pbuffer +
@@ -720,7 +720,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 	0x0000FFFF,
 	0,
 	0);
-	pdat->nvm__cust__algo__crosstalk_compensation_x_plane_gradient_kcps =
+	p_data->nvm__cust__algo__crosstalk_compensation_x_plane_gradient_kcps =
 	(uint16_t)VL53L1_i2c_decode_with_mask(
 	2,
 	pbuffer +
@@ -728,7 +728,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 	0x0000FFFF,
 	0,
 	0);
-	pdat->nvm__cust__algo__crosstalk_compensation_y_plane_gradient_kcps =
+	p_data->nvm__cust__algo__crosstalk_compensation_y_plane_gradient_kcps =
 	(uint16_t)VL53L1_i2c_decode_with_mask(
 	2,
 	pbuffer +
@@ -736,14 +736,14 @@ VL53L1_Error VL53L1_nvm_format_decode(
 	0x0000FFFF,
 	0,
 	0);
-	pdat->nvm__cust__spare__host_config__nvm_config_spare_0 =
+	p_data->nvm__cust__spare__host_config__nvm_config_spare_0 =
 	(uint8_t)VL53L1_i2c_decode_with_mask(
 	1,
 	pbuffer + VL53L1_NVM__CUST__SPARE_HOST_CONFIG__NVM_CONFIG_SPARE_0,
 	0x000000FF,
 	0,
 	0);
-	pdat->nvm__cust__spare__host_config__nvm_config_spare_1 =
+	p_data->nvm__cust__spare__host_config__nvm_config_spare_1 =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 		1,
 		pbuffer +
@@ -759,7 +759,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 		VL53L1_nvm_decode_optical_centre(
 			buf_size,
 			pbuffer + VL53L1_NVM__FMT__OPTICAL_CENTRE_DATA_INDEX,
-			&(pdat->fmt_optical_centre));
+			&(p_data->fmt_optical_centre));
 
 
 
@@ -768,7 +768,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 		VL53L1_nvm_decode_cal_peak_rate_map(
 			buf_size,
 			pbuffer + VL53L1_NVM__FMT__CAL_PEAK_RATE_MAP_DATA_INDEX,
-			&(pdat->fmt_peak_rate_map));
+			&(p_data->fmt_peak_rate_map));
 
 
 
@@ -778,7 +778,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			buf_size,
 			pbuffer +
 			VL53L1_NVM__FMT__ADDITIONAL_OFFSET_CAL_DATA_INDEX,
-			&(pdat->fmt_add_offset_data));
+			&(p_data->fmt_add_offset_data));
 
 
 
@@ -793,7 +793,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 				VL53L1_nvm_decode_fmt_range_results_data(
 					buf_size,
 					pbuffer + pptmp[i],
-					&(pdat->fmt_range_data[i]));
+					&(p_data->fmt_range_data[i]));
 	}
 
 
@@ -802,14 +802,14 @@ VL53L1_Error VL53L1_nvm_format_decode(
 			VL53L1_nvm_decode_fmt_info(
 				buf_size,
 				pbuffer,
-				&(pdat->fmt_info));
+				&(p_data->fmt_info));
 
 	if (status == VL53L1_ERROR_NONE)
 		status =
 			VL53L1_nvm_decode_ews_info(
 				buf_size,
 				pbuffer,
-				&(pdat->ews_info));
+				&(p_data->ews_info));
 
 	LOG_FUNCTION_END(status);
 
@@ -821,7 +821,7 @@ VL53L1_Error VL53L1_nvm_format_decode(
 VL53L1_Error VL53L1_nvm_decode_optical_centre(
 	uint16_t                    buf_size,
 	uint8_t                    *pbuffer,
-	VL53L1_optical_centre_t    *pdat)
+	VL53L1_optical_centre_t    *p_data)
 {
 
 	VL53L1_Error status   = VL53L1_ERROR_NONE;
@@ -837,8 +837,8 @@ VL53L1_Error VL53L1_nvm_decode_optical_centre(
 	if (tmp > 0x0FF)
 		tmp = 0;
 
-	pdat->x_centre = (uint8_t)tmp;
-	pdat->y_centre = *(pbuffer + 3);
+	p_data->x_centre = (uint8_t)tmp;
+	p_data->y_centre = *(pbuffer + 3);
 
 	return status;
 }
@@ -847,7 +847,7 @@ VL53L1_Error VL53L1_nvm_decode_optical_centre(
 VL53L1_Error VL53L1_nvm_decode_cal_peak_rate_map(
 	uint16_t                    buf_size,
 	uint8_t                    *pbuffer,
-	VL53L1_cal_peak_rate_map_t *pdat)
+	VL53L1_cal_peak_rate_map_t *p_data)
 {
 
 	VL53L1_Error status   = VL53L1_ERROR_NONE;
@@ -858,21 +858,21 @@ VL53L1_Error VL53L1_nvm_decode_cal_peak_rate_map(
 	if (buf_size < VL53L1_NVM__FMT__CAL_PEAK_RATE_MAP_DATA_SIZE)
 		return VL53L1_ERROR_BUFFER_TOO_SMALL;
 
-	pdat->cal_distance_mm =
+	p_data->cal_distance_mm =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer);
 
-	pdat->cal_reflectance_pc =
+	p_data->cal_reflectance_pc =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 2);
-	pdat->cal_reflectance_pc =
-		pdat->cal_reflectance_pc >> 6;
+	p_data->cal_reflectance_pc =
+		p_data->cal_reflectance_pc >> 6;
 
-	pdat->max_samples = VL53L1_NVM_PEAK_RATE_MAP_SAMPLES;
-	pdat->width       = VL53L1_NVM_PEAK_RATE_MAP_WIDTH;
-	pdat->height      = VL53L1_NVM_PEAK_RATE_MAP_HEIGHT;
+	p_data->max_samples = VL53L1_NVM_PEAK_RATE_MAP_SAMPLES;
+	p_data->width       = VL53L1_NVM_PEAK_RATE_MAP_WIDTH;
+	p_data->height      = VL53L1_NVM_PEAK_RATE_MAP_HEIGHT;
 
 	ptmp = pbuffer + 4;
 	for (i = 0 ; i < VL53L1_NVM_PEAK_RATE_MAP_SAMPLES ; i++) {
-		pdat->peak_rate_mcps[i] =
+		p_data->peak_rate_mcps[i] =
 			(uint16_t)VL53L1_i2c_decode_uint16_t(2, ptmp);
 		ptmp += 2;
 	}
@@ -884,7 +884,7 @@ VL53L1_Error VL53L1_nvm_decode_cal_peak_rate_map(
 VL53L1_Error VL53L1_nvm_decode_additional_offset_cal_data(
 	uint16_t                             buf_size,
 	uint8_t                             *pbuffer,
-	VL53L1_additional_offset_cal_data_t *pdat)
+	VL53L1_additional_offset_cal_data_t *p_data)
 {
 
 	VL53L1_Error status   = VL53L1_ERROR_NONE;
@@ -892,16 +892,16 @@ VL53L1_Error VL53L1_nvm_decode_additional_offset_cal_data(
 	if (buf_size < VL53L1_NVM__FMT__ADDITIONAL_OFFSET_CAL_DATA_SIZE)
 		return VL53L1_ERROR_BUFFER_TOO_SMALL;
 
-	pdat->result__mm_inner_actual_effective_spads =
+	p_data->result__mm_inner_actual_effective_spads =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer);
 
-	pdat->result__mm_outer_actual_effective_spads =
+	p_data->result__mm_outer_actual_effective_spads =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 2);
 
-	pdat->result__mm_inner_peak_signal_count_rtn_mcps =
+	p_data->result__mm_inner_peak_signal_count_rtn_mcps =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 4);
 
-	pdat->result__mm_outer_peak_signal_count_rtn_mcps =
+	p_data->result__mm_outer_peak_signal_count_rtn_mcps =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 6);
 
 	return status;
@@ -911,7 +911,7 @@ VL53L1_Error VL53L1_nvm_decode_additional_offset_cal_data(
 VL53L1_Error VL53L1_nvm_decode_fmt_range_results_data(
 	uint16_t                             buf_size,
 	uint8_t                             *pbuffer,
-	VL53L1_decoded_nvm_fmt_range_data_t *pdat)
+	VL53L1_decoded_nvm_fmt_range_data_t *p_data)
 {
 
 	VL53L1_Error status   = VL53L1_ERROR_NONE;
@@ -919,31 +919,31 @@ VL53L1_Error VL53L1_nvm_decode_fmt_range_results_data(
 	if (buf_size < VL53L1_NVM__FMT__RANGE_RESULTS__SIZE_BYTES)
 		return VL53L1_ERROR_BUFFER_TOO_SMALL;
 
-	pdat->result__actual_effective_rtn_spads =
+	p_data->result__actual_effective_rtn_spads =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer);
 
-	pdat->ref_spad_array__num_requested_ref_spads =
+	p_data->ref_spad_array__num_requested_ref_spads =
 		*(pbuffer+2);
 
-	pdat->ref_spad_array__ref_location =
+	p_data->ref_spad_array__ref_location =
 		*(pbuffer+3);
 
-	pdat->result__peak_signal_count_rate_rtn_mcps =
+	p_data->result__peak_signal_count_rate_rtn_mcps =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 4);
 
-	pdat->result__ambient_count_rate_rtn_mcps =
+	p_data->result__ambient_count_rate_rtn_mcps =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 6);
 
-	pdat->result__peak_signal_count_rate_ref_mcps =
+	p_data->result__peak_signal_count_rate_ref_mcps =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 8);
 
-	pdat->result__ambient_count_rate_ref_mcps =
+	p_data->result__ambient_count_rate_ref_mcps =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 10);
 
-	pdat->measured_distance_mm =
+	p_data->measured_distance_mm =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 12);
 
-	pdat->measured_distance_stdev_mm =
+	p_data->measured_distance_stdev_mm =
 		(uint16_t)VL53L1_i2c_decode_uint16_t(2, pbuffer + 14);
 
 	return status;
@@ -953,7 +953,7 @@ VL53L1_Error VL53L1_nvm_decode_fmt_range_results_data(
 VL53L1_Error VL53L1_nvm_decode_fmt_info(
 	uint16_t                       buf_size,
 	uint8_t                       *pbuffer,
-	VL53L1_decoded_nvm_fmt_info_t *pdat)
+	VL53L1_decoded_nvm_fmt_info_t *p_data)
 {
 
 	VL53L1_Error status   = VL53L1_ERROR_NONE;
@@ -961,205 +961,205 @@ VL53L1_Error VL53L1_nvm_decode_fmt_info(
 	if (buf_size < VL53L1_NVM_SIZE_IN_BYTES)
 		return VL53L1_ERROR_BUFFER_TOO_SMALL;
 
-	pdat->nvm__fmt__fgc[0] =
+	p_data->nvm__fmt__fgc[0] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_0,
 			0x000000FE,
 			1,
 			0);
-	pdat->nvm__fmt__fgc[1] =
+	p_data->nvm__fmt__fgc[1] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_1,
 			0x000001FC,
 			2,
 			0);
-	pdat->nvm__fmt__fgc[2] =
+	p_data->nvm__fmt__fgc[2] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_2 - 1,
 			0x000003F8,
 			3,
 			0);
-	pdat->nvm__fmt__fgc[3] =
+	p_data->nvm__fmt__fgc[3] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_3 - 1,
 			0x000007F0,
 			4,
 			0);
-	pdat->nvm__fmt__fgc[4] =
+	p_data->nvm__fmt__fgc[4] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_4 - 1,
 			0x00000FE0,
 			5,
 			0);
-	pdat->nvm__fmt__fgc[5] =
+	p_data->nvm__fmt__fgc[5] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_5 - 1,
 			0x00001FC0,
 			6,
 			0);
-	pdat->nvm__fmt__fgc[6] =
+	p_data->nvm__fmt__fgc[6] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_6 - 1,
 			0x00003F80,
 			7,
 			0);
-	pdat->nvm__fmt__fgc[7] =
+	p_data->nvm__fmt__fgc[7] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_6,
 			0x0000007F,
 			0,
 			0);
-	pdat->nvm__fmt__fgc[8] =
+	p_data->nvm__fmt__fgc[8] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_7,
 			0x000000FE,
 			1,
 			0);
-	pdat->nvm__fmt__fgc[9] =
+	p_data->nvm__fmt__fgc[9] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_8,
 			0x000001FC,
 			2,
 			0);
-	pdat->nvm__fmt__fgc[10] =
+	p_data->nvm__fmt__fgc[10] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_9 - 1,
 			0x000003F8,
 			3,
 			0);
-	pdat->nvm__fmt__fgc[11] =
+	p_data->nvm__fmt__fgc[11] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_10 - 1,
 			0x000007F0,
 			4,
 			0);
-	pdat->nvm__fmt__fgc[12] =
+	p_data->nvm__fmt__fgc[12] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_11 - 1,
 			0x00000FE0,
 			5,
 			0);
-	pdat->nvm__fmt__fgc[13] =
+	p_data->nvm__fmt__fgc[13] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_12 - 1,
 			0x00001FC0,
 			6,
 			0);
-	pdat->nvm__fmt__fgc[14] =
+	p_data->nvm__fmt__fgc[14] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_13 - 1,
 			0x00003F80,
 			7,
 			0);
-	pdat->nvm__fmt__fgc[15] =
+	p_data->nvm__fmt__fgc[15] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_13,
 			0x0000007F,
 			0,
 			0);
-	pdat->nvm__fmt__fgc[16] =
+	p_data->nvm__fmt__fgc[16] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_14,
 			0x000000FE,
 			1,
 			0);
-	pdat->nvm__fmt__fgc[17] =
+	p_data->nvm__fmt__fgc[17] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__FGC__BYTE_15,
 			0x000001FC,
 			2,
 			0);
-	pdat->nvm__fmt__fgc[18] = 0x00;
+	p_data->nvm__fmt__fgc[18] = 0x00;
 
-			pdat->nvm__fmt__test_program_major =
+			p_data->nvm__fmt__test_program_major =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__TEST_PROGRAM_MAJOR_MINOR,
 			0x000000E0,
 			5,
 			0);
-	pdat->nvm__fmt__test_program_minor =
+	p_data->nvm__fmt__test_program_minor =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__TEST_PROGRAM_MAJOR_MINOR,
 			0x0000001F,
 			0,
 			0);
-	pdat->nvm__fmt__map_major =
+	p_data->nvm__fmt__map_major =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__MAP_MAJOR_MINOR,
 			0x000000E0,
 			5,
 			0);
-	pdat->nvm__fmt__map_minor =
+	p_data->nvm__fmt__map_minor =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__MAP_MAJOR_MINOR,
 			0x0000001F,
 			0,
 			0);
-	pdat->nvm__fmt__year =
+	p_data->nvm__fmt__year =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__YEAR_MONTH,
 			0x000000F0,
 			4,
 			0);
-	pdat->nvm__fmt__month =
+	p_data->nvm__fmt__month =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__YEAR_MONTH,
 			0x0000000F,
 			0,
 			0);
-	pdat->nvm__fmt__day =
+	p_data->nvm__fmt__day =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__DAY_MODULE_DATE_PHASE,
 			0x000000F8,
 			3,
 			0);
-	pdat->nvm__fmt__module_date_phase =
+	p_data->nvm__fmt__module_date_phase =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__DAY_MODULE_DATE_PHASE,
 			0x00000007,
 			0,
 			0);
-	pdat->nvm__fmt__time =
+	p_data->nvm__fmt__time =
 		(uint16_t)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__FMT__TIME,
 			0x0000FFFF,
 			0,
 			0);
-	pdat->nvm__fmt__tester_id =
+	p_data->nvm__fmt__tester_id =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__TESTER_ID,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__fmt__site_id =
+	p_data->nvm__fmt__site_id =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__FMT__SITE_ID,
@@ -1174,7 +1174,7 @@ VL53L1_Error VL53L1_nvm_decode_fmt_info(
 VL53L1_Error VL53L1_nvm_decode_ews_info(
 	uint16_t                       buf_size,
 	uint8_t                       *pbuffer,
-	VL53L1_decoded_nvm_ews_info_t *pdat)
+	VL53L1_decoded_nvm_ews_info_t *p_data)
 {
 
 	VL53L1_Error status   = VL53L1_ERROR_NONE;
@@ -1182,84 +1182,84 @@ VL53L1_Error VL53L1_nvm_decode_ews_info(
 	if (buf_size < VL53L1_NVM_SIZE_IN_BYTES)
 		return VL53L1_ERROR_BUFFER_TOO_SMALL;
 
-	pdat->nvm__ews__test_program_major =
+	p_data->nvm__ews__test_program_major =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__TEST_PROGRAM_MAJOR_MINOR,
 			0x000000E0,
 			5,
 			0);
-	pdat->nvm__ews__test_program_minor =
+	p_data->nvm__ews__test_program_minor =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__TEST_PROGRAM_MAJOR_MINOR,
 			0x0000001F,
 			0,
 			0);
-	pdat->nvm__ews__probe_card_major =
+	p_data->nvm__ews__probe_card_major =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__PROBE_CARD_MAJOR_MINOR,
 			0x000000F0,
 			4,
 			0);
-	pdat->nvm__ews__probe_card_minor =
+	p_data->nvm__ews__probe_card_minor =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__PROBE_CARD_MAJOR_MINOR,
 			0x0000000F,
 			0,
 			0);
-	pdat->nvm__ews__tester_id =
+	p_data->nvm__ews__tester_id =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__TESTER_ID,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__ews__lot[0] =
+	p_data->nvm__ews__lot[0] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__LOT__BYTE_0,
 			0x000000FC,
 			2,
 			32);
-	pdat->nvm__ews__lot[1] =
+	p_data->nvm__ews__lot[1] =
 		(char)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__EWS__LOT__BYTE_1 - 1,
 			0x000003F0,
 			4,
 			32);
-	pdat->nvm__ews__lot[2] =
+	p_data->nvm__ews__lot[2] =
 		(char)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__EWS__LOT__BYTE_2 - 1,
 			0x00000FC0,
 			6,
 			32);
-	pdat->nvm__ews__lot[3] =
+	p_data->nvm__ews__lot[3] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__LOT__BYTE_2,
 			0x0000003F,
 			0,
 			32);
-	pdat->nvm__ews__lot[4] =
+	p_data->nvm__ews__lot[4] =
 		(char)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__LOT__BYTE_3,
 			0x000000FC,
 			2,
 			32);
-	pdat->nvm__ews__lot[5] =
+	p_data->nvm__ews__lot[5] =
 		(char)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__EWS__LOT__BYTE_4 - 1,
 			0x000003F0,
 			4,
 			32);
-	pdat->nvm__ews__lot[6] =
+	p_data->nvm__ews__lot[6] =
 		(char)VL53L1_i2c_decode_with_mask(
 			2,
 			pbuffer + VL53L1_NVM__EWS__LOT__BYTE_5 - 1,
@@ -1267,23 +1267,23 @@ VL53L1_Error VL53L1_nvm_decode_ews_info(
 			6,
 			32);
 
-	pdat->nvm__ews__lot[7] = 0x00;
+	p_data->nvm__ews__lot[7] = 0x00;
 
-	pdat->nvm__ews__wafer =
+	p_data->nvm__ews__wafer =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__WAFER,
 			0x0000001F,
 			0,
 			0);
-	pdat->nvm__ews__xcoord =
+	p_data->nvm__ews__xcoord =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__XCOORD,
 			0x000000FF,
 			0,
 			0);
-	pdat->nvm__ews__ycoord =
+	p_data->nvm__ews__ycoord =
 		(uint8_t)VL53L1_i2c_decode_with_mask(
 			1,
 			pbuffer + VL53L1_NVM__EWS__YCOORD,

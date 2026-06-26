@@ -44,7 +44,7 @@ VL53L1_Error VL53L1_f_001(
 	VL53L1_dmax_calibration_data_t	     *pcal,
 	VL53L1_hist_gen3_dmax_config_t	     *pcfg,
 	VL53L1_histogram_bin_data_t          *pbins,
-	VL53L1_hist_gen3_dmax_private_data_t *pdat,
+	VL53L1_hist_gen3_dmax_private_data_t *p_data,
 	int16_t                              *pambient_dmax_mm)
 {
 
@@ -64,14 +64,14 @@ VL53L1_Error VL53L1_f_001(
 
 
 
-	pdat->VL53L1_p_006     = 0x0000;
-	pdat->VL53L1_p_033 = 0x0000;
-	pdat->VL53L1_p_001          = 0x0000;
-	pdat->VL53L1_p_012    = 0x0000;
-	pdat->VL53L1_p_004     = 0x0000;
-	pdat->VL53L1_p_034 = 0x0000;
-	pdat->VL53L1_p_035             = 0;
-	pdat->VL53L1_p_007            = 0;
+	p_data->VL53L1_p_006     = 0x0000;
+	p_data->VL53L1_p_033 = 0x0000;
+	p_data->VL53L1_p_001          = 0x0000;
+	p_data->VL53L1_p_012    = 0x0000;
+	p_data->VL53L1_p_004     = 0x0000;
+	p_data->VL53L1_p_034 = 0x0000;
+	p_data->VL53L1_p_035             = 0;
+	p_data->VL53L1_p_007            = 0;
 
 	*pambient_dmax_mm  = 0;
 
@@ -90,7 +90,7 @@ VL53L1_Error VL53L1_f_001(
 
 
 
-		pdat->VL53L1_p_036  =
+		p_data->VL53L1_p_036  =
 			VL53L1_duration_maths(
 				pll_period_us,
 				1<<4,
@@ -98,36 +98,36 @@ VL53L1_Error VL53L1_f_001(
 				periods_elapsed);
 
 
-		pdat->VL53L1_p_001 =
+		p_data->VL53L1_p_001 =
 			VL53L1_rate_maths(
 				pbins->VL53L1_p_004,
-				pdat->VL53L1_p_036);
+				p_data->VL53L1_p_036);
 
 
 
-		pdat->VL53L1_p_033   =
+		p_data->VL53L1_p_033   =
 			VL53L1_events_per_spad_maths(
 				pbins->VL53L1_p_004,
 				pbins->result__dss_actual_effective_spads,
-				pdat->VL53L1_p_036);
+				p_data->VL53L1_p_036);
 
 
 
-		pdat->VL53L1_p_037 = pcfg->max_effective_spads;
-		pdat->VL53L1_p_006  = pcfg->max_effective_spads;
+		p_data->VL53L1_p_037 = pcfg->max_effective_spads;
+		p_data->VL53L1_p_006  = pcfg->max_effective_spads;
 
-		if (pdat->VL53L1_p_033 > 0) {
+		if (p_data->VL53L1_p_033 > 0) {
 			tmp64   =
 			(uint64_t)pcfg->dss_config__target_total_rate_mcps;
 			tmp64  *= 1000;
 			tmp64 <<= (11+1);
-			tmp32 = pdat->VL53L1_p_033/2;
+			tmp32 = p_data->VL53L1_p_033/2;
 			tmp64  += (uint64_t)tmp32;
 			tmp64 = do_division_u(tmp64,
-				(uint64_t)pdat->VL53L1_p_033);
+				(uint64_t)p_data->VL53L1_p_033);
 
 			if (tmp64 < (uint64_t)pcfg->max_effective_spads)
-				pdat->VL53L1_p_006 = (uint16_t)tmp64;
+				p_data->VL53L1_p_006 = (uint16_t)tmp64;
 		}
 	}
 
@@ -147,14 +147,14 @@ VL53L1_Error VL53L1_f_001(
 		tmp64  = do_division_u(tmp64,
 			(uint64_t)pcal->ref__actual_effective_spads);
 
-		pdat->VL53L1_p_012   = (uint32_t)tmp64;
-		pdat->VL53L1_p_012 <<= 4;
+		p_data->VL53L1_p_012   = (uint32_t)tmp64;
+		p_data->VL53L1_p_012 <<= 4;
 
 
 
-		tmp64   = (uint64_t)pdat->VL53L1_p_036;
-		tmp64  *= (uint64_t)pdat->VL53L1_p_033;
-		tmp64  *= (uint64_t)pdat->VL53L1_p_006;
+		tmp64   = (uint64_t)p_data->VL53L1_p_036;
+		tmp64  *= (uint64_t)p_data->VL53L1_p_033;
+		tmp64  *= (uint64_t)p_data->VL53L1_p_006;
 		tmp64  += (1<<(11+7));
 		tmp64 >>= (11+8);
 		tmp64  +=  500;
@@ -164,13 +164,13 @@ VL53L1_Error VL53L1_f_001(
 		if (tmp64 > 0x00FFFFFF)
 			tmp64 = 0x00FFFFFF;
 
-		pdat->VL53L1_p_004 = (uint32_t)tmp64;
+		p_data->VL53L1_p_004 = (uint32_t)tmp64;
 
 
 
-		tmp64   = (uint64_t)pdat->VL53L1_p_036;
-		tmp64  *= (uint64_t)pdat->VL53L1_p_012;
-		tmp64  *= (uint64_t)pdat->VL53L1_p_006;
+		tmp64   = (uint64_t)p_data->VL53L1_p_036;
+		tmp64  *= (uint64_t)p_data->VL53L1_p_012;
+		tmp64  *= (uint64_t)p_data->VL53L1_p_006;
 		tmp64  += (1<<(11+7));
 		tmp64 >>= (11+8);
 
@@ -190,21 +190,21 @@ VL53L1_Error VL53L1_f_001(
 		if (tmp64 > 0x00FFFFFF)
 			tmp64 = 0x00FFFFFF;
 
-		pdat->VL53L1_p_034 = (uint32_t)tmp64;
+		p_data->VL53L1_p_034 = (uint32_t)tmp64;
 
 
 
-		tmp32  = VL53L1_isqrt(pdat->VL53L1_p_004 << 8);
+		tmp32  = VL53L1_isqrt(p_data->VL53L1_p_004 << 8);
 		tmp32 *= (uint32_t)pcfg->ambient_thresh_sigma;
 
 
 
-		if (pdat->VL53L1_p_004 <
+		if (p_data->VL53L1_p_004 <
 			(uint32_t)pcfg->min_ambient_thresh_events) {
 
 			amb_thres_delta =
 				pcfg->min_ambient_thresh_events -
-				(uint32_t)pdat->VL53L1_p_004;
+				(uint32_t)p_data->VL53L1_p_004;
 
 
 			amb_thres_delta <<= 8;
@@ -215,21 +215,21 @@ VL53L1_Error VL53L1_f_001(
 
 
 
-		pdat->VL53L1_p_007 =
+		p_data->VL53L1_p_007 =
 			(int16_t)VL53L1_f_002(
 				tmp32,
-				pdat->VL53L1_p_034,
+				p_data->VL53L1_p_034,
 				(uint32_t)pcal->ref__distance_mm,
 				(uint32_t)pcfg->signal_thresh_sigma);
 
 
 
-		tmp32  = (uint32_t)pdat->VL53L1_p_034;
+		tmp32  = (uint32_t)p_data->VL53L1_p_034;
 		tmp32 *= (uint32_t)pbins->vcsel_width;
 		tmp32 += (1 << 3);
 		tmp32 /= (1 << 4);
 
-		pdat->VL53L1_p_035 =
+		p_data->VL53L1_p_035 =
 			(int16_t)VL53L1_f_002(
 				256 * (uint32_t)pcfg->signal_total_events_limit,
 				tmp32,
@@ -239,10 +239,10 @@ VL53L1_Error VL53L1_f_001(
 
 
 
-		if (pdat->VL53L1_p_035 < pdat->VL53L1_p_007)
-			*pambient_dmax_mm = pdat->VL53L1_p_035;
+		if (p_data->VL53L1_p_035 < p_data->VL53L1_p_007)
+			*pambient_dmax_mm = p_data->VL53L1_p_035;
 		else
-			*pambient_dmax_mm = pdat->VL53L1_p_007;
+			*pambient_dmax_mm = p_data->VL53L1_p_007;
 
 	}
 

@@ -43,7 +43,7 @@ uint16_t  VL53L1_f_042(
 		uint8_t	 sigma_estimator__effective_pulse_width_ns,
 		uint8_t  sigma_estimator__effective_ambient_width_ns,
 		uint8_t	 sigma_estimator__sigma_ref_mm,
-		VL53L1_range_data_t *pdat)
+		VL53L1_range_data_t *p_data)
 {
 
 
@@ -59,8 +59,8 @@ uint16_t  VL53L1_f_042(
 
 	LOG_FUNCTION_START("");
 
-	if (pdat->peak_signal_count_rate_mcps  > 0 &&
-		pdat->VL53L1_p_013 > 0) {
+	if (p_data->peak_signal_count_rate_mcps  > 0 &&
+		p_data->VL53L1_p_013 > 0) {
 
 
 
@@ -74,8 +74,8 @@ uint16_t  VL53L1_f_042(
 			(uint32_t)sigma_estimator__effective_ambient_width_ns);
 
 		tmp1 =  (tmp1 +
-			(uint32_t)pdat->peak_signal_count_rate_mcps/2) /
-			(uint32_t)pdat->peak_signal_count_rate_mcps;
+			(uint32_t)p_data->peak_signal_count_rate_mcps/2) /
+			(uint32_t)p_data->peak_signal_count_rate_mcps;
 
 
 
@@ -91,7 +91,7 @@ uint16_t  VL53L1_f_042(
 
 
 		tmp2 =
-			VL53L1_isqrt(12 * (uint32_t)pdat->VL53L1_p_013);
+			VL53L1_isqrt(12 * (uint32_t)p_data->VL53L1_p_013);
 
 		if (tmp2 > 0) {
 
@@ -114,7 +114,7 @@ uint16_t  VL53L1_f_042(
 
 	}
 
-	pdat->VL53L1_p_005  = sigma_est;
+	p_data->VL53L1_p_005  = sigma_est;
 
 	LOG_FUNCTION_END(0);
 
@@ -127,7 +127,7 @@ uint16_t VL53L1_f_044(
 	uint8_t	 sigma_estimator__effective_pulse_width_ns,
 	uint8_t  sigma_estimator__effective_ambient_width_ns,
 	uint8_t	 sigma_estimator__sigma_ref_mm,
-	VL53L1_range_data_t *pdat)
+	VL53L1_range_data_t *p_data)
 {
 
 
@@ -142,13 +142,13 @@ uint16_t VL53L1_f_044(
 
 	LOG_FUNCTION_START("");
 
-	if (pdat->peak_signal_count_rate_mcps > 0 &&
-		pdat->VL53L1_p_013         > 0) {
+	if (p_data->peak_signal_count_rate_mcps > 0 &&
+		p_data->VL53L1_p_013         > 0) {
 
 
 
 		eqn7 =  4573 * 4573;
-		eqn7 =  eqn7 / (3 * (uint32_t)pdat->VL53L1_p_013);
+		eqn7 =  eqn7 / (3 * (uint32_t)p_data->VL53L1_p_013);
 
 
 
@@ -157,12 +157,12 @@ uint16_t VL53L1_f_044(
 
 
 
-		tmp1 = ((uint64_t)pdat->ambient_count_rate_mcps *
+		tmp1 = ((uint64_t)p_data->ambient_count_rate_mcps *
 			(uint64_t)sigma_estimator__effective_ambient_width_ns)
 					<< 8;
 
 		tmp1 = do_division_u(tmp1,
-			(uint64_t)pdat->peak_signal_count_rate_mcps);
+			(uint64_t)p_data->peak_signal_count_rate_mcps);
 
 
 
@@ -184,7 +184,7 @@ uint16_t VL53L1_f_044(
 
 	}
 
-	pdat->VL53L1_p_005  = sigma_est;
+	p_data->VL53L1_p_005  = sigma_est;
 
 	LOG_FUNCTION_END(0);
 

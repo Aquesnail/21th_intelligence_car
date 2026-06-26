@@ -28,7 +28,7 @@ extern "C"
 
 #if !defined(VL53L1DevDataSet)
 #warning "PALDevDataSet is deprecated define VL53L1DevDataSet instead"
-#define VL53L1DevDataSet(Dev, field, data) ((Dev->Data.field) = (data))
+#define VL53L1DevDataSet(Dev, field, dat) ((Dev->Data.field) = (dat))
 #endif
 
 /** @defgroup VL53L1_cut11_group VL53L1 cut1.1 Function Definition

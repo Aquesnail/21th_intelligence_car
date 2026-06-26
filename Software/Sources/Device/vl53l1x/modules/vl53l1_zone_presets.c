@@ -39,7 +39,7 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 	uint8_t y_zones,
 	uint8_t width,
 	uint8_t height,
-	VL53L1_zone_config_t   *pdat)
+	VL53L1_zone_config_t   *p_data)
 {
 
 
@@ -51,7 +51,7 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 
 	LOG_FUNCTION_START("");
 
-	pdat->max_zones = VL53L1_MAX_USER_ZONES;
+	p_data->max_zones = VL53L1_MAX_USER_ZONES;
 
 	i = 0;
 
@@ -60,12 +60,12 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 
 			if (i < VL53L1_MAX_USER_ZONES) {
 
-				pdat->active_zones = (uint8_t)i;
-				pdat->user_zones[i].height   = height;
-				pdat->user_zones[i].width    = width;
-				pdat->user_zones[i].x_centre =
+				p_data->active_zones = (uint8_t)i;
+				p_data->user_zones[i].height   = height;
+				p_data->user_zones[i].width    = width;
+				p_data->user_zones[i].x_centre =
 						x_off + (x * x_inc);
-				pdat->user_zones[i].y_centre =
+				p_data->user_zones[i].y_centre =
 						y_off + (y * y_inc);
 			}
 
@@ -73,7 +73,7 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 		}
 	}
 
-	status = VL53L1_init_zone_config_histogram_bins(pdat);
+	status = VL53L1_init_zone_config_histogram_bins(p_data);
 
 
 	LOG_FUNCTION_END(status);
@@ -135,7 +135,7 @@ VL53L1_Error VL53L1_zone_preset_xtalk_planar(
 
 
 VL53L1_Error VL53L1_init_zone_config_histogram_bins(
-	VL53L1_zone_config_t   *pdat)
+	VL53L1_zone_config_t   *p_data)
 {
 
 
@@ -145,8 +145,8 @@ VL53L1_Error VL53L1_init_zone_config_histogram_bins(
 
 	LOG_FUNCTION_START("");
 
-	for (i = 0; i < pdat->max_zones; i++)
-		pdat->bin_config[i] = VL53L1_ZONECONFIG_BINCONFIG__LOWAMB;
+	for (i = 0; i < p_data->max_zones; i++)
+		p_data->bin_config[i] = VL53L1_ZONECONFIG_BINCONFIG__LOWAMB;
 
 	LOG_FUNCTION_END(status);
 

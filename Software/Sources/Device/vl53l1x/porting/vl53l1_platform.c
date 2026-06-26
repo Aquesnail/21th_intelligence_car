@@ -100,28 +100,28 @@ VL53L1_Error VL53L1_CommsClose(VL53L1_DEV Dev)
 VL53L1_Error VL53L1_WriteMulti(
     VL53L1_DEV    Dev,
     uint16_t      index,
-    uint8_t      *pdat,
+    uint8_t      *p_data,
     uint32_t      count)
 {
-    if (Dev == NULL || pdat == NULL || count == 0 || count > 255) {
+    if (Dev == NULL || p_data == NULL || count == 0 || count > 255) {
         return VL53L1_ERROR_INVALID_PARAMS;
     }
 
-    I2C1_WriteRegMulti(Dev->i2c_wr_addr, index, pdat, (uint8_t)count);
+    I2C1_WriteRegMulti(Dev->i2c_wr_addr, index, p_data, (uint8_t)count);
     return VL53L1_ERROR_NONE;
 }
 
 VL53L1_Error VL53L1_ReadMulti(
     VL53L1_DEV    Dev,
     uint16_t      index,
-    uint8_t      *pdat,
+    uint8_t      *p_data,
     uint32_t      count)
 {
-    if (Dev == NULL || pdat == NULL || count == 0 || count > 255) {
+    if (Dev == NULL || p_data == NULL || count == 0 || count > 255) {
         return VL53L1_ERROR_INVALID_PARAMS;
     }
 
-    I2C1_ReadRegMulti(Dev->i2c_wr_addr, index, pdat, (uint8_t)count);
+    I2C1_ReadRegMulti(Dev->i2c_wr_addr, index, p_data, (uint8_t)count);
     return VL53L1_ERROR_NONE;
 }
 
@@ -137,10 +137,10 @@ VL53L1_Error VL53L1_WrByte(VL53L1_DEV Dev, uint16_t index, uint8_t dat)
     return VL53L1_ERROR_NONE;
 }
 
-VL53L1_Error VL53L1_RdByte(VL53L1_DEV Dev, uint16_t index, uint8_t *pdat)
+VL53L1_Error VL53L1_RdByte(VL53L1_DEV Dev, uint16_t index, uint8_t *p_data)
 {
-    if (Dev == NULL || pdat == NULL) return VL53L1_ERROR_INVALID_PARAMS;
-    *pdat = I2C1_ReadRegByte(Dev->i2c_wr_addr, index);
+    if (Dev == NULL || p_data == NULL) return VL53L1_ERROR_INVALID_PARAMS;
+    *p_data = I2C1_ReadRegByte(Dev->i2c_wr_addr, index);
     return VL53L1_ERROR_NONE;
 }
 
@@ -154,12 +154,12 @@ VL53L1_Error VL53L1_WrWord(VL53L1_DEV Dev, uint16_t index, uint16_t dat)
     return VL53L1_ERROR_NONE;
 }
 
-VL53L1_Error VL53L1_RdWord(VL53L1_DEV Dev, uint16_t index, uint16_t *pdat)
+VL53L1_Error VL53L1_RdWord(VL53L1_DEV Dev, uint16_t index, uint16_t *p_data)
 {
     uint8_t buf[2];
-    if (Dev == NULL || pdat == NULL) return VL53L1_ERROR_INVALID_PARAMS;
+    if (Dev == NULL || p_data == NULL) return VL53L1_ERROR_INVALID_PARAMS;
     I2C1_ReadRegMulti(Dev->i2c_wr_addr, index, buf, 2);
-    *pdat = ((uint16_t)buf[0] << 8) | (uint16_t)buf[1];
+    *p_data = ((uint16_t)buf[0] << 8) | (uint16_t)buf[1];
     return VL53L1_ERROR_NONE;
 }
 
@@ -175,12 +175,12 @@ VL53L1_Error VL53L1_WrDWord(VL53L1_DEV Dev, uint16_t index, uint32_t dat)
     return VL53L1_ERROR_NONE;
 }
 
-VL53L1_Error VL53L1_RdDWord(VL53L1_DEV Dev, uint16_t index, uint32_t *pdat)
+VL53L1_Error VL53L1_RdDWord(VL53L1_DEV Dev, uint16_t index, uint32_t *p_data)
 {
     uint8_t buf[4];
-    if (Dev == NULL || pdat == NULL) return VL53L1_ERROR_INVALID_PARAMS;
+    if (Dev == NULL || p_data == NULL) return VL53L1_ERROR_INVALID_PARAMS;
     I2C1_ReadRegMulti(Dev->i2c_wr_addr, index, buf, 4);
-    *pdat = ((uint32_t)buf[0] << 24)
+    *p_data = ((uint32_t)buf[0] << 24)
            | ((uint32_t)buf[1] << 16)
            | ((uint32_t)buf[2] << 8)
            |  (uint32_t)buf[3];
@@ -191,13 +191,13 @@ VL53L1_Error VL53L1_UpdateByte(
     VL53L1_DEV Dev, uint16_t index, uint8_t AndData, uint8_t OrData)
 {
     VL53L1_Error Status = VL53L1_ERROR_NONE;
-    uint8_t data;
+    uint8_t dat;
 
-    Status = VL53L1_RdByte(Dev, index, &data);
+    Status = VL53L1_RdByte(Dev, index, &dat);
     if (Status) return Status;
 
-    data = (data & AndData) | OrData;
-    return VL53L1_WrByte(Dev, index, data);
+    dat = (dat & AndData) | OrData;
+    return VL53L1_WrByte(Dev, index, dat);
 }
 
 /* ======================================================================== */

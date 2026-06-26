@@ -137,7 +137,7 @@ void VL53L1_f_029(
 	uint16_t                     sigma_thres,
 	VL53L1_histogram_bin_data_t *pbins,
 	VL53L1_hist_pulse_data_t    *ppulse,
-	VL53L1_range_data_t         *pdat);
+	VL53L1_range_data_t         *p_data);
 
 
 #ifdef __cplusplus

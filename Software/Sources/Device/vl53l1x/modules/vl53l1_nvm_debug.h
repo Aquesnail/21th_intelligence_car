@@ -38,7 +38,7 @@ void VL53L1_print_nvm_raw_data(
 
 
 void VL53L1_print_decoded_nvm_data(
-	VL53L1_decoded_nvm_data_t *pdat,
+	VL53L1_decoded_nvm_data_t *p_data,
 	char                      *pprefix,
 	uint32_t                   trace_flags);
 
@@ -46,7 +46,7 @@ void VL53L1_print_decoded_nvm_data(
 
 
 void VL53L1_print_decoded_nvm_fmt_range_data(
-	VL53L1_decoded_nvm_fmt_range_data_t *pdat,
+	VL53L1_decoded_nvm_fmt_range_data_t *p_data,
 	char                                *pprefix,
 	uint32_t                             trace_flags);
 
@@ -54,14 +54,14 @@ void VL53L1_print_decoded_nvm_fmt_range_data(
 
 
 void VL53L1_print_decoded_nvm_fmt_info(
-	VL53L1_decoded_nvm_fmt_info_t *pdat,
+	VL53L1_decoded_nvm_fmt_info_t *p_data,
 	char                          *pprefix,
 	uint32_t                       trace_flags);
 
 
 
 void VL53L1_print_decoded_nvm_ews_info(
-	VL53L1_decoded_nvm_ews_info_t *pdat,
+	VL53L1_decoded_nvm_ews_info_t *p_data,
 	char                          *pprefix,
 	uint32_t                       trace_flags);
 

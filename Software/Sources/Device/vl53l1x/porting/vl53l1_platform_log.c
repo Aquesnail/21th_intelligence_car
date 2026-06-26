@@ -18,6 +18,22 @@
 
 #include "vl53l1_platform_log.h"
 #include "vl53l1_platform_user_config.h"
+#include "debug_arch.h"
+
+/*
+ * trace_print(level, fmt, ...) — bridges VL53L1 driver trace calls to
+ * the arch debug subsystem (Debug_Log / vDebug_Log in debug_arch.h).
+ *
+ * The `level` parameter is accepted but ignored; all messages are
+ * forwarded unconditionally.  Add level filtering here later if needed.
+ */
+void trace_print(unsigned long level, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    vDebug_Log(fmt, args);
+    va_end(args);
+}
 
 #ifdef VL53L1_LOG_ENABLE
 

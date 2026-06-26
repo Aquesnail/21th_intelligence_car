@@ -39,7 +39,7 @@ static DMA_SPI1_Callback_t spi1_dma_callback = (void code*)NULL;
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
 
-uint8_t xdata pu8SPI1DMATxBuffer[1024] = {0};   //SPI1 DMA发送缓冲区数组
+uint8_t xdata pu8SPI1DMATxBuffer[1024];   //SPI1 DMA发送缓冲区数组
 
 ////////////////////////////////////////
 // SPI1初始化函数
@@ -48,6 +48,7 @@ uint8_t xdata pu8SPI1DMATxBuffer[1024] = {0};   //SPI1 DMA发送缓冲区数组
 ////////////////////////////////////////
 void SPI1_Init(DMA_SPI1_Callback_t callback)
 {
+    memset(pu8SPI1DMATxBuffer, 0, sizeof(pu8SPI1DMATxBuffer));
     SPI1_SwitchP2n();                  
 
     SPI1_MasterMode();                  //设置SPI1为主机模式

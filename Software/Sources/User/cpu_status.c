@@ -4,6 +4,7 @@
 #include "debug_arch.h"
 #include "timer.h"
 #include "dma_uart.h"
+#include <string.h>
 
 #pragma warning disable = 138
 
@@ -76,7 +77,7 @@ uint8_t CPUStatus_HandleCommand(const char* cmd) {
     }
     return 0; // 未识别
 }
-char xdata pcWriteBuffer[512]={0};
+char xdata pcWriteBuffer[512];
 
 void vTaskMonitor(void *pvParameters)
 {
@@ -126,6 +127,7 @@ void vTaskMonitor(void *pvParameters)
 }
 
 void CPU_STATUS_TASK_Init(void){
+    memset(pcWriteBuffer, 0, sizeof(pcWriteBuffer));
     xTaskCreate(
         vTaskMonitor,
         "vTaskMonitor",

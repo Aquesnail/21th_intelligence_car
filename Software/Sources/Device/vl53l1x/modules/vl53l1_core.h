@@ -57,21 +57,21 @@ VL53L1_Error VL53L1_update_ll_driver_cfg_state(
 
 
 void VL53L1_copy_rtn_good_spads_to_buffer(
-	VL53L1_nvm_copy_data_t  *pdat,
+	VL53L1_nvm_copy_data_t  *p_data,
 	uint8_t                 *pbuffer);
 
 
 
 
 void VL53L1_init_system_results(
-	VL53L1_system_results_t      *pdat);
+	VL53L1_system_results_t      *p_data);
 
 
 
 
 void V53L1_init_zone_results_structure(
 	uint8_t                 active_zones,
-	VL53L1_zone_results_t  *pdat);
+	VL53L1_zone_results_t  *p_data);
 
 
 
@@ -95,7 +95,7 @@ void VL53L1_init_histogram_config_structure(
 	uint8_t   odd_bin3,
 	uint8_t   odd_bin4,
 	uint8_t   odd_bin5,
-	VL53L1_histogram_config_t  *pdat);
+	VL53L1_histogram_config_t  *p_data);
 
 
 
@@ -112,7 +112,7 @@ void VL53L1_init_histogram_multizone_config_structure(
 	uint8_t   odd_bin3,
 	uint8_t   odd_bin4,
 	uint8_t   odd_bin5,
-	VL53L1_histogram_config_t  *pdat);
+	VL53L1_histogram_config_t  *p_data);
 
 
 
@@ -120,7 +120,7 @@ void VL53L1_init_histogram_multizone_config_structure(
 void VL53L1_init_xtalk_bin_data_struct(
 	uint32_t                        bin_value,
 	uint16_t                        VL53L1_p_024,
-	VL53L1_xtalk_histogram_shape_t *pdat);
+	VL53L1_xtalk_histogram_shape_t *p_data);
 
 
 
@@ -349,7 +349,7 @@ VL53L1_Error VL53L1_hist_copy_and_scale_ambient_info(
 
 void  VL53L1_hist_get_bin_sequence_config(
 	VL53L1_DEV                     Dev,
-	VL53L1_histogram_bin_data_t   *pdat);
+	VL53L1_histogram_bin_data_t   *p_data);
 
 
 
@@ -384,7 +384,7 @@ VL53L1_Error  VL53L1_hist_events_consistency_check(
 
 VL53L1_Error  VL53L1_hist_merged_pulse_check(
 	int16_t                      min_max_tolerance_mm,
-	VL53L1_range_data_t         *pdat,
+	VL53L1_range_data_t         *p_data,
 	VL53L1_DeviceError          *prange_status);
 
 

@@ -34,7 +34,7 @@ VL53L1_Error VL53L1_f_001(
 	VL53L1_dmax_calibration_data_t	     *pcal,
 	VL53L1_hist_gen3_dmax_config_t	     *pcfg,
 	VL53L1_histogram_bin_data_t          *pbins,
-	VL53L1_hist_gen3_dmax_private_data_t *pdat,
+	VL53L1_hist_gen3_dmax_private_data_t *p_data,
 	int16_t                              *pambient_dmax_mm);
 
 

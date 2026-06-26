@@ -36,7 +36,7 @@ typedef VL53L1X_Dev_t *VL53L1_DEV;
 
 /* ---- Data-access macros (used pervasively inside modules/) ---- */
 #define VL53L1DevDataGet(Obj, field)             ((Obj)->Data.field)
-#define VL53L1DevDataSet(Obj, field, data)       ((Obj)->Data.field = (data))
+#define VL53L1DevDataSet(Obj, field, dat)        ((Obj)->Data.field = (dat))
 #define PALDevDataGet(Obj, field)                ((Obj)->Data.field)
 #define PALDevDataSet(Obj, field, value)         ((Obj)->Data.field = (value))
 #define VL53L1DevStructGetLLDriverHandle(Obj)    (&(Obj)->Data.LLData)

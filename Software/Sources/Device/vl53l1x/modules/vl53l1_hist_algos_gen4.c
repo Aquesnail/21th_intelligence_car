@@ -370,7 +370,7 @@ VL53L1_Error VL53L1_f_034(
 
 	VL53L1_Error  status       = VL53L1_ERROR_NONE;
 
-	VL53L1_hist_pulse_data_t *pdat = &(palgo3->VL53L1_p_002[pulse_no]);
+	VL53L1_hist_pulse_data_t *p_data = &(palgo3->VL53L1_p_002[pulse_no]);
 
 	uint8_t  lb     = 0;
 	uint8_t  i     = 0;
@@ -386,14 +386,14 @@ VL53L1_Error VL53L1_f_034(
 
 
 
-	for (lb = pdat->VL53L1_p_015; lb <= pdat->VL53L1_p_016; lb++) {
+	for (lb = p_data->VL53L1_p_015; lb <= p_data->VL53L1_p_016; lb++) {
 
 		i =  lb  % palgo3->VL53L1_p_031;
 
 
 		VL53L1_f_013(
 				i,
-				pdat->VL53L1_p_055,
+				p_data->VL53L1_p_055,
 				ppulse,
 				&suma,
 				&sumb,
@@ -433,7 +433,7 @@ VL53L1_Error VL53L1_f_035(
 	VL53L1_Error  status       = VL53L1_ERROR_NONE;
 	VL53L1_Error  func_status  = VL53L1_ERROR_NONE;
 
-	VL53L1_hist_pulse_data_t *pdat = &(palgo3->VL53L1_p_002[pulse_no]);
+	VL53L1_hist_pulse_data_t *p_data = &(palgo3->VL53L1_p_002[pulse_no]);
 
 	uint8_t  lb            = 0;
 	uint8_t  i            = 0;
@@ -441,7 +441,7 @@ VL53L1_Error VL53L1_f_035(
 
 	SUPPRESS_UNUSED_WARNING(noise_threshold);
 
-	for (lb = pdat->VL53L1_p_015; lb < pdat->VL53L1_p_016; lb++) {
+	for (lb = p_data->VL53L1_p_015; lb < p_data->VL53L1_p_016; lb++) {
 
 		i =  lb    % palgo3->VL53L1_p_031;
 		j = (lb+1) % palgo3->VL53L1_p_031;
@@ -470,7 +470,7 @@ VL53L1_Error VL53L1_f_035(
 
 			if (pfiltered->VL53L1_p_043[i] > 0) {
 
-				pdat->VL53L1_p_025 = lb;
+				p_data->VL53L1_p_025 = lb;
 
 				func_status =
 					VL53L1_f_036(
@@ -483,7 +483,7 @@ VL53L1_Error VL53L1_f_035(
 					0,
 					palgo3->VL53L1_p_004,
 					palgo3->VL53L1_p_031,
-					&(pdat->VL53L1_p_014));
+					&(p_data->VL53L1_p_014));
 
 				if (func_status ==
 					VL53L1_ERROR_DIVISION_BY_ZERO)

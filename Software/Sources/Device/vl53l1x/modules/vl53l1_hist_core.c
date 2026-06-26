@@ -79,7 +79,7 @@ VL53L1_Error VL53L1_f_011(
 	uint16_t           fast_osc_frequency,
 	uint32_t           total_periods_elapsed,
 	uint16_t           VL53L1_p_006,
-	VL53L1_range_data_t  *pdat,
+	VL53L1_range_data_t  *p_data,
 	uint8_t histo_merge_nb)
 {
 	VL53L1_Error     status = VL53L1_ERROR_NONE;
@@ -92,17 +92,17 @@ VL53L1_Error VL53L1_f_011(
 
 
 
-	pdat->width                  = vcsel_width;
-	pdat->fast_osc_frequency     = fast_osc_frequency;
-	pdat->total_periods_elapsed  = total_periods_elapsed;
-	pdat->VL53L1_p_006 = VL53L1_p_006;
+	p_data->width                  = vcsel_width;
+	p_data->fast_osc_frequency     = fast_osc_frequency;
+	p_data->total_periods_elapsed  = total_periods_elapsed;
+	p_data->VL53L1_p_006 = VL53L1_p_006;
 
 
 
-	if (pdat->fast_osc_frequency == 0)
+	if (p_data->fast_osc_frequency == 0)
 		status = VL53L1_ERROR_DIVISION_BY_ZERO;
 
-	if (pdat->total_periods_elapsed == 0)
+	if (p_data->total_periods_elapsed == 0)
 		status = VL53L1_ERROR_DIVISION_BY_ZERO;
 
 	if (status == VL53L1_ERROR_NONE) {
@@ -110,63 +110,63 @@ VL53L1_Error VL53L1_f_011(
 
 
 		pll_period_us =
-			VL53L1_calc_pll_period_us(pdat->fast_osc_frequency);
+			VL53L1_calc_pll_period_us(p_data->fast_osc_frequency);
 
 
 
-		periods_elapsed      = pdat->total_periods_elapsed + 1;
+		periods_elapsed      = p_data->total_periods_elapsed + 1;
 
 
 
-		pdat->peak_duration_us    = VL53L1_duration_maths(
+		p_data->peak_duration_us    = VL53L1_duration_maths(
 			pll_period_us,
-			(uint32_t)pdat->width,
+			(uint32_t)p_data->width,
 			VL53L1_RANGING_WINDOW_VCSEL_PERIODS,
 			periods_elapsed);
 
-		pdat->woi_duration_us     = VL53L1_duration_maths(
+		p_data->woi_duration_us     = VL53L1_duration_maths(
 			pll_period_us,
-			((uint32_t)pdat->VL53L1_p_030) << 4,
+			((uint32_t)p_data->VL53L1_p_030) << 4,
 			VL53L1_RANGING_WINDOW_VCSEL_PERIODS,
 			periods_elapsed);
 
 
 
-		pdat->peak_signal_count_rate_mcps = VL53L1_rate_maths(
-			(int32_t)pdat->VL53L1_p_013,
-			pdat->peak_duration_us);
+		p_data->peak_signal_count_rate_mcps = VL53L1_rate_maths(
+			(int32_t)p_data->VL53L1_p_013,
+			p_data->peak_duration_us);
 
-		pdat->avg_signal_count_rate_mcps = VL53L1_rate_maths(
-			(int32_t)pdat->VL53L1_p_013,
-			pdat->woi_duration_us);
+		p_data->avg_signal_count_rate_mcps = VL53L1_rate_maths(
+			(int32_t)p_data->VL53L1_p_013,
+			p_data->woi_duration_us);
 
-		pdat->ambient_count_rate_mcps    = VL53L1_rate_maths(
-			(int32_t)pdat->VL53L1_p_020,
-			pdat->woi_duration_us);
+		p_data->ambient_count_rate_mcps    = VL53L1_rate_maths(
+			(int32_t)p_data->VL53L1_p_020,
+			p_data->woi_duration_us);
 
 
 
 		count_rate_total =
-			(uint32_t)pdat->peak_signal_count_rate_mcps +
-			(uint32_t)pdat->ambient_count_rate_mcps;
+			(uint32_t)p_data->peak_signal_count_rate_mcps +
+			(uint32_t)p_data->ambient_count_rate_mcps;
 
 		if (histo_merge_nb > 1)
 			count_rate_total /= histo_merge_nb;
 
-		pdat->total_rate_per_spad_mcps   =
+		p_data->total_rate_per_spad_mcps   =
 			VL53L1_rate_per_spad_maths(
 					 0x06,
 					 count_rate_total,
-					 pdat->VL53L1_p_006,
+					 p_data->VL53L1_p_006,
 					 0xFFFF);
 
 
 
-		pdat->VL53L1_p_012   =
+		p_data->VL53L1_p_012   =
 			VL53L1_events_per_spad_maths(
-				pdat->VL53L1_p_013,
-				pdat->VL53L1_p_006,
-				pdat->peak_duration_us);
+				p_data->VL53L1_p_013,
+				p_data->VL53L1_p_006,
+				p_data->peak_duration_us);
 
 
 
@@ -174,33 +174,33 @@ VL53L1_Error VL53L1_f_011(
 		// trace_print(
 		// 	VL53L1_TRACE_LEVEL_DEBUG,
 		// 	"    %d:%-46s : %10d\n",
-		// 	pdat->range_id, "peak_duration_us",
-		// 	pdat->peak_duration_us);
+		// 	p_data->range_id, "peak_duration_us",
+		// 	p_data->peak_duration_us);
 		// trace_print(
 		// 	VL53L1_TRACE_LEVEL_DEBUG,
 		// 	"    %d:%-46s : %10d\n",
-		// 	pdat->range_id, "woi_duration_us",
-		// 	pdat->woi_duration_us);
+		// 	p_data->range_id, "woi_duration_us",
+		// 	p_data->woi_duration_us);
 		// trace_print(
 		// 	VL53L1_TRACE_LEVEL_DEBUG,
 		// 	"    %d:%-46s : %10u\n",
-		// 	pdat->range_id, "peak_signal_count_rate_mcps",
-		// 	pdat->peak_signal_count_rate_mcps);
+		// 	p_data->range_id, "peak_signal_count_rate_mcps",
+		// 	p_data->peak_signal_count_rate_mcps);
 		// trace_print(
 		// 	VL53L1_TRACE_LEVEL_DEBUG,
 		// 	"    %d:%-46s : %10u\n",
-		// 	pdat->range_id, "ambient_count_rate_mcps",
-		// 	pdat->ambient_count_rate_mcps);
+		// 	p_data->range_id, "ambient_count_rate_mcps",
+		// 	p_data->ambient_count_rate_mcps);
 		// trace_print(
 		// 	VL53L1_TRACE_LEVEL_DEBUG,
 		// 	"    %d:%-46s : %10u\n",
-		// 	pdat->range_id, "total_rate_per_spad_mcps",
-		// 	pdat->total_rate_per_spad_mcps);
+		// 	p_data->range_id, "total_rate_per_spad_mcps",
+		// 	p_data->total_rate_per_spad_mcps);
 		// trace_print(
 		// 	VL53L1_TRACE_LEVEL_DEBUG,
 		// 	"    %d:%-46s : %10u\n",
-		// 	pdat->range_id, "VL53L1_p_012",
-		// 	pdat->VL53L1_p_012);
+		// 	p_data->range_id, "VL53L1_p_012",
+		// 	p_data->VL53L1_p_012);
 
 	}
 
@@ -213,7 +213,7 @@ VL53L1_Error VL53L1_f_011(
 void VL53L1_f_012(
 	uint16_t             gain_factor,
 	int16_t              range_offset_mm,
-	VL53L1_range_data_t *pdat)
+	VL53L1_range_data_t *p_data)
 {
 
 
@@ -221,29 +221,29 @@ void VL53L1_f_012(
 
 
 
-	pdat->min_range_mm =
+	p_data->min_range_mm =
 		(int16_t)VL53L1_range_maths(
-				pdat->fast_osc_frequency,
-				pdat->VL53L1_p_028,
-				pdat->zero_distance_phase,
+				p_data->fast_osc_frequency,
+				p_data->VL53L1_p_028,
+				p_data->zero_distance_phase,
 				0,
 				(int32_t)gain_factor,
 				(int32_t)range_offset_mm);
 
-	pdat->median_range_mm =
+	p_data->median_range_mm =
 		(int16_t)VL53L1_range_maths(
-				pdat->fast_osc_frequency,
-				pdat->VL53L1_p_014,
-				pdat->zero_distance_phase,
+				p_data->fast_osc_frequency,
+				p_data->VL53L1_p_014,
+				p_data->zero_distance_phase,
 				0,
 				(int32_t)gain_factor,
 				(int32_t)range_offset_mm);
 
-	pdat->max_range_mm =
+	p_data->max_range_mm =
 		(int16_t)VL53L1_range_maths(
-				pdat->fast_osc_frequency,
-				pdat->VL53L1_p_029,
-				pdat->zero_distance_phase,
+				p_data->fast_osc_frequency,
+				p_data->VL53L1_p_029,
+				p_data->zero_distance_phase,
 				0,
 				(int32_t)gain_factor,
 				(int32_t)range_offset_mm);
@@ -257,15 +257,15 @@ void VL53L1_f_012(
 
 
 void  VL53L1_f_037(
-	VL53L1_histogram_bin_data_t   *pdat,
+	VL53L1_histogram_bin_data_t   *p_data,
 	int32_t                        ambient_estimate_counts_per_bin)
 {
 
 
 	uint8_t i = 0;
 
-	for (i = 0 ; i <  pdat->VL53L1_p_024 ; i++)
-		pdat->bin_data[i] = pdat->bin_data[i] -
+	for (i = 0 ; i <  p_data->VL53L1_p_024 ; i++)
+		p_data->bin_data[i] = p_data->bin_data[i] -
 			ambient_estimate_counts_per_bin;
 }
 

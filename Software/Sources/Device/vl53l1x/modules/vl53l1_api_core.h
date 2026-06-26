@@ -155,13 +155,13 @@ VL53L1_Error VL53L1_get_interrupt_polarity(
 
 VL53L1_Error VL53L1_get_refspadchar_config_struct(
 	VL53L1_DEV                     Dev,
-	VL53L1_refspadchar_config_t   *pdat);
+	VL53L1_refspadchar_config_t   *p_data);
 
 
 
 VL53L1_Error VL53L1_set_refspadchar_config_struct(
 	VL53L1_DEV                     Dev,
-	VL53L1_refspadchar_config_t   *pdat);
+	VL53L1_refspadchar_config_t   *p_data);
 
 
 

@@ -446,14 +446,14 @@ VL53L1_Error VL53L1_SetDeviceAddress(VL53L1_DEV Dev, uint8_t DeviceAddress)
 {
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
 	VL53L1_LLDriverData_t *pdev = VL53L1DevStructGetLLDriverHandle(Dev);
-	VL53L1_static_nvm_managed_t  *pdat = &(pdev->stat_nvm);
+	VL53L1_static_nvm_managed_t  *p_data = &(pdev->stat_nvm);
 
 	LOG_FUNCTION_START("");
 
 	Status = VL53L1_WrByte(Dev, VL53L1_I2C_SLAVE__DEVICE_ADDRESS,
 			DeviceAddress / 2);
 
-	pdat->i2c_slave__device_address = (DeviceAddress / 2) & 0x7F;
+	p_data->i2c_slave__device_address = (DeviceAddress / 2) & 0x7F;
 
 	LOG_FUNCTION_END(Status);
 	return Status;
@@ -1922,7 +1922,7 @@ static uint8_t ComputeRQL(uint8_t active_results,
 		returnvalue = 50;
 	else {
 		if (presults_data->median_range_mm < SRL)
-			RAS = SRAS * 65536;
+			RAS = (uint32_t)SRAS << 16;
 		else
 			RAS = LRAP * presults_data->median_range_mm;
 
@@ -1931,13 +1931,13 @@ static uint8_t ComputeRQL(uint8_t active_results,
 			partial = (GGm * presults_data->VL53L1_p_005);
 			partial = partial + (RAS >> 1);
 			partial = partial / RAS;
-			partial = partial * 65536;
+			partial = partial << 16;
 			if (partial <= GI)
 				SRQL = GI - partial;
 			else
-				SRQL = 50 * 65536;
+				SRQL = 50UL << 16;
 		} else
-			SRQL = 100 * 65536;
+			SRQL = 100UL << 16;
 
 		finalvalue = (uint8_t)(SRQL >> 16);
 		returnvalue = MAX(50, MIN(100, finalvalue));

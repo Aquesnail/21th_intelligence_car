@@ -5,6 +5,7 @@
 #include "semphr.h"
 // #include "debug.h"          // 包含调试模块
 #include <stdio.h>
+#include <string.h>
 #include "delay.h"
 #include "dma_uart_ring.h"
 #include "dma_uart.h"
@@ -16,7 +17,7 @@
 #pragma warning disable = 47
 
 /* 全局变量 ---------------------------------------------------------------- */
-debug_port_t        debug_init_structure = {0};
+debug_port_t        debug_init_structure;
 TaskHandle_t        xDebugTaskHandle    = NULL;
 TaskHandle_t        xDebugTaskHandle2   = NULL;
 SemaphoreHandle_t   xRegistrationSemaphore = NULL;
@@ -26,7 +27,7 @@ static void Debug_Write(uint8_t* pData, uint16_t len);
 static uint16_t Debug_Read(uint8_t* pData, uint16_t len);
 void vDebugTaskDelayedStart(void *pvParameters);
 void vTestLoopTask(void *pvParameters);
-
+char xdata echoBuf[70];
 /* 私有函数实现 ------------------------------------------------------------ */
 static void Debug_Write(uint8_t* pData, uint16_t len)
 {
@@ -41,6 +42,8 @@ static uint16_t Debug_Read(uint8_t* pData, uint16_t len)
 /* 公共函数 ---------------------------------------------------------------- */
 void App_DebugTask_Init(void)
 {
+    memset(&debug_init_structure, 0, sizeof(debug_init_structure));
+    memset(echoBuf, 0, sizeof(echoBuf));
     // 创建注册信号量
     xRegistrationSemaphore = xSemaphoreCreateBinary();
     if (xRegistrationSemaphore == NULL) {
@@ -93,7 +96,7 @@ void vDebugTaskDelayedStart(void *pvParameters)
 
 extern uint8_t CPUStatus_HandleCommand(const char* cmd);
 extern uint8_t Storage_HandleCommand(const char* cmd);
-char xdata echoBuf[70] = {0};
+
 void Debug_OnTextReceived(char* str, uint8_t len)
 {   
     if(Storage_HandleCommand(str)){

@@ -166,7 +166,7 @@ uint32_t VL53L1_isqrt(uint32_t num)
 
 
 void  VL53L1_hist_calc_zero_distance_phase(
-	VL53L1_histogram_bin_data_t   *pdat)
+	VL53L1_histogram_bin_data_t   *p_data)
 {
 
 
@@ -176,19 +176,19 @@ void  VL53L1_hist_calc_zero_distance_phase(
 	LOG_FUNCTION_START("");
 
 	period = 2048 *
-		(uint32_t)VL53L1_decode_vcsel_period(pdat->VL53L1_p_009);
+		(uint32_t)VL53L1_decode_vcsel_period(p_data->VL53L1_p_009);
 
 	VL53L1_p_017  = period;
-	VL53L1_p_017 += (uint32_t)pdat->phasecal_result__reference_phase;
-	VL53L1_p_017 += (2048 * (uint32_t)pdat->phasecal_result__vcsel_start);
-	VL53L1_p_017 -= (2048 * (uint32_t)pdat->cal_config__vcsel_start);
+	VL53L1_p_017 += (uint32_t)p_data->phasecal_result__reference_phase;
+	VL53L1_p_017 += (2048 * (uint32_t)p_data->phasecal_result__vcsel_start);
+	VL53L1_p_017 -= (2048 * (uint32_t)p_data->cal_config__vcsel_start);
 
 	if (period != 0)
 		VL53L1_p_017  = VL53L1_p_017 % period;
 	else
 		VL53L1_p_017 = 0;
 
-	pdat->zero_distance_phase = (uint16_t)VL53L1_p_017;
+	p_data->zero_distance_phase = (uint16_t)VL53L1_p_017;
 
 	LOG_FUNCTION_END(0);
 }
@@ -196,7 +196,7 @@ void  VL53L1_hist_calc_zero_distance_phase(
 
 void  VL53L1_hist_estimate_ambient_from_thresholded_bins(
 	int32_t                        ambient_threshold_sigma,
-	VL53L1_histogram_bin_data_t   *pdat)
+	VL53L1_histogram_bin_data_t   *p_data)
 {
 
 
@@ -207,37 +207,37 @@ void  VL53L1_hist_estimate_ambient_from_thresholded_bins(
 
 
 
-	VL53L1_hist_find_min_max_bin_values(pdat);
+	VL53L1_hist_find_min_max_bin_values(p_data);
 
 
 
 	VL53L1_p_032  =
-		(int32_t)VL53L1_isqrt((uint32_t)pdat->min_bin_value);
+		(int32_t)VL53L1_isqrt((uint32_t)p_data->min_bin_value);
 	VL53L1_p_032 *= ambient_threshold_sigma;
 	VL53L1_p_032 += 0x07;
 	VL53L1_p_032  = VL53L1_p_032 >> 4;
-	VL53L1_p_032 += pdat->min_bin_value;
+	VL53L1_p_032 += p_data->min_bin_value;
 
 
 
-	pdat->number_of_ambient_samples = 0;
-	pdat->ambient_events_sum        = 0;
+	p_data->number_of_ambient_samples = 0;
+	p_data->ambient_events_sum        = 0;
 
-	for (bin = 0; bin < pdat->VL53L1_p_024; bin++)
-		if (pdat->bin_data[bin] < VL53L1_p_032) {
-			pdat->ambient_events_sum += pdat->bin_data[bin];
-			pdat->number_of_ambient_samples++;
+	for (bin = 0; bin < p_data->VL53L1_p_024; bin++)
+		if (p_data->bin_data[bin] < VL53L1_p_032) {
+			p_data->ambient_events_sum += p_data->bin_data[bin];
+			p_data->number_of_ambient_samples++;
 		}
 
 
 
-	if (pdat->number_of_ambient_samples > 0) {
-		pdat->VL53L1_p_004 =
-			pdat->ambient_events_sum;
-		pdat->VL53L1_p_004 +=
-			((int32_t)pdat->number_of_ambient_samples/2);
-		pdat->VL53L1_p_004 /=
-			(int32_t)pdat->number_of_ambient_samples;
+	if (p_data->number_of_ambient_samples > 0) {
+		p_data->VL53L1_p_004 =
+			p_data->ambient_events_sum;
+		p_data->VL53L1_p_004 +=
+			((int32_t)p_data->number_of_ambient_samples/2);
+		p_data->VL53L1_p_004 /=
+			(int32_t)p_data->number_of_ambient_samples;
 	}
 
 	LOG_FUNCTION_END(0);
@@ -245,7 +245,7 @@ void  VL53L1_hist_estimate_ambient_from_thresholded_bins(
 
 
 void  VL53L1_hist_remove_ambient_bins(
-	VL53L1_histogram_bin_data_t   *pdat)
+	VL53L1_histogram_bin_data_t   *p_data)
 {
 
 
@@ -256,13 +256,13 @@ void  VL53L1_hist_remove_ambient_bins(
 
 
 
-	if ((pdat->bin_seq[0] & 0x07) == 0x07) {
+	if ((p_data->bin_seq[0] & 0x07) == 0x07) {
 
 		i = 0;
 		for (lc = 0; lc < VL53L1_MAX_BIN_SEQUENCE_LENGTH; lc++) {
-			if ((pdat->bin_seq[lc] & 0x07) != 0x07) {
-				pdat->bin_seq[i] = pdat->bin_seq[lc];
-				pdat->bin_rep[i] = pdat->bin_rep[lc];
+			if ((p_data->bin_seq[lc] & 0x07) != 0x07) {
+				p_data->bin_seq[i] = p_data->bin_seq[lc];
+				p_data->bin_rep[i] = p_data->bin_rep[lc];
 				i++;
 			}
 		}
@@ -270,25 +270,25 @@ void  VL53L1_hist_remove_ambient_bins(
 
 
 		for (lc = i; lc < VL53L1_MAX_BIN_SEQUENCE_LENGTH; lc++) {
-			pdat->bin_seq[lc] = VL53L1_MAX_BIN_SEQUENCE_CODE + 1;
-			pdat->bin_rep[lc] = 0;
+			p_data->bin_seq[lc] = VL53L1_MAX_BIN_SEQUENCE_CODE + 1;
+			p_data->bin_rep[lc] = 0;
 		}
 	}
 
-	if (pdat->number_of_ambient_bins > 0) {
+	if (p_data->number_of_ambient_bins > 0) {
 
 
-		for (bin = pdat->number_of_ambient_bins;
-				bin < pdat->VL53L1_p_023; bin++) {
-			pdat->bin_data[bin-pdat->number_of_ambient_bins] =
-				pdat->bin_data[bin];
+		for (bin = p_data->number_of_ambient_bins;
+				bin < p_data->VL53L1_p_023; bin++) {
+			p_data->bin_data[bin-p_data->number_of_ambient_bins] =
+				p_data->bin_data[bin];
 		}
 
 
-		pdat->VL53L1_p_024 =
-				pdat->VL53L1_p_024 -
-				pdat->number_of_ambient_bins;
-		pdat->number_of_ambient_bins = 0;
+		p_data->VL53L1_p_024 =
+				p_data->VL53L1_p_024 -
+				p_data->number_of_ambient_bins;
+		p_data->number_of_ambient_bins = 0;
 	}
 }
 
@@ -509,59 +509,59 @@ void VL53L1_copy_xtalk_bin_data_to_histogram_data_struct(
 void VL53L1_init_histogram_bin_data_struct(
 	int32_t                      bin_value,
 	uint16_t                     VL53L1_p_024,
-	VL53L1_histogram_bin_data_t *pdat)
+	VL53L1_histogram_bin_data_t *p_data)
 {
 
 
 
 	uint16_t          i = 0;
 
-	pdat->cfg_device_state          = VL53L1_DEVICESTATE_SW_STANDBY;
-	pdat->rd_device_state           = VL53L1_DEVICESTATE_SW_STANDBY;
+	p_data->cfg_device_state          = VL53L1_DEVICESTATE_SW_STANDBY;
+	p_data->rd_device_state           = VL53L1_DEVICESTATE_SW_STANDBY;
 
-	pdat->zone_id                   = 0;
-	pdat->time_stamp                = 0;
+	p_data->zone_id                   = 0;
+	p_data->time_stamp                = 0;
 
-	pdat->VL53L1_p_022                 = 0;
-	pdat->VL53L1_p_023               = VL53L1_HISTOGRAM_BUFFER_SIZE;
-	pdat->VL53L1_p_024            = (uint8_t)VL53L1_p_024;
-	pdat->number_of_ambient_bins    = 0;
+	p_data->VL53L1_p_022                 = 0;
+	p_data->VL53L1_p_023               = VL53L1_HISTOGRAM_BUFFER_SIZE;
+	p_data->VL53L1_p_024            = (uint8_t)VL53L1_p_024;
+	p_data->number_of_ambient_bins    = 0;
 
-	pdat->result__interrupt_status           = 0;
-	pdat->result__range_status               = 0;
-	pdat->result__report_status              = 0;
-	pdat->result__stream_count               = 0;
+	p_data->result__interrupt_status           = 0;
+	p_data->result__range_status               = 0;
+	p_data->result__report_status              = 0;
+	p_data->result__stream_count               = 0;
 
-	pdat->result__dss_actual_effective_spads = 0;
-	pdat->phasecal_result__reference_phase   = 0;
-	pdat->phasecal_result__vcsel_start       = 0;
-	pdat->cal_config__vcsel_start            = 0;
+	p_data->result__dss_actual_effective_spads = 0;
+	p_data->phasecal_result__reference_phase   = 0;
+	p_data->phasecal_result__vcsel_start       = 0;
+	p_data->cal_config__vcsel_start            = 0;
 
-	pdat->vcsel_width                        = 0;
-	pdat->VL53L1_p_009                       = 0;
-	pdat->VL53L1_p_019                = 0;
-	pdat->total_periods_elapsed              = 0;
+	p_data->vcsel_width                        = 0;
+	p_data->VL53L1_p_009                       = 0;
+	p_data->VL53L1_p_019                = 0;
+	p_data->total_periods_elapsed              = 0;
 
-	pdat->min_bin_value                      = 0;
-	pdat->max_bin_value                      = 0;
+	p_data->min_bin_value                      = 0;
+	p_data->max_bin_value                      = 0;
 
-	pdat->zero_distance_phase                = 0;
-	pdat->number_of_ambient_samples          = 0;
-	pdat->ambient_events_sum                 = 0;
-	pdat->VL53L1_p_004             = 0;
-
-	for (i = 0; i < VL53L1_MAX_BIN_SEQUENCE_LENGTH; i++)
-		pdat->bin_seq[i] = (uint8_t)i;
+	p_data->zero_distance_phase                = 0;
+	p_data->number_of_ambient_samples          = 0;
+	p_data->ambient_events_sum                 = 0;
+	p_data->VL53L1_p_004             = 0;
 
 	for (i = 0; i < VL53L1_MAX_BIN_SEQUENCE_LENGTH; i++)
-		pdat->bin_rep[i] = 1;
+		p_data->bin_seq[i] = (uint8_t)i;
+
+	for (i = 0; i < VL53L1_MAX_BIN_SEQUENCE_LENGTH; i++)
+		p_data->bin_rep[i] = 1;
 
 
 	for (i = 0; i < VL53L1_HISTOGRAM_BUFFER_SIZE; i++)
 		if (i < VL53L1_p_024)
-			pdat->bin_data[i] = bin_value;
+			p_data->bin_data[i] = bin_value;
 		else
-			pdat->bin_data[i] = 0;
+			p_data->bin_data[i] = 0;
 
 
 }
@@ -586,7 +586,7 @@ void VL53L1_decode_row_col(
 
 
 void  VL53L1_hist_find_min_max_bin_values(
-	VL53L1_histogram_bin_data_t   *pdat)
+	VL53L1_histogram_bin_data_t   *p_data)
 {
 
 
@@ -594,13 +594,13 @@ void  VL53L1_hist_find_min_max_bin_values(
 
 	LOG_FUNCTION_START("");
 
-	for (bin = 0; bin < pdat->VL53L1_p_024; bin++) {
+	for (bin = 0; bin < p_data->VL53L1_p_024; bin++) {
 
-		if (bin == 0 || pdat->min_bin_value >= pdat->bin_data[bin])
-			pdat->min_bin_value = pdat->bin_data[bin];
+		if (bin == 0 || p_data->min_bin_value >= p_data->bin_data[bin])
+			p_data->min_bin_value = p_data->bin_data[bin];
 
-		if (bin == 0 || pdat->max_bin_value <= pdat->bin_data[bin])
-			pdat->max_bin_value = pdat->bin_data[bin];
+		if (bin == 0 || p_data->max_bin_value <= p_data->bin_data[bin])
+			p_data->max_bin_value = p_data->bin_data[bin];
 
 	}
 
@@ -610,7 +610,7 @@ void  VL53L1_hist_find_min_max_bin_values(
 
 
 void  VL53L1_hist_estimate_ambient_from_ambient_bins(
-	VL53L1_histogram_bin_data_t   *pdat)
+	VL53L1_histogram_bin_data_t   *p_data)
 {
 
 
@@ -618,22 +618,22 @@ void  VL53L1_hist_estimate_ambient_from_ambient_bins(
 
 	LOG_FUNCTION_START("");
 
-	if (pdat->number_of_ambient_bins > 0) {
+	if (p_data->number_of_ambient_bins > 0) {
 
-		pdat->number_of_ambient_samples =
-			pdat->number_of_ambient_bins;
+		p_data->number_of_ambient_samples =
+			p_data->number_of_ambient_bins;
 
 
 
-		pdat->ambient_events_sum = 0;
-		for (bin = 0; bin < pdat->number_of_ambient_bins; bin++)
-			pdat->ambient_events_sum += pdat->bin_data[bin];
+		p_data->ambient_events_sum = 0;
+		for (bin = 0; bin < p_data->number_of_ambient_bins; bin++)
+			p_data->ambient_events_sum += p_data->bin_data[bin];
 
-		pdat->VL53L1_p_004 = pdat->ambient_events_sum;
-		pdat->VL53L1_p_004 +=
-				((int32_t)pdat->number_of_ambient_bins / 2);
-		pdat->VL53L1_p_004 /=
-			(int32_t)pdat->number_of_ambient_bins;
+		p_data->VL53L1_p_004 = p_data->ambient_events_sum;
+		p_data->VL53L1_p_004 +=
+				((int32_t)p_data->number_of_ambient_bins / 2);
+		p_data->VL53L1_p_004 /=
+			(int32_t)p_data->number_of_ambient_bins;
 
 	}
 

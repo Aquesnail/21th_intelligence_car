@@ -46,7 +46,7 @@ VL53L1_Error VL53L1_f_011(
 	uint16_t                        fast_osc_frequency,
 	uint32_t                        total_periods_elapsed,
 	uint16_t                        VL53L1_p_006,
-	VL53L1_range_data_t            *pdat,
+	VL53L1_range_data_t            *p_data,
 	uint8_t histo_merge_nb);
 
 
@@ -55,13 +55,13 @@ VL53L1_Error VL53L1_f_011(
 void VL53L1_f_012(
 	uint16_t             gain_factor,
 	int16_t              range_offset_mm,
-	VL53L1_range_data_t *pdat);
+	VL53L1_range_data_t *p_data);
 
 
 
 
 void  VL53L1_f_037(
-	VL53L1_histogram_bin_data_t   *pdat,
+	VL53L1_histogram_bin_data_t   *p_data,
 	int32_t                        ambient_estimate_counts_per_bin);
 
 

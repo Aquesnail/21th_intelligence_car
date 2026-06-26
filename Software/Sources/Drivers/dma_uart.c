@@ -1,5 +1,6 @@
 #include "dma_uart.h"
 #include "dma_uart_ring.h"
+#include <string.h>
 
 /* 定义缓冲区大小 */
 #define UART_DMATxBufferLength 512
@@ -8,17 +9,17 @@
 #define UART_RxRingBufferLength 2048
 
 /* 物理与逻辑缓冲区 (必须在 XDATA 或 EDATA) */
-static uint8_t xdata uart4_dma_tx[UART_DMATxBufferLength] = {0};
-static uint8_t xdata uart4_dma_rx[UART_DMARxBufferLength] = {0};
-static uint8_t xdata uart4_ring_tx[UART_TxRingBufferLength] = {0};
-static uint8_t xdata uart4_ring_rx[UART_RxRingBufferLength] = {0};
+static uint8_t xdata uart4_dma_tx[UART_DMATxBufferLength];
+static uint8_t xdata uart4_dma_rx[UART_DMARxBufferLength];
+static uint8_t xdata uart4_ring_tx[UART_TxRingBufferLength];
+static uint8_t xdata uart4_ring_rx[UART_RxRingBufferLength];
 
 // DMA 状态标志
 static volatile uint8_t isDmaTxBusy = 0;
 
 #define Baudrate 115200
 
-dma_uart_manager_t uart4_mgr = {0};
+dma_uart_manager_t uart4_mgr;
 
 // ==========================================
 // 内部函数声明
@@ -113,6 +114,11 @@ void UART4_DMA_Config(void) {
 }
 
 void UART4_Init(void) {
+    memset(uart4_dma_tx, 0, sizeof(uart4_dma_tx));
+    memset(uart4_dma_rx, 0, sizeof(uart4_dma_rx));
+    memset(uart4_ring_tx, 0, sizeof(uart4_ring_tx));
+    memset(uart4_ring_rx, 0, sizeof(uart4_ring_rx));
+    memset(&uart4_mgr, 0, sizeof(uart4_mgr));
     UART4_Config(2); // 默认使用 Timer2
     UART4_DMA_Config();
     
