@@ -35,9 +35,9 @@ void     I2C1_WriteRegByte(uint8_t dev_wr_addr, uint16_t reg_addr, uint8_t dat);
 
 /* ==================== 轮询模式多字节读写 (VL53L1X 等) ==================== */
 void I2C1_WriteRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
-                        uint8_t *pdata, uint8_t count);
+                        uint8_t *pdat, uint8_t count);
 void I2C1_ReadRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
-                       uint8_t *pdata, uint8_t count);
+                       uint8_t *pdat, uint8_t count);
 
 /* ==================== DMA 模式 (参照官方例程) ==================== */
 void I2C1_DMA_Config(void);

@@ -223,7 +223,7 @@ void I2C1_WriteRegByte(uint8_t dev_wr_addr, uint16_t reg_addr, uint8_t dat)
 // Protocol: START + dev_wr_addr(W) + reg_h + reg_l + data[0..count-1] + STOP
 ////////////////////////////////////////
 void I2C1_WriteRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
-                        uint8_t *pdata, uint8_t count)
+                        uint8_t *pdat, uint8_t count)
 {
     uint8_t i;
 
@@ -234,7 +234,7 @@ void I2C1_WriteRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
     I2C1_SendByte((uint8_t)(reg_addr & 0xFF));
 
     for (i = 0; i < count; i++) {
-        I2C1_SendByte(pdata[i]);
+        I2C1_SendByte(pdat[i]);
     }
 
     I2C1_StopCmd();
@@ -247,7 +247,7 @@ void I2C1_WriteRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
 //         + read[0..count-2](ACK) + read[count-1](NAK) + STOP
 ////////////////////////////////////////
 void I2C1_ReadRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
-                       uint8_t *pdata, uint8_t count)
+                       uint8_t *pdat, uint8_t count)
 {
     uint8_t i;
     uint8_t dev_rd_addr;
@@ -266,9 +266,9 @@ void I2C1_ReadRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
 
     /* 接收 count 字节: 前 count-1 字节 ACK, 最后 1 字节 NAK */
     for (i = 0; i < count - 1; i++) {
-        pdata[i] = I2C1_RecvByteAck();
+        pdat[i] = I2C1_RecvByteAck();
     }
-    pdata[count - 1] = I2C1_RecvByteNak();
+    pdat[count - 1] = I2C1_RecvByteNak();
 
     /* STOP */
     I2C1_StopCmd();
