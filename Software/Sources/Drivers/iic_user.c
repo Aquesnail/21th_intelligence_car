@@ -2,180 +2,505 @@
 
 
 //<<AICUBE_USER_INCLUDE_BEGIN>>
-// 在此添加用户头文件包含  
 //<<AICUBE_USER_INCLUDE_END>>
 
 
 //<<AICUBE_USER_GLOBAL_DEFINE_BEGIN>>
-// 在此添加用户全局变量定义、用户宏定义以及函数声明  
 //<<AICUBE_USER_GLOBAL_DEFINE_END>>
 
+#define I2C1_DMA_BUF_SIZE 16
+/* DMA 缓冲区 */
+uint8_t xdata I2C1_DmaTxBuffer[I2C1_DMA_BUF_SIZE];
+uint8_t xdata I2C1_DmaRxBuffer[I2C1_DMA_BUF_SIZE];
 
-BOOL fI2C1MasterBusy;                   //I2C1主模式忙标志
-uint8_t xdata pu8I2C1DMATxBuffer[16];   //I2C1 DMA发送缓冲区数组
-uint8_t xdata pu8I2C1DMARxBuffer[16];   //I2C1 DMA接收缓冲区数组
+/* DMA 完成标志 */
+bit I2C1_DmaTxFlag = 0;
+bit I2C1_DmaRxFlag = 0;
+
+/* ---- I2CMSCR 命令码 ---- */
+#define MSCMD_START         0x01    /* 仅发送 START */
+#define MSCMD_STOP          0x06    /* 仅发送 STOP */
+#define MSCMD_START_SEND    0x09    /* START + 发送 I2CTXD + 接收 ACK */
+#define MSCMD_SEND          0x0a    /* 发送 I2CTXD + 接收 ACK */
+#define MSCMD_RECV_ACK      0x0b    /* 接收 1 字节 + 回应 ACK */
+#define MSCMD_RECV_NAK      0x0c    /* 接收 1 字节 + 回应 NAK */
+#define MSCMD_WRITE_COMBO   0x89    /* 主机写组合命令 (DMA) */
+#define MSCMD_READ_COMBO    0x8b    /* 主机读组合命令 (DMA) */
+
+/* ---- 寄存器位 ---- */
+#define MSBUSY              0x80    /* I2CMSST bit7: 主机忙碌 */
+#define MSIF                0x40    /* I2CMSST bit6: 主机中断标志 */
+#define MSACKI              0x02    /* I2CMSST bit1: 接收到的 ACK 值 */
+#define MSACKO              0x01    /* I2CMSST bit0: 要发送的 ACK 值 */
+
 
 ////////////////////////////////////////
-// I2C1初始化函数
-// 入口参数: 无
-// 函数返回: 无
+// I2C1 初始化 (P7.6=SCL, P7.7=SDA, 轮询模式)
 ////////////////////////////////////////
 void I2C1_Init(void)
 {
-    I2C1_SwitchP7677();                 //选择I2C1数据口: SCL(P3.2), SDA(P3.3)
-
-    I2C1_MasterMode();                  //设置I2C1为主机模式
-    I2C1_SetClockDivider(200);          //设置I2C1为主机模式时钟
-
-    I2C1_SetIntPriority(0);             //设置中断为最低优先级
-    I2C1_EnableMasterInt();             //设置I2C1主机模式中断
-    fI2C1MasterBusy = 0;                //清除主机模式忙标志位
-    DMA_I2C1_EnableACKErrorInt();       //使能I2C1接收ACK错误中断
-
-    I2C1_Enable();                      //使能I2C1功能
-
-    DMA_I2C1_EnableDMA();               //使能I2C1 DMA
-    DMA_I2C1_SetDMAAmount(15);          //使能I2C1 DMA发送/接收总字节数
-    DMA_I2C1_SetTxAmount(15);           //设置I2C1 DMA发送总字节数
-    DMA_I2C1_SetTxAddress(pu8I2C1DMATxBuffer); //设置I2C1 DMA发送缓冲区地址
-    DMA_I2C1_SetInterval(0);            //设置I2C1 DMA发送/接收字节间隔时间（系统时钟）
-    DMA_I2C1_ClearTxFlag();             //清除I2C1 发送DMA中断标志
-    DMA_I2C1_SetTxBusPriority(0);       //设置总线访问为最低优先级
-    DMA_I2C1_SetTxIntPriority(0);       //设置中断为最低优先级
-    DMA_I2C1_EnableTxInt();             //使能I2C1 DMA发送中断
-    DMA_I2C1_EnableTx();                //使能I2C1 DMA发送功能
-//  DMA_I2C1_TriggerTx();               //触发I2C1 DMA发送
-
-    DMA_I2C1_EnableDMA();               //使能I2C1 DMA
-    DMA_I2C1_SetDMAAmount(15);          //使能I2C1 DMA发送/接收总字节数
-    DMA_I2C1_SetRxAmount(15);           //设置I2C1 DMA接收总字节数
-    DMA_I2C1_SetRxAddress(pu8I2C1DMARxBuffer); //设置I2C1 DMA接收缓冲区地址
-    DMA_I2C1_SetInterval(0);            //设置I2C1 DMA发送/接收字节间隔时间（系统时钟）
-    DMA_I2C1_ClearFIFO();               //清空I2C1 DMA接收FIFO缓冲区
-    DMA_I2C1_ClearRxFlag();             //清除I2C1 接收DMA中断标志
-    DMA_I2C1_SetRxBusPriority(0);       //设置总线访问为最低优先级
-    DMA_I2C1_EnableRx();                //使能I2C1 DMA接收功能
-//  DMA_I2C1_TriggerRx();               //触发I2C1 DMA接收
-
-    //<<AICUBE_USER_I2C1_INITIAL_BEGIN>>
-    // 在此添加用户初始化代码  
-    //<<AICUBE_USER_I2C1_INITIAL_END>>
+    I2C1_SwitchP7677();             /* SCL=P7.6, SDA=P7.7 */
+    I2CCFG = 0xe0;                  /* ENI2C=1, MSSL=1 (主机模式), SPEED=0 */
+    I2C1_SetClockDivider(1600);     /* 设置时钟分频 */
+    I2CMSST = 0x00;                 /* 清除所有状态 */
+    DMA_I2C_CR = 0x00;              /* 关闭 DMA, 默认纯轮询模式 */
 }
 
+
+/* ==================== 轮询模式基本操作 ==================== */
+
 ////////////////////////////////////////
-// I2C1主机模式等待命令完成
-// 入口参数: 无
-// 函数返回: 无
+// 等待 I2C 主机命令完成 (轮询硬件 MSIF)
 ////////////////////////////////////////
-void I2C1_MasterWait(void)
+void I2C1_Wait(void)
 {
-    while (fI2C1MasterBusy);            //等待忙标志为0
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
 }
 
 ////////////////////////////////////////
-// I2C1主机模式发送起始信号
-// 入口参数: 无
-// 函数返回: 无
+// 等待 I2C 主机空闲 (BUSY=0)
 ////////////////////////////////////////
-void I2C1_MasterStart(void)
+void I2C1_WaitBusy(void)
 {
-    I2C1_Start();                       //触发主机模式起始命令
-    fI2C1MasterBusy = 1;                //设置忙标志
-    I2C1_MasterWait();                  //等待命令完成
+    while (I2CMSST & MSBUSY);
 }
 
 ////////////////////////////////////////
-// I2C1主机模式发送停止信号
-// 入口参数: 无
-// 函数返回: 无
+// 发送 START (独立的 START, 会先等空闲)
 ////////////////////////////////////////
-void I2C1_MasterStop(void)
+void I2C1_StartCmd(void)
 {
-    I2C1_Stop();                        //触发主机模式停止命令
-    fI2C1MasterBusy = 1;                //设置忙标志
-    I2C1_MasterWait();                  //等待命令完成
+    I2C1_WaitBusy();
+    I2CMSCR = MSCMD_START;
+    I2C1_Wait();
 }
 
 ////////////////////////////////////////
-// I2C1主机模式发送1字节数据
-// 入口参数: dat (待发送的字节数据)
-// 函数返回: 0   (接收的应答信号为ACK)
-//           1   (接收的应答信号为NAK)
+// 发送 STOP (帧结束, 不等空闲 — 此时主机正占着总线)
 ////////////////////////////////////////
-uint8_t I2C1_MasterSendByte(uint8_t dat)
+void I2C1_StopCmd(void)
 {
-    I2C1_WriteData(dat);                //将数据写入I2C1数据寄存器
-    I2C1_SendData();                    //触发主机模式写数据命令
-    fI2C1MasterBusy = 1;                //设置忙标志
-    I2C1_MasterWait();                  //等待命令完成
-    I2C1_RecvACK();                     //触发主机模式接收应答命令
-    fI2C1MasterBusy = 1;                //设置忙标志
-    I2C1_MasterWait();                  //等待命令完成
-
-    return I2C1_MasterReadACK();        //读取并返回应答信号
+    I2CMSCR = MSCMD_STOP;
+    I2C1_Wait();
 }
 
 ////////////////////////////////////////
-// I2C1主机模式接收1字节数据
-// 入口参数: ack (待发送的应答信号)
-// 函数返回:     (接收的字节数据)
+// START + 发送 1 字节 + 收 ACK (帧内部, 不等空闲)
+// 返回: 0=ACK, 1=NAK
 ////////////////////////////////////////
-uint8_t I2C1_MasterReadByte(uint8_t ack)
+static uint8_t I2C1_SendByteStart(uint8_t dat)
+{
+    I2CTXD = dat;
+    I2CMSCR = MSCMD_START_SEND;
+    I2C1_Wait();
+    return (I2CMSST & MSACKI) ? 1 : 0;
+}
+
+////////////////////////////////////////
+// 发送 1 字节 + 收 ACK (帧内部, 不等空闲)
+// 返回: 0=ACK, 1=NAK
+////////////////////////////////////////
+static uint8_t I2C1_SendByte(uint8_t dat)
+{
+    I2CTXD = dat;
+    I2CMSCR = MSCMD_SEND;
+    I2C1_Wait();
+    return (I2CMSST & MSACKI) ? 1 : 0;
+}
+
+////////////////////////////////////////
+// 接收 1 字节 + 回应 ACK (帧内部, 不等空闲)
+////////////////////////////////////////
+static uint8_t I2C1_RecvByteAck(void)
 {
     uint8_t dat;
+    I2CMSCR = MSCMD_RECV_ACK;
+    I2C1_Wait();
+    dat = I2CRXD;
+    return dat;
+}
 
-    I2C1_RecvData();                    //触发主机模式读数据命令
-    fI2C1MasterBusy = 1;                //设置忙标志
-    I2C1_MasterWait();                  //等待命令完成
-    dat = I2C1_ReadData();              //读取接收的数据
-    if (!ack)
-        I2C1_MasterSetACK();            //将ACK数据写入寄存器
-    else
-        I2C1_MasterSetNAK();            //将NAK数据写入寄存器
-    I2C1_SendACK();                     //触发主机模式发送应答命令
-    fI2C1MasterBusy = 1;                //设置忙标志
-    I2C1_MasterWait();                  //等待命令完成
-
-    return dat;                         //返回接收的数据
+////////////////////////////////////////
+// 接收 1 字节 + 回应 NAK (帧内部, 不等空闲)
+////////////////////////////////////////
+static uint8_t I2C1_RecvByteNak(void)
+{
+    uint8_t dat;
+    I2CMSCR = MSCMD_RECV_NAK;
+    I2C1_Wait();
+    dat = I2CRXD;
+    return dat;
 }
 
 
+/* ==================== 设备寄存器读写 (16-bit 寄存器地址) ==================== */
+
 ////////////////////////////////////////
-// I2C1中断服务程序
-// 入口参数: 无
-// 函数返回: 无
+// 读设备寄存器 1 字节
+// dev_wr_addr: 设备 7-bit 地址左移1位 (写地址)
+// reg_addr:    16-bit 寄存器地址
+////////////////////////////////////////
+uint8_t I2C1_ReadRegByte(uint8_t dev_wr_addr, uint16_t reg_addr)
+{
+    uint8_t dev_rd_addr;
+    uint8_t dat;
+
+    dev_rd_addr = dev_wr_addr | 0x01;
+
+    I2C1_WaitBusy();   /* 等上一次事务结束 */
+
+    /* 第1帧: START + 写地址 + 寄存器地址高字节 + 寄存器地址低字节 */
+    I2C1_SendByteStart(dev_wr_addr);
+    I2C1_SendByte((uint8_t)(reg_addr >> 8));
+    I2C1_SendByte((uint8_t)(reg_addr & 0xFF));
+
+    /* 第2帧: 重复 START + 读地址 */
+    I2C1_SendByteStart(dev_rd_addr);
+
+    /* 接收 1 字节 + NAK */
+    dat = I2C1_RecvByteNak();
+
+    /* STOP */
+    I2C1_StopCmd();
+
+    return dat;
+}
+
+////////////////////////////////////////
+// 读设备寄存器 2 字节 (大端序)
+////////////////////////////////////////
+uint16_t I2C1_ReadRegWord(uint8_t dev_wr_addr, uint16_t reg_addr)
+{
+    uint8_t dev_rd_addr;
+    uint8_t hi;
+    uint8_t lo;
+
+    dev_rd_addr = dev_wr_addr | 0x01;
+
+    I2C1_WaitBusy();   /* 等上一次事务结束 */
+
+    /* 第1帧: START + 写地址 + 寄存器地址高字节 + 寄存器地址低字节 */
+    I2C1_SendByteStart(dev_wr_addr);
+    I2C1_SendByte((uint8_t)(reg_addr >> 8));
+    I2C1_SendByte((uint8_t)(reg_addr & 0xFF));
+
+    /* 第2帧: 重复 START + 读地址 */
+    I2C1_SendByteStart(dev_rd_addr);
+
+    /* 接收 2 字节: 第1字节 ACK, 第2字节 NAK */
+    hi = I2C1_RecvByteAck();
+    lo = I2C1_RecvByteNak();
+
+    /* STOP */
+    I2C1_StopCmd();
+
+    return ((uint16_t)hi << 8) | (uint16_t)lo;
+}
+
+////////////////////////////////////////
+// 写设备寄存器 1 字节
+////////////////////////////////////////
+void I2C1_WriteRegByte(uint8_t dev_wr_addr, uint16_t reg_addr, uint8_t dat)
+{
+    I2C1_WaitBusy();   /* 等上一次事务结束 */
+
+    /* START + 写地址 + 寄存器地址高 + 寄存器地址低 + 数据 */
+    I2C1_SendByteStart(dev_wr_addr);
+    I2C1_SendByte((uint8_t)(reg_addr >> 8));
+    I2C1_SendByte((uint8_t)(reg_addr & 0xFF));
+    I2C1_SendByte(dat);
+
+    /* STOP */
+    I2C1_StopCmd();
+}
+
+
+/* ==================== 轮询模式多字节读写 (VL53L1X 等) ==================== */
+
+////////////////////////////////////////
+// 写设备寄存器多字节 (16-bit 寄存器地址)
+// Protocol: START + dev_wr_addr(W) + reg_h + reg_l + data[0..count-1] + STOP
+////////////////////////////////////////
+void I2C1_WriteRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
+                        uint8_t *pdata, uint8_t count)
+{
+    uint8_t i;
+
+    I2C1_WaitBusy();
+
+    I2C1_SendByteStart(dev_wr_addr);
+    I2C1_SendByte((uint8_t)(reg_addr >> 8));
+    I2C1_SendByte((uint8_t)(reg_addr & 0xFF));
+
+    for (i = 0; i < count; i++) {
+        I2C1_SendByte(pdata[i]);
+    }
+
+    I2C1_StopCmd();
+}
+
+////////////////////////////////////////
+// 读设备寄存器多字节 (16-bit 寄存器地址)
+// Protocol: START + dev_wr_addr(W) + reg_h + reg_l
+//         + RESTART + dev_rd_addr(R)
+//         + read[0..count-2](ACK) + read[count-1](NAK) + STOP
+////////////////////////////////////////
+void I2C1_ReadRegMulti(uint8_t dev_wr_addr, uint16_t reg_addr,
+                       uint8_t *pdata, uint8_t count)
+{
+    uint8_t i;
+    uint8_t dev_rd_addr;
+
+    dev_rd_addr = dev_wr_addr | 0x01;
+
+    I2C1_WaitBusy();
+
+    /* 第1帧: START + 写地址 + 寄存器地址高字节 + 寄存器地址低字节 */
+    I2C1_SendByteStart(dev_wr_addr);
+    I2C1_SendByte((uint8_t)(reg_addr >> 8));
+    I2C1_SendByte((uint8_t)(reg_addr & 0xFF));
+
+    /* 第2帧: 重复 START + 读地址 */
+    I2C1_SendByteStart(dev_rd_addr);
+
+    /* 接收 count 字节: 前 count-1 字节 ACK, 最后 1 字节 NAK */
+    for (i = 0; i < count - 1; i++) {
+        pdata[i] = I2C1_RecvByteAck();
+    }
+    pdata[count - 1] = I2C1_RecvByteNak();
+
+    /* STOP */
+    I2C1_StopCmd();
+}
+
+/* ==================== DMA 模式 (参照官方例程) ==================== */
+
+////////////////////////////////////////
+// DMA 硬件配置 (不触发传输)
+////////////////////////////////////////
+void I2C1_DMA_Config(void)
+{
+    /* 发送 DMA */
+    DMA_I2CT_STA = 0x00;
+    DMA_I2CT_CFG = 0x80;            /* 使能中断 */
+    DMA_I2CT_AMT = 0xff;            /* 传输总字节数低8位 */
+    DMA_I2CT_AMTH = 0x00;           /* 传输总字节数高8位 */
+    DMA_I2CT_TXAH = (uint8_t)((uint16_t)&I2C1_DmaTxBuffer >> 8);
+    DMA_I2CT_TXAL = (uint8_t)((uint16_t)&I2C1_DmaTxBuffer);
+    DMA_I2CT_CR = 0x80;             /* 使能 DMA TX, 不触发 */
+
+    /* 接收 DMA */
+    DMA_I2CR_STA = 0x00;
+    DMA_I2CR_CFG = 0x80;            /* 使能中断 */
+    DMA_I2CR_AMT = 0xff;            /* 传输总字节数低8位 */
+    DMA_I2CR_AMTH = 0x00;           /* 传输总字节数高8位 */
+    DMA_I2CR_RXAH = (uint8_t)((uint16_t)&I2C1_DmaRxBuffer >> 8);
+    DMA_I2CR_RXAL = (uint8_t)((uint16_t)&I2C1_DmaRxBuffer);
+    DMA_I2CR_CR = 0x81;             /* 使能 DMA RX, 清除 FIFO */
+
+    /* 总传输字节数 */
+    DMA_I2C_ST1 = 0xff;
+    DMA_I2C_ST2 = 0x00;
+}
+
+////////////////////////////////////////
+// DMA 写入 N 字节 (1 字节存储地址, AT24C02 等)
+// 调用前: I2C1_DmaTxBuffer[2..2+len-1] 填入数据
+////////////////////////////////////////
+void I2C1_DMA_WriteNbyte(uint8_t dev_wr_addr, uint8_t mem_addr, uint8_t len)
+{
+    while (I2CMSST & MSBUSY);       /* 等待空闲 */
+
+    I2C1_DmaTxFlag = 1;
+    I2C1_DmaTxBuffer[0] = dev_wr_addr;
+    I2C1_DmaTxBuffer[1] = mem_addr;
+
+    I2CMSST = 0x00;
+    I2CMSCR = MSCMD_WRITE_COMBO;    /* START + 发送 + 自动 ACK (DMA 控制) */
+    DMA_I2C_CR = 0x01;              /* DMAEN=0 (先关) */
+
+    DMA_I2CT_AMT = len + 1;         /* 总字节: 数据 + 设备地址 + 存储地址 */
+    DMA_I2CT_AMTH = 0x00;
+    DMA_I2C_ST1 = len + 1;
+    DMA_I2C_ST2 = 0x00;
+    DMA_I2CT_CR |= 0x40;            /* TRIG=1, 启动 DMA 发送 */
+
+    while (I2C1_DmaTxFlag);         /* 等待完成 */
+    DMA_I2C_CR = 0x00;
+}
+
+////////////////////////////////////////
+// DMA 读出 N 字节 (1 字节存储地址)
+// 数据读到 I2C1_DmaRxBuffer[0..len-1]
+////////////////////////////////////////
+void I2C1_DMA_ReadNbyte(uint8_t dev_wr_addr, uint8_t dev_rd_addr,
+                        uint8_t mem_addr, uint8_t len)
+{
+    while (I2CMSST & MSBUSY);
+    DMA_I2C_CR = 0x00;
+    I2CMSST = 0x00;
+
+    /* 手动发送: START + 设备写地址 */
+    I2CTXD = dev_wr_addr;
+    I2CMSCR = MSCMD_START_SEND;
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
+
+    /* 发送: 存储地址 */
+    I2CTXD = mem_addr;
+    I2CMSCR = MSCMD_SEND;
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
+
+    /* 发送: 重复 START + 设备读地址 */
+    I2CTXD = dev_rd_addr;
+    I2CMSCR = MSCMD_START_SEND;
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
+
+    /* 启动 DMA 接收 */
+    I2C1_DmaRxFlag = 1;
+    I2CMSCR = MSCMD_READ_COMBO;
+    DMA_I2C_CR = 0x01;
+
+    DMA_I2CR_AMT = len - 1;
+    DMA_I2CR_AMTH = 0x00;
+    DMA_I2C_ST1 = len - 1;
+    DMA_I2C_ST2 = 0x00;
+    DMA_I2CR_CR |= 0x40;            /* TRIG */
+
+    while (I2C1_DmaRxFlag);
+    DMA_I2C_CR = 0x00;
+}
+
+////////////////////////////////////////
+// DMA 寄存器写入 (16-bit 寄存器地址, VL6180X 等)
+// 调用前: I2C1_DmaTxBuffer[3..3+len-1] 填入数据
+////////////////////////////////////////
+void I2C1_DMA_WriteReg(uint8_t dev_wr_addr, uint16_t reg_addr, uint8_t len)
+{
+    while (I2CMSST & MSBUSY);
+
+    I2C1_DmaTxFlag = 1;
+    I2C1_DmaTxBuffer[0] = dev_wr_addr;
+    I2C1_DmaTxBuffer[1] = (uint8_t)(reg_addr >> 8);    /* 寄存器地址高字节 */
+    I2C1_DmaTxBuffer[2] = (uint8_t)(reg_addr & 0xFF);  /* 寄存器地址低字节 */
+
+    I2CMSST = 0x00;
+    I2CMSCR = MSCMD_WRITE_COMBO;
+    DMA_I2C_CR = 0x01;
+
+    DMA_I2CT_AMT = len + 2;         /* 总字节: 数据 + 设备地址 + 2字节寄存器地址 */
+    DMA_I2CT_AMTH = 0x00;
+    DMA_I2C_ST1 = len + 2;
+    DMA_I2C_ST2 = 0x00;
+    DMA_I2CT_CR |= 0x40;
+
+    while (I2C1_DmaTxFlag);
+    DMA_I2C_CR = 0x00;
+}
+
+////////////////////////////////////////
+// DMA 寄存器读出 (16-bit 寄存器地址)
+// 数据读到 I2C1_DmaRxBuffer[0..len-1]
+////////////////////////////////////////
+void I2C1_DMA_ReadReg(uint8_t dev_wr_addr, uint8_t dev_rd_addr,
+                      uint16_t reg_addr, uint8_t len)
+{
+    while (I2CMSST & MSBUSY);
+    DMA_I2C_CR = 0x00;
+    I2CMSST = 0x00;
+
+    /* 手动: START + 设备写地址 */
+    I2CTXD = dev_wr_addr;
+    I2CMSCR = MSCMD_START_SEND;
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
+
+    /* 手动: 寄存器地址高字节 */
+    I2CTXD = (uint8_t)(reg_addr >> 8);
+    I2CMSCR = MSCMD_SEND;
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
+
+    /* 手动: 寄存器地址低字节 */
+    I2CTXD = (uint8_t)(reg_addr & 0xFF);
+    I2CMSCR = MSCMD_SEND;
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
+
+    /* 手动: 重复 START + 设备读地址 */
+    I2CTXD = dev_rd_addr;
+    I2CMSCR = MSCMD_START_SEND;
+    while ((I2CMSST & MSIF) == 0);
+    I2CMSST &= ~MSIF;
+
+    /* 启动 DMA 接收 */
+    I2C1_DmaRxFlag = 1;
+    I2CMSCR = MSCMD_READ_COMBO;
+    DMA_I2C_CR = 0x01;
+
+    DMA_I2CR_AMT = len - 1;
+    DMA_I2CR_AMTH = 0x00;
+    DMA_I2C_ST1 = len - 1;
+    DMA_I2C_ST2 = 0x00;
+    DMA_I2CR_CR |= 0x40;
+
+    while (I2C1_DmaRxFlag);
+    DMA_I2C_CR = 0x00;
+}
+
+
+/* ==================== 中断服务程序 ==================== */
+
+////////////////////////////////////////
+// I2C1 主机中断
 ////////////////////////////////////////
 void I2C1_ISR(void) interrupt I2C1_VECTOR
 {
     //<<AICUBE_USER_I2C1_ISR_CODE1_BEGIN>>
-    // 在此添加中断函数用户代码  
-    if (I2C1_CheckMasterFlag())         //判断I2C1主机中断
+    if (I2C1_CheckMasterFlag())
     {
-        I2C1_ClearMasterFlag();         //清除I2C1主机中断标志
-        fI2C1MasterBusy = 0;            //清除主机模式忙标志位
+        I2C1_ClearMasterFlag();
     }
     //<<AICUBE_USER_I2C1_ISR_CODE1_END>>
 }
 
 ////////////////////////////////////////
-// I2C1发送DMA中断服务程序
-// 入口参数: 无
-// 函数返回: 无
+// I2C1 DMA 发送完成中断
 ////////////////////////////////////////
 void DMA_I2C1TX_ISR(void) interrupt DMA_I2C1T_VECTOR
 {
     //<<AICUBE_USER_I2C1_ISR_CODE2_BEGIN>>
-    // 在此添加中断函数用户代码  
-    if (DMA_I2C1_CheckTxFlag())         //判断I2C1发送DMA中断
+    if (DMA_I2C1_CheckTxFlag())
     {
-        DMA_I2C1_ClearTxFlag();         //清除I2C1发送DMA中断标志
+        DMA_I2C1_ClearTxFlag();
+        I2C1_DmaTxFlag = 0;
+    }
+    if (DMA_I2C1_CheckOverWriteFlag())
+    {
+        DMA_I2C1_ClearOverWriteFlag();
     }
     //<<AICUBE_USER_I2C1_ISR_CODE2_END>>
 }
 
+////////////////////////////////////////
+// I2C1 DMA 接收完成中断
+////////////////////////////////////////
+void DMA_I2C1RX_ISR(void) interrupt DMA_I2C1R_VECTOR
+{
+    if (DMA_I2C1_CheckRxFlag())
+    {
+        DMA_I2C1_ClearRxFlag();
+        I2C1_DmaRxFlag = 0;
+    }
+    if (DMA_I2C1_CheckRxLossFlag())
+    {
+        DMA_I2C1_ClearRxLossFlag();
+    }
+}
+
 
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_BEGIN>>
-// 在此添加用户函数实现代码  
 //<<AICUBE_USER_FUNCTION_IMPLEMENT_END>>
-
-
