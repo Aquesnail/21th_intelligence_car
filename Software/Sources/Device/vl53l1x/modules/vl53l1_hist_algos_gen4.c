@@ -32,20 +32,20 @@
 
 
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_HISTOGRAM, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_HISTOGRAM, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_HISTOGRAM, \
-	status, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_HISTOGRAM, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_HISTOGRAM, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_HISTOGRAM, \
+// 	status, fmt, __VA_ARGS__)
 
-#define trace_print(level, ...) \
-	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_HISTOGRAM, \
-	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
+// #define trace_print(level, ...) \
+// 	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_HISTOGRAM, \
+// 	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
 
 
 void VL53L1_f_032(
@@ -370,7 +370,7 @@ VL53L1_Error VL53L1_f_034(
 
 	VL53L1_Error  status       = VL53L1_ERROR_NONE;
 
-	VL53L1_hist_pulse_data_t *pdata = &(palgo3->VL53L1_p_002[pulse_no]);
+	VL53L1_hist_pulse_data_t *pdat = &(palgo3->VL53L1_p_002[pulse_no]);
 
 	uint8_t  lb     = 0;
 	uint8_t  i     = 0;
@@ -386,14 +386,14 @@ VL53L1_Error VL53L1_f_034(
 
 
 
-	for (lb = pdata->VL53L1_p_015; lb <= pdata->VL53L1_p_016; lb++) {
+	for (lb = pdat->VL53L1_p_015; lb <= pdat->VL53L1_p_016; lb++) {
 
 		i =  lb  % palgo3->VL53L1_p_031;
 
 
 		VL53L1_f_013(
 				i,
-				pdata->VL53L1_p_055,
+				pdat->VL53L1_p_055,
 				ppulse,
 				&suma,
 				&sumb,
@@ -433,7 +433,7 @@ VL53L1_Error VL53L1_f_035(
 	VL53L1_Error  status       = VL53L1_ERROR_NONE;
 	VL53L1_Error  func_status  = VL53L1_ERROR_NONE;
 
-	VL53L1_hist_pulse_data_t *pdata = &(palgo3->VL53L1_p_002[pulse_no]);
+	VL53L1_hist_pulse_data_t *pdat = &(palgo3->VL53L1_p_002[pulse_no]);
 
 	uint8_t  lb            = 0;
 	uint8_t  i            = 0;
@@ -441,7 +441,7 @@ VL53L1_Error VL53L1_f_035(
 
 	SUPPRESS_UNUSED_WARNING(noise_threshold);
 
-	for (lb = pdata->VL53L1_p_015; lb < pdata->VL53L1_p_016; lb++) {
+	for (lb = pdat->VL53L1_p_015; lb < pdat->VL53L1_p_016; lb++) {
 
 		i =  lb    % palgo3->VL53L1_p_031;
 		j = (lb+1) % palgo3->VL53L1_p_031;
@@ -470,7 +470,7 @@ VL53L1_Error VL53L1_f_035(
 
 			if (pfiltered->VL53L1_p_043[i] > 0) {
 
-				pdata->VL53L1_p_025 = lb;
+				pdat->VL53L1_p_025 = lb;
 
 				func_status =
 					VL53L1_f_036(
@@ -483,7 +483,7 @@ VL53L1_Error VL53L1_f_035(
 					0,
 					palgo3->VL53L1_p_004,
 					palgo3->VL53L1_p_031,
-					&(pdata->VL53L1_p_014));
+					&(pdat->VL53L1_p_014));
 
 				if (func_status ==
 					VL53L1_ERROR_DIVISION_BY_ZERO)

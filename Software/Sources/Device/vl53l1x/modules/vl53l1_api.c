@@ -31,16 +31,16 @@
 #error Must define at least 5 zones in MAX_USER_ZONES constant
 #endif
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_API, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_API, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_API, status, \
-			fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_API, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_API, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_API, status, \
+// 			fmt, __VA_ARGS__)
 
 #ifdef VL53L1_LOG_ENABLE
 #define trace_print(level, ...) trace_print_module_function(\
@@ -446,14 +446,14 @@ VL53L1_Error VL53L1_SetDeviceAddress(VL53L1_DEV Dev, uint8_t DeviceAddress)
 {
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
 	VL53L1_LLDriverData_t *pdev = VL53L1DevStructGetLLDriverHandle(Dev);
-	VL53L1_static_nvm_managed_t  *pdata = &(pdev->stat_nvm);
+	VL53L1_static_nvm_managed_t  *pdat = &(pdev->stat_nvm);
 
 	LOG_FUNCTION_START("");
 
 	Status = VL53L1_WrByte(Dev, VL53L1_I2C_SLAVE__DEVICE_ADDRESS,
 			DeviceAddress / 2);
 
-	pdata->i2c_slave__device_address = (DeviceAddress / 2) & 0x7F;
+	pdat->i2c_slave__device_address = (DeviceAddress / 2) & 0x7F;
 
 	LOG_FUNCTION_END(Status);
 	return Status;
@@ -646,7 +646,7 @@ static VL53L1_Error SetPresetMode(VL53L1_DEV Dev,
 	uint32_t mm_config_timeout_us = 0;
 	uint32_t lld_range_config_timeout_us = 0;
 
-	LOG_FUNCTION_START("%d", (int)PresetMode);
+	LOG_FUNCTION_START("");
 
 	if ((PresetMode == VL53L1_PRESETMODE_AUTONOMOUS) ||
 		(PresetMode == VL53L1_PRESETMODE_LOWPOWER_AUTONOMOUS))
@@ -695,7 +695,7 @@ VL53L1_Error VL53L1_SetPresetMode(VL53L1_DEV Dev, VL53L1_PresetModes PresetMode)
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
 	VL53L1_DistanceModes DistanceMode = VL53L1_DISTANCEMODE_LONG;
 
-	LOG_FUNCTION_START("%d", (int)PresetMode);
+	LOG_FUNCTION_START("");
 
 
 	Status = VL53L1_low_power_auto_data_init(Dev);
@@ -754,7 +754,7 @@ VL53L1_Error VL53L1_SetDistanceMode(VL53L1_DEV Dev,
 	uint32_t PhaseCalTimeoutUs = 0;
 	VL53L1_zone_config_t zone_config;
 
-	LOG_FUNCTION_START("%d", (int)DistanceMode);
+	LOG_FUNCTION_START("");
 
 	PresetMode = VL53L1DevDataGet(Dev, CurrentParameters.PresetMode);
 

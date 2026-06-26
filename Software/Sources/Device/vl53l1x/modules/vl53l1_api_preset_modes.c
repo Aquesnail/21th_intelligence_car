@@ -23,20 +23,20 @@
 #include "vl53l1_tuning_parm_defaults.h"
 
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_API, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_API, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_API,\
-	status, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_API, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_API, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_API,\
+// 	status, fmt, __VA_ARGS__)
 
 
 VL53L1_Error VL53L1_init_refspadchar_config_struct(
-	VL53L1_refspadchar_config_t   *pdata)
+	VL53L1_refspadchar_config_t   *pdat)
 {
 
 
@@ -46,17 +46,17 @@ VL53L1_Error VL53L1_init_refspadchar_config_struct(
 
 
 
-	pdata->device_test_mode =
+	pdat->device_test_mode =
 		VL53L1_TUNINGPARM_REFSPADCHAR_DEVICE_TEST_MODE_DEFAULT;
-	pdata->VL53L1_p_009              =
+	pdat->VL53L1_p_009              =
 		VL53L1_TUNINGPARM_REFSPADCHAR_VCSEL_PERIOD_DEFAULT;
-	pdata->timeout_us                =
+	pdat->timeout_us                =
 		VL53L1_TUNINGPARM_REFSPADCHAR_PHASECAL_TIMEOUT_US_DEFAULT;
-	pdata->target_count_rate_mcps    =
+	pdat->target_count_rate_mcps    =
 		VL53L1_TUNINGPARM_REFSPADCHAR_TARGET_COUNT_RATE_MCPS_DEFAULT;
-	pdata->min_count_rate_limit_mcps =
+	pdat->min_count_rate_limit_mcps =
 		VL53L1_TUNINGPARM_REFSPADCHAR_MIN_COUNTRATE_LIMIT_MCPS_DEFAULT;
-	pdata->max_count_rate_limit_mcps =
+	pdat->max_count_rate_limit_mcps =
 		VL53L1_TUNINGPARM_REFSPADCHAR_MAX_COUNTRATE_LIMIT_MCPS_DEFAULT;
 
 	LOG_FUNCTION_END(status);
@@ -66,7 +66,7 @@ VL53L1_Error VL53L1_init_refspadchar_config_struct(
 
 
 VL53L1_Error VL53L1_init_ssc_config_struct(
-	VL53L1_ssc_config_t   *pdata)
+	VL53L1_ssc_config_t   *pdat)
 {
 
 
@@ -77,24 +77,24 @@ VL53L1_Error VL53L1_init_ssc_config_struct(
 
 
 
-	pdata->array_select = VL53L1_DEVICESSCARRAY_RTN;
+	pdat->array_select = VL53L1_DEVICESSCARRAY_RTN;
 
 
-	pdata->VL53L1_p_009 =
+	pdat->VL53L1_p_009 =
 			VL53L1_TUNINGPARM_SPADMAP_VCSEL_PERIOD_DEFAULT;
 
 
-	pdata->vcsel_start  =
+	pdat->vcsel_start  =
 			VL53L1_TUNINGPARM_SPADMAP_VCSEL_START_DEFAULT;
 
 
-	pdata->vcsel_width = 0x02;
+	pdat->vcsel_width = 0x02;
 
 
-	pdata->timeout_us   = 36000;
+	pdat->timeout_us   = 36000;
 
 
-	pdata->rate_limit_mcps =
+	pdat->rate_limit_mcps =
 			VL53L1_TUNINGPARM_SPADMAP_RATE_LIMIT_MCPS_DEFAULT;
 
 	LOG_FUNCTION_END(status);
@@ -105,7 +105,7 @@ VL53L1_Error VL53L1_init_ssc_config_struct(
 
 VL53L1_Error VL53L1_init_xtalk_config_struct(
 	VL53L1_customer_nvm_managed_t *pnvm,
-	VL53L1_xtalk_config_t   *pdata)
+	VL53L1_xtalk_config_t   *pdat)
 {
 
 
@@ -117,64 +117,64 @@ VL53L1_Error VL53L1_init_xtalk_config_struct(
 
 
 
-	pdata->algo__crosstalk_compensation_plane_offset_kcps      =
+	pdat->algo__crosstalk_compensation_plane_offset_kcps      =
 		pnvm->algo__crosstalk_compensation_plane_offset_kcps;
-	pdata->algo__crosstalk_compensation_x_plane_gradient_kcps  =
+	pdat->algo__crosstalk_compensation_x_plane_gradient_kcps  =
 		pnvm->algo__crosstalk_compensation_x_plane_gradient_kcps;
-	pdata->algo__crosstalk_compensation_y_plane_gradient_kcps  =
+	pdat->algo__crosstalk_compensation_y_plane_gradient_kcps  =
 		pnvm->algo__crosstalk_compensation_y_plane_gradient_kcps;
 
 
 
-	pdata->nvm_default__crosstalk_compensation_plane_offset_kcps      =
+	pdat->nvm_default__crosstalk_compensation_plane_offset_kcps      =
 		(uint32_t)pnvm->algo__crosstalk_compensation_plane_offset_kcps;
-	pdata->nvm_default__crosstalk_compensation_x_plane_gradient_kcps  =
+	pdat->nvm_default__crosstalk_compensation_x_plane_gradient_kcps  =
 		pnvm->algo__crosstalk_compensation_x_plane_gradient_kcps;
-	pdata->nvm_default__crosstalk_compensation_y_plane_gradient_kcps  =
+	pdat->nvm_default__crosstalk_compensation_y_plane_gradient_kcps  =
 		pnvm->algo__crosstalk_compensation_y_plane_gradient_kcps;
 
-	pdata->histogram_mode_crosstalk_margin_kcps                =
+	pdat->histogram_mode_crosstalk_margin_kcps                =
 			VL53L1_TUNINGPARM_HIST_XTALK_MARGIN_KCPS_DEFAULT;
-	pdata->lite_mode_crosstalk_margin_kcps                     =
+	pdat->lite_mode_crosstalk_margin_kcps                     =
 			VL53L1_TUNINGPARM_LITE_XTALK_MARGIN_KCPS_DEFAULT;
 
 
 
-	pdata->crosstalk_range_ignore_threshold_mult =
+	pdat->crosstalk_range_ignore_threshold_mult =
 			VL53L1_TUNINGPARM_LITE_RIT_MULT_DEFAULT;
 
-	if ((pdata->algo__crosstalk_compensation_plane_offset_kcps == 0x00)
-		&& (pdata->algo__crosstalk_compensation_x_plane_gradient_kcps
+	if ((pdat->algo__crosstalk_compensation_plane_offset_kcps == 0x00)
+		&& (pdat->algo__crosstalk_compensation_x_plane_gradient_kcps
 				== 0x00)
-		&& (pdata->algo__crosstalk_compensation_y_plane_gradient_kcps
+		&& (pdat->algo__crosstalk_compensation_y_plane_gradient_kcps
 				== 0x00))
-		pdata->global_crosstalk_compensation_enable = 0x00;
+		pdat->global_crosstalk_compensation_enable = 0x00;
 	else
-		pdata->global_crosstalk_compensation_enable = 0x01;
+		pdat->global_crosstalk_compensation_enable = 0x01;
 
 
 	if ((status == VL53L1_ERROR_NONE) &&
-		(pdata->global_crosstalk_compensation_enable == 0x01)) {
-		pdata->crosstalk_range_ignore_threshold_rate_mcps =
+		(pdat->global_crosstalk_compensation_enable == 0x01)) {
+		pdat->crosstalk_range_ignore_threshold_rate_mcps =
 		VL53L1_calc_range_ignore_threshold(
-		pdata->algo__crosstalk_compensation_plane_offset_kcps,
-		pdata->algo__crosstalk_compensation_x_plane_gradient_kcps,
-		pdata->algo__crosstalk_compensation_y_plane_gradient_kcps,
-		pdata->crosstalk_range_ignore_threshold_mult);
+		pdat->algo__crosstalk_compensation_plane_offset_kcps,
+		pdat->algo__crosstalk_compensation_x_plane_gradient_kcps,
+		pdat->algo__crosstalk_compensation_y_plane_gradient_kcps,
+		pdat->crosstalk_range_ignore_threshold_mult);
 	} else {
-		pdata->crosstalk_range_ignore_threshold_rate_mcps = 0;
+		pdat->crosstalk_range_ignore_threshold_rate_mcps = 0;
 	}
 
 
 
 
-	pdata->algo__crosstalk_detect_min_valid_range_mm  =
+	pdat->algo__crosstalk_detect_min_valid_range_mm  =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MIN_VALID_RANGE_MM_DEFAULT;
-	pdata->algo__crosstalk_detect_max_valid_range_mm  =
+	pdat->algo__crosstalk_detect_max_valid_range_mm  =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MAX_VALID_RANGE_MM_DEFAULT;
-	pdata->algo__crosstalk_detect_max_valid_rate_kcps =
+	pdat->algo__crosstalk_detect_max_valid_rate_kcps =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MAX_VALID_RATE_KCPS_DEFAULT;
-	pdata->algo__crosstalk_detect_max_sigma_mm        =
+	pdat->algo__crosstalk_detect_max_sigma_mm        =
 			VL53L1_TUNINGPARM_XTALK_DETECT_MAX_SIGMA_MM_DEFAULT;
 
 	LOG_FUNCTION_END(status);
@@ -183,7 +183,7 @@ VL53L1_Error VL53L1_init_xtalk_config_struct(
 }
 
 VL53L1_Error VL53L1_init_xtalk_extract_config_struct(
-	VL53L1_xtalkextract_config_t   *pdata)
+	VL53L1_xtalkextract_config_t   *pdat)
 {
 
 
@@ -193,31 +193,31 @@ VL53L1_Error VL53L1_init_xtalk_extract_config_struct(
 
 
 
-	pdata->dss_config__target_total_rate_mcps          =
+	pdat->dss_config__target_total_rate_mcps          =
 			VL53L1_TUNINGPARM_XTALK_EXTRACT_DSS_RATE_MCPS_DEFAULT;
 
-	pdata->mm_config_timeout_us                        =
+	pdat->mm_config_timeout_us                        =
 			VL53L1_TUNINGPARM_XTALK_EXTRACT_DSS_TIMEOUT_US_DEFAULT;
 
-	pdata->num_of_samples                              =
+	pdat->num_of_samples                              =
 			VL53L1_TUNINGPARM_XTALK_EXTRACT_NUM_OF_SAMPLES_DEFAULT;
 
-	pdata->phasecal_config_timeout_us                  =
+	pdat->phasecal_config_timeout_us                  =
 		VL53L1_TUNINGPARM_XTALK_EXTRACT_PHASECAL_TIMEOUT_US_DEFAULT;
 
-	pdata->range_config_timeout_us                     =
+	pdat->range_config_timeout_us                     =
 			VL53L1_TUNINGPARM_XTALK_EXTRACT_BIN_TIMEOUT_US_DEFAULT;
 
 
 
 
-	pdata->algo__crosstalk_extract_min_valid_range_mm  =
+	pdat->algo__crosstalk_extract_min_valid_range_mm  =
 		VL53L1_TUNINGPARM_XTALK_EXTRACT_MIN_FILTER_THRESH_MM_DEFAULT;
-	pdata->algo__crosstalk_extract_max_valid_range_mm  =
+	pdat->algo__crosstalk_extract_max_valid_range_mm  =
 		VL53L1_TUNINGPARM_XTALK_EXTRACT_MAX_FILTER_THRESH_MM_DEFAULT;
-	pdata->algo__crosstalk_extract_max_valid_rate_kcps =
+	pdat->algo__crosstalk_extract_max_valid_rate_kcps =
 		VL53L1_TUNINGPARM_XTALK_EXTRACT_MAX_VALID_RATE_KCPS_DEFAULT;
-	pdata->algo__crosstalk_extract_max_sigma_mm        =
+	pdat->algo__crosstalk_extract_max_sigma_mm        =
 		VL53L1_TUNINGPARM_XTALK_EXTRACT_SIGMA_THRESHOLD_MM_DEFAULT;
 
 
@@ -228,7 +228,7 @@ VL53L1_Error VL53L1_init_xtalk_extract_config_struct(
 
 
 VL53L1_Error VL53L1_init_offset_cal_config_struct(
-	VL53L1_offsetcal_config_t   *pdata)
+	VL53L1_offsetcal_config_t   *pdat)
 {
 
 
@@ -238,26 +238,26 @@ VL53L1_Error VL53L1_init_offset_cal_config_struct(
 
 
 
-	pdata->dss_config__target_total_rate_mcps          =
+	pdat->dss_config__target_total_rate_mcps          =
 			VL53L1_TUNINGPARM_OFFSET_CAL_DSS_RATE_MCPS_DEFAULT;
 
-	pdata->phasecal_config_timeout_us                  =
+	pdat->phasecal_config_timeout_us                  =
 		VL53L1_TUNINGPARM_OFFSET_CAL_PHASECAL_TIMEOUT_US_DEFAULT;
 
-	pdata->range_config_timeout_us                     =
+	pdat->range_config_timeout_us                     =
 			VL53L1_TUNINGPARM_OFFSET_CAL_RANGE_TIMEOUT_US_DEFAULT;
 
-	pdata->mm_config_timeout_us                        =
+	pdat->mm_config_timeout_us                        =
 			VL53L1_TUNINGPARM_OFFSET_CAL_MM_TIMEOUT_US_DEFAULT;
 
 
 
 
-	pdata->pre_num_of_samples                          =
+	pdat->pre_num_of_samples                          =
 			VL53L1_TUNINGPARM_OFFSET_CAL_PRE_SAMPLES_DEFAULT;
-	pdata->mm1_num_of_samples                          =
+	pdat->mm1_num_of_samples                          =
 			VL53L1_TUNINGPARM_OFFSET_CAL_MM1_SAMPLES_DEFAULT;
-	pdata->mm2_num_of_samples                          =
+	pdat->mm2_num_of_samples                          =
 			VL53L1_TUNINGPARM_OFFSET_CAL_MM2_SAMPLES_DEFAULT;
 
 	LOG_FUNCTION_END(status);
@@ -266,7 +266,7 @@ VL53L1_Error VL53L1_init_offset_cal_config_struct(
 }
 
 VL53L1_Error VL53L1_init_zone_cal_config_struct(
-	VL53L1_zonecal_config_t   *pdata)
+	VL53L1_zonecal_config_t   *pdat)
 {
 
 
@@ -276,24 +276,24 @@ VL53L1_Error VL53L1_init_zone_cal_config_struct(
 
 
 
-	pdata->dss_config__target_total_rate_mcps          =
+	pdat->dss_config__target_total_rate_mcps          =
 			VL53L1_TUNINGPARM_ZONE_CAL_DSS_RATE_MCPS_DEFAULT;
 
-	pdata->phasecal_config_timeout_us                  =
+	pdat->phasecal_config_timeout_us                  =
 			VL53L1_TUNINGPARM_ZONE_CAL_PHASECAL_TIMEOUT_US_DEFAULT;
 
-	pdata->range_config_timeout_us                     =
+	pdat->range_config_timeout_us                     =
 			VL53L1_TUNINGPARM_ZONE_CAL_RANGE_TIMEOUT_US_DEFAULT;
 
-	pdata->mm_config_timeout_us                        =
+	pdat->mm_config_timeout_us                        =
 			VL53L1_TUNINGPARM_ZONE_CAL_DSS_TIMEOUT_US_DEFAULT;
 
 
 
 
-	pdata->phasecal_num_of_samples                     =
+	pdat->phasecal_num_of_samples                     =
 			VL53L1_TUNINGPARM_ZONE_CAL_PHASECAL_NUM_SAMPLES_DEFAULT;
-	pdata->zone_num_of_samples                         =
+	pdat->zone_num_of_samples                         =
 			VL53L1_TUNINGPARM_ZONE_CAL_ZONE_NUM_SAMPLES_DEFAULT;
 
 	LOG_FUNCTION_END(status);
@@ -304,7 +304,7 @@ VL53L1_Error VL53L1_init_zone_cal_config_struct(
 
 VL53L1_Error VL53L1_init_hist_post_process_config_struct(
 	uint8_t                             xtalk_compensation_enable,
-	VL53L1_hist_post_process_config_t   *pdata)
+	VL53L1_hist_post_process_config_t   *pdat)
 {
 
 
@@ -314,102 +314,102 @@ VL53L1_Error VL53L1_init_hist_post_process_config_struct(
 
 
 
-	pdata->hist_algo_select =
+	pdat->hist_algo_select =
 			VL53L1_TUNINGPARM_HIST_ALGO_SELECT_DEFAULT;
 
 
 
-	pdata->hist_target_order =
+	pdat->hist_target_order =
 			VL53L1_TUNINGPARM_HIST_TARGET_ORDER_DEFAULT;
 
 
 
-	pdata->filter_woi0                   =
+	pdat->filter_woi0                   =
 			VL53L1_TUNINGPARM_HIST_FILTER_WOI_0_DEFAULT;
-	pdata->filter_woi1                   =
+	pdat->filter_woi1                   =
 			VL53L1_TUNINGPARM_HIST_FILTER_WOI_1_DEFAULT;
 
 
-	pdata->hist_amb_est_method =
+	pdat->hist_amb_est_method =
 			VL53L1_TUNINGPARM_HIST_AMB_EST_METHOD_DEFAULT;
 
-	pdata->ambient_thresh_sigma0         =
+	pdat->ambient_thresh_sigma0         =
 			VL53L1_TUNINGPARM_HIST_AMB_THRESH_SIGMA_0_DEFAULT;
-	pdata->ambient_thresh_sigma1         =
+	pdat->ambient_thresh_sigma1         =
 			VL53L1_TUNINGPARM_HIST_AMB_THRESH_SIGMA_1_DEFAULT;
 
 
-	pdata->ambient_thresh_events_scaler     =
+	pdat->ambient_thresh_events_scaler     =
 			VL53L1_TUNINGPARM_HIST_AMB_EVENTS_SCALER_DEFAULT;
 
 
-	pdata->min_ambient_thresh_events     =
+	pdat->min_ambient_thresh_events     =
 			VL53L1_TUNINGPARM_HIST_MIN_AMB_THRESH_EVENTS_DEFAULT;
 
-	pdata->noise_threshold               =
+	pdat->noise_threshold               =
 			VL53L1_TUNINGPARM_HIST_NOISE_THRESHOLD_DEFAULT;
 
-	pdata->signal_total_events_limit     =
+	pdat->signal_total_events_limit     =
 		VL53L1_TUNINGPARM_HIST_SIGNAL_TOTAL_EVENTS_LIMIT_DEFAULT;
-	pdata->sigma_estimator__sigma_ref_mm =
+	pdat->sigma_estimator__sigma_ref_mm =
 		VL53L1_TUNINGPARM_HIST_SIGMA_EST_REF_MM_DEFAULT;
 
 
-	pdata->sigma_thresh                  =
+	pdat->sigma_thresh                  =
 			VL53L1_TUNINGPARM_HIST_SIGMA_THRESH_MM_DEFAULT;
 
-	pdata->range_offset_mm            =      0;
+	pdat->range_offset_mm            =      0;
 
-	pdata->gain_factor                =
+	pdat->gain_factor                =
 			VL53L1_TUNINGPARM_HIST_GAIN_FACTOR_DEFAULT;
 
 
 
-	pdata->valid_phase_low = 0x08;
-	pdata->valid_phase_high = 0x88;
+	pdat->valid_phase_low = 0x08;
+	pdat->valid_phase_high = 0x88;
 
 
 
-	pdata->algo__consistency_check__phase_tolerance =
+	pdat->algo__consistency_check__phase_tolerance =
 		VL53L1_TUNINGPARM_CONSISTENCY_HIST_PHASE_TOLERANCE_DEFAULT;
 
 
 
-	pdata->algo__consistency_check__event_sigma =
+	pdat->algo__consistency_check__event_sigma =
 		VL53L1_TUNINGPARM_CONSISTENCY_HIST_EVENT_SIGMA_DEFAULT;
 
 
-	pdata->algo__consistency_check__event_min_spad_count =
+	pdat->algo__consistency_check__event_min_spad_count =
 	VL53L1_TUNINGPARM_CONSISTENCY_HIST_EVENT_SIGMA_MIN_SPAD_LIMIT_DEFAULT;
 
 
 
-	pdata->algo__consistency_check__min_max_tolerance =
+	pdat->algo__consistency_check__min_max_tolerance =
 		VL53L1_TUNINGPARM_CONSISTENCY_HIST_MIN_MAX_TOLERANCE_MM_DEFAULT;
 
 
-	pdata->algo__crosstalk_compensation_enable = xtalk_compensation_enable;
+	pdat->algo__crosstalk_compensation_enable = xtalk_compensation_enable;
 
 
-	pdata->algo__crosstalk_detect_min_valid_range_mm  =
+	pdat->algo__crosstalk_detect_min_valid_range_mm  =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MIN_VALID_RANGE_MM_DEFAULT;
-	pdata->algo__crosstalk_detect_max_valid_range_mm  =
+	pdat->algo__crosstalk_detect_max_valid_range_mm  =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MAX_VALID_RANGE_MM_DEFAULT;
-	pdata->algo__crosstalk_detect_max_valid_rate_kcps =
+	pdat->algo__crosstalk_detect_max_valid_rate_kcps =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MAX_VALID_RATE_KCPS_DEFAULT;
-	pdata->algo__crosstalk_detect_max_sigma_mm        =
+	pdat->algo__crosstalk_detect_max_sigma_mm        =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MAX_SIGMA_MM_DEFAULT;
 
 
 
 
 
-	pdata->algo__crosstalk_detect_event_sigma       =
+	pdat->algo__crosstalk_detect_event_sigma       =
 		VL53L1_TUNINGPARM_XTALK_DETECT_EVENT_SIGMA_DEFAULT;
 
 
 
-	pdata->algo__crosstalk_detect_min_max_tolerance   =
+	pdat->algo__crosstalk_detect_min_max_tolerance   =
 		VL53L1_TUNINGPARM_XTALK_DETECT_MIN_MAX_TOLERANCE_DEFAULT;
 
 
@@ -421,7 +421,7 @@ VL53L1_Error VL53L1_init_hist_post_process_config_struct(
 
 
 VL53L1_Error VL53L1_init_dmax_calibration_data_struct(
-	VL53L1_dmax_calibration_data_t   *pdata)
+	VL53L1_dmax_calibration_data_t   *pdat)
 {
 
 
@@ -432,17 +432,17 @@ VL53L1_Error VL53L1_init_dmax_calibration_data_struct(
 
 
 
-	pdata->ref__actual_effective_spads = 0x5F2D;
+	pdat->ref__actual_effective_spads = 0x5F2D;
 
-	pdata->ref__peak_signal_count_rate_mcps = 0x0844;
+	pdat->ref__peak_signal_count_rate_mcps = 0x0844;
 
-	pdata->ref__distance_mm = 0x08A5;
-
-
-	pdata->ref_reflectance_pc = 0x0014;
+	pdat->ref__distance_mm = 0x08A5;
 
 
-	pdata->coverglass_transmission = 0x0100;
+	pdat->ref_reflectance_pc = 0x0014;
+
+
+	pdat->coverglass_transmission = 0x0100;
 
 	LOG_FUNCTION_END(status);
 
@@ -451,7 +451,7 @@ VL53L1_Error VL53L1_init_dmax_calibration_data_struct(
 
 
 VL53L1_Error VL53L1_init_tuning_parm_storage_struct(
-	VL53L1_tuning_parm_storage_t   *pdata)
+	VL53L1_tuning_parm_storage_t   *pdat)
 {
 
 
@@ -461,232 +461,232 @@ VL53L1_Error VL53L1_init_tuning_parm_storage_struct(
 
 
 
-	pdata->tp_tuning_parm_version              =
+	pdat->tp_tuning_parm_version              =
 			VL53L1_TUNINGPARM_VERSION_DEFAULT;
-	pdata->tp_tuning_parm_key_table_version    =
+	pdat->tp_tuning_parm_key_table_version    =
 			VL53L1_TUNINGPARM_KEY_TABLE_VERSION_DEFAULT;
-	pdata->tp_tuning_parm_lld_version          =
+	pdat->tp_tuning_parm_lld_version          =
 			VL53L1_TUNINGPARM_LLD_VERSION_DEFAULT;
-	pdata->tp_init_phase_rtn_lite_long         =
+	pdat->tp_init_phase_rtn_lite_long         =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_RTN_LITE_LONG_RANGE_DEFAULT;
-	pdata->tp_init_phase_rtn_lite_med          =
+	pdat->tp_init_phase_rtn_lite_med          =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_RTN_LITE_MED_RANGE_DEFAULT;
-	pdata->tp_init_phase_rtn_lite_short        =
+	pdat->tp_init_phase_rtn_lite_short        =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_RTN_LITE_SHORT_RANGE_DEFAULT;
-	pdata->tp_init_phase_ref_lite_long         =
+	pdat->tp_init_phase_ref_lite_long         =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_REF_LITE_LONG_RANGE_DEFAULT;
-	pdata->tp_init_phase_ref_lite_med          =
+	pdat->tp_init_phase_ref_lite_med          =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_REF_LITE_MED_RANGE_DEFAULT;
-	pdata->tp_init_phase_ref_lite_short        =
+	pdat->tp_init_phase_ref_lite_short        =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_REF_LITE_SHORT_RANGE_DEFAULT;
-	pdata->tp_init_phase_rtn_hist_long         =
+	pdat->tp_init_phase_rtn_hist_long         =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_RTN_HISTO_LONG_RANGE_DEFAULT;
-	pdata->tp_init_phase_rtn_hist_med          =
+	pdat->tp_init_phase_rtn_hist_med          =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_RTN_HISTO_MED_RANGE_DEFAULT;
-	pdata->tp_init_phase_rtn_hist_short        =
+	pdat->tp_init_phase_rtn_hist_short        =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_RTN_HISTO_SHORT_RANGE_DEFAULT;
-	pdata->tp_init_phase_ref_hist_long         =
+	pdat->tp_init_phase_ref_hist_long         =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_REF_HISTO_LONG_RANGE_DEFAULT;
-	pdata->tp_init_phase_ref_hist_med          =
+	pdat->tp_init_phase_ref_hist_med          =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_REF_HISTO_MED_RANGE_DEFAULT;
-	pdata->tp_init_phase_ref_hist_short        =
+	pdat->tp_init_phase_ref_hist_short        =
 		VL53L1_TUNINGPARM_INITIAL_PHASE_REF_HISTO_SHORT_RANGE_DEFAULT;
-	pdata->tp_consistency_lite_phase_tolerance =
+	pdat->tp_consistency_lite_phase_tolerance =
 		VL53L1_TUNINGPARM_CONSISTENCY_LITE_PHASE_TOLERANCE_DEFAULT;
-	pdata->tp_phasecal_target                  =
+	pdat->tp_phasecal_target                  =
 			VL53L1_TUNINGPARM_PHASECAL_TARGET_DEFAULT;
-	pdata->tp_cal_repeat_rate                  =
+	pdat->tp_cal_repeat_rate                  =
 			VL53L1_TUNINGPARM_LITE_CAL_REPEAT_RATE_DEFAULT;
-	pdata->tp_lite_min_clip                    =
+	pdat->tp_lite_min_clip                    =
 			VL53L1_TUNINGPARM_LITE_MIN_CLIP_MM_DEFAULT;
-	pdata->tp_lite_long_sigma_thresh_mm        =
+	pdat->tp_lite_long_sigma_thresh_mm        =
 			VL53L1_TUNINGPARM_LITE_LONG_SIGMA_THRESH_MM_DEFAULT;
-	pdata->tp_lite_med_sigma_thresh_mm         =
+	pdat->tp_lite_med_sigma_thresh_mm         =
 			VL53L1_TUNINGPARM_LITE_MED_SIGMA_THRESH_MM_DEFAULT;
-	pdata->tp_lite_short_sigma_thresh_mm       =
+	pdat->tp_lite_short_sigma_thresh_mm       =
 			VL53L1_TUNINGPARM_LITE_SHORT_SIGMA_THRESH_MM_DEFAULT;
-	pdata->tp_lite_long_min_count_rate_rtn_mcps  =
+	pdat->tp_lite_long_min_count_rate_rtn_mcps  =
 		VL53L1_TUNINGPARM_LITE_LONG_MIN_COUNT_RATE_RTN_MCPS_DEFAULT;
-	pdata->tp_lite_med_min_count_rate_rtn_mcps   =
+	pdat->tp_lite_med_min_count_rate_rtn_mcps   =
 		VL53L1_TUNINGPARM_LITE_MED_MIN_COUNT_RATE_RTN_MCPS_DEFAULT;
-	pdata->tp_lite_short_min_count_rate_rtn_mcps =
+	pdat->tp_lite_short_min_count_rate_rtn_mcps =
 		VL53L1_TUNINGPARM_LITE_SHORT_MIN_COUNT_RATE_RTN_MCPS_DEFAULT;
-	pdata->tp_lite_sigma_est_pulse_width_ns      =
+	pdat->tp_lite_sigma_est_pulse_width_ns      =
 			VL53L1_TUNINGPARM_LITE_SIGMA_EST_PULSE_WIDTH_DEFAULT;
-	pdata->tp_lite_sigma_est_amb_width_ns        =
+	pdat->tp_lite_sigma_est_amb_width_ns        =
 			VL53L1_TUNINGPARM_LITE_SIGMA_EST_AMB_WIDTH_NS_DEFAULT;
-	pdata->tp_lite_sigma_ref_mm                  =
+	pdat->tp_lite_sigma_ref_mm                  =
 			VL53L1_TUNINGPARM_LITE_SIGMA_REF_MM_DEFAULT;
-	pdata->tp_lite_seed_cfg                      =
+	pdat->tp_lite_seed_cfg                      =
 			VL53L1_TUNINGPARM_LITE_SEED_CONFIG_DEFAULT;
-	pdata->tp_timed_seed_cfg                     =
+	pdat->tp_timed_seed_cfg                     =
 			VL53L1_TUNINGPARM_TIMED_SEED_CONFIG_DEFAULT;
-	pdata->tp_lite_quantifier                    =
+	pdat->tp_lite_quantifier                    =
 			VL53L1_TUNINGPARM_LITE_QUANTIFIER_DEFAULT;
-	pdata->tp_lite_first_order_select            =
+	pdat->tp_lite_first_order_select            =
 			VL53L1_TUNINGPARM_LITE_FIRST_ORDER_SELECT_DEFAULT;
 
 
 
 
-	pdata->tp_dss_target_lite_mcps               =
+	pdat->tp_dss_target_lite_mcps               =
 	VL53L1_TUNINGPARM_LITE_DSS_CONFIG_TARGET_TOTAL_RATE_MCPS_DEFAULT;
-	pdata->tp_dss_target_histo_mcps              =
+	pdat->tp_dss_target_histo_mcps              =
 	VL53L1_TUNINGPARM_RANGING_DSS_CONFIG_TARGET_TOTAL_RATE_MCPS_DEFAULT;
-	pdata->tp_dss_target_histo_mz_mcps           =
+	pdat->tp_dss_target_histo_mz_mcps           =
 	VL53L1_TUNINGPARM_MZ_DSS_CONFIG_TARGET_TOTAL_RATE_MCPS_DEFAULT;
-	pdata->tp_dss_target_timed_mcps              =
+	pdat->tp_dss_target_timed_mcps              =
 	VL53L1_TUNINGPARM_TIMED_DSS_CONFIG_TARGET_TOTAL_RATE_MCPS_DEFAULT;
-	pdata->tp_phasecal_timeout_lite_us           =
+	pdat->tp_phasecal_timeout_lite_us           =
 		VL53L1_TUNINGPARM_LITE_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_phasecal_timeout_hist_long_us      =
+	pdat->tp_phasecal_timeout_hist_long_us      =
 	VL53L1_TUNINGPARM_RANGING_LONG_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_phasecal_timeout_hist_med_us       =
+	pdat->tp_phasecal_timeout_hist_med_us       =
 	VL53L1_TUNINGPARM_RANGING_MED_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_phasecal_timeout_hist_short_us     =
+	pdat->tp_phasecal_timeout_hist_short_us     =
 	VL53L1_TUNINGPARM_RANGING_SHORT_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_phasecal_timeout_mz_long_us        =
+	pdat->tp_phasecal_timeout_mz_long_us        =
 	VL53L1_TUNINGPARM_MZ_LONG_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_phasecal_timeout_mz_med_us         =
+	pdat->tp_phasecal_timeout_mz_med_us         =
 		VL53L1_TUNINGPARM_MZ_MED_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_phasecal_timeout_mz_short_us       =
+	pdat->tp_phasecal_timeout_mz_short_us       =
 		VL53L1_TUNINGPARM_MZ_SHORT_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_phasecal_timeout_timed_us          =
+	pdat->tp_phasecal_timeout_timed_us          =
 		VL53L1_TUNINGPARM_TIMED_PHASECAL_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_mm_timeout_lite_us                 =
+	pdat->tp_mm_timeout_lite_us                 =
 			VL53L1_TUNINGPARM_LITE_MM_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_mm_timeout_histo_us                =
+	pdat->tp_mm_timeout_histo_us                =
 			VL53L1_TUNINGPARM_RANGING_MM_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_mm_timeout_mz_us                   =
+	pdat->tp_mm_timeout_mz_us                   =
 			VL53L1_TUNINGPARM_MZ_MM_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_mm_timeout_timed_us                =
+	pdat->tp_mm_timeout_timed_us                =
 			VL53L1_TUNINGPARM_TIMED_MM_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_range_timeout_lite_us              =
+	pdat->tp_range_timeout_lite_us              =
 			VL53L1_TUNINGPARM_LITE_RANGE_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_range_timeout_histo_us             =
+	pdat->tp_range_timeout_histo_us             =
 		VL53L1_TUNINGPARM_RANGING_RANGE_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_range_timeout_mz_us                =
+	pdat->tp_range_timeout_mz_us                =
 			VL53L1_TUNINGPARM_MZ_RANGE_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_range_timeout_timed_us             =
+	pdat->tp_range_timeout_timed_us             =
 		VL53L1_TUNINGPARM_TIMED_RANGE_CONFIG_TIMEOUT_US_DEFAULT;
 
 
 
-	pdata->tp_mm_timeout_lpa_us =
+	pdat->tp_mm_timeout_lpa_us =
 		VL53L1_TUNINGPARM_LOWPOWERAUTO_MM_CONFIG_TIMEOUT_US_DEFAULT;
-	pdata->tp_range_timeout_lpa_us =
+	pdat->tp_range_timeout_lpa_us =
 		VL53L1_TUNINGPARM_LOWPOWERAUTO_RANGE_CONFIG_TIMEOUT_US_DEFAULT;
 
-	pdata->tp_dss_target_very_short_mcps =
+	pdat->tp_dss_target_very_short_mcps =
 		VL53L1_TUNINGPARM_VERY_SHORT_DSS_RATE_MCPS_DEFAULT;
 
-	pdata->tp_phasecal_patch_power =
+	pdat->tp_phasecal_patch_power =
 		VL53L1_TUNINGPARM_PHASECAL_PATCH_POWER_DEFAULT;
 
-	pdata->tp_hist_merge =
+	pdat->tp_hist_merge =
 		VL53L1_TUNINGPARM_HIST_MERGE_DEFAULT;
 
-	pdata->tp_reset_merge_threshold =
+	pdat->tp_reset_merge_threshold =
 		VL53L1_TUNINGPARM_RESET_MERGE_THRESHOLD_DEFAULT;
 
-	pdata->tp_hist_merge_max_size =
+	pdat->tp_hist_merge_max_size =
 		VL53L1_TUNINGPARM_HIST_MERGE_MAX_SIZE_DEFAULT;
 
-	pdata->tp_uwr_enable =
+	pdat->tp_uwr_enable =
 		VL53L1_TUNINGPARM_UWR_ENABLE_DEFAULT;
-	pdata->tp_uwr_med_z_1_min =
+	pdat->tp_uwr_med_z_1_min =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_1_MIN_DEFAULT;
-	pdata->tp_uwr_med_z_1_max =
+	pdat->tp_uwr_med_z_1_max =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_1_MAX_DEFAULT;
-	pdata->tp_uwr_med_z_2_min =
+	pdat->tp_uwr_med_z_2_min =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_2_MIN_DEFAULT;
-	pdata->tp_uwr_med_z_2_max =
+	pdat->tp_uwr_med_z_2_max =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_2_MAX_DEFAULT;
-	pdata->tp_uwr_med_z_3_min =
+	pdat->tp_uwr_med_z_3_min =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_3_MIN_DEFAULT;
-	pdata->tp_uwr_med_z_3_max =
+	pdat->tp_uwr_med_z_3_max =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_3_MAX_DEFAULT;
-	pdata->tp_uwr_med_z_4_min =
+	pdat->tp_uwr_med_z_4_min =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_4_MIN_DEFAULT;
-	pdata->tp_uwr_med_z_4_max =
+	pdat->tp_uwr_med_z_4_max =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_4_MAX_DEFAULT;
-	pdata->tp_uwr_med_z_5_min =
+	pdat->tp_uwr_med_z_5_min =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_5_MIN_DEFAULT;
-	pdata->tp_uwr_med_z_5_max =
+	pdat->tp_uwr_med_z_5_max =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_5_MAX_DEFAULT;
-	pdata->tp_uwr_med_z_6_min =
+	pdat->tp_uwr_med_z_6_min =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_6_MIN_DEFAULT;
-	pdata->tp_uwr_med_z_6_max =
+	pdat->tp_uwr_med_z_6_max =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_ZONE_6_MAX_DEFAULT;
-	pdata->tp_uwr_med_corr_z_1_rangea =
+	pdat->tp_uwr_med_corr_z_1_rangea =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_1_RANGEA_DEFAULT;
-	pdata->tp_uwr_med_corr_z_1_rangeb =
+	pdat->tp_uwr_med_corr_z_1_rangeb =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_1_RANGEB_DEFAULT;
-	pdata->tp_uwr_med_corr_z_2_rangea =
+	pdat->tp_uwr_med_corr_z_2_rangea =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_2_RANGEA_DEFAULT;
-	pdata->tp_uwr_med_corr_z_2_rangeb =
+	pdat->tp_uwr_med_corr_z_2_rangeb =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_2_RANGEB_DEFAULT;
-	pdata->tp_uwr_med_corr_z_3_rangea =
+	pdat->tp_uwr_med_corr_z_3_rangea =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_3_RANGEA_DEFAULT;
-	pdata->tp_uwr_med_corr_z_3_rangeb =
+	pdat->tp_uwr_med_corr_z_3_rangeb =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_3_RANGEB_DEFAULT;
-	pdata->tp_uwr_med_corr_z_4_rangea =
+	pdat->tp_uwr_med_corr_z_4_rangea =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_4_RANGEA_DEFAULT;
-	pdata->tp_uwr_med_corr_z_4_rangeb =
+	pdat->tp_uwr_med_corr_z_4_rangeb =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_4_RANGEB_DEFAULT;
-	pdata->tp_uwr_med_corr_z_5_rangea =
+	pdat->tp_uwr_med_corr_z_5_rangea =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_5_RANGEA_DEFAULT;
-	pdata->tp_uwr_med_corr_z_5_rangeb =
+	pdat->tp_uwr_med_corr_z_5_rangeb =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_5_RANGEB_DEFAULT;
-	pdata->tp_uwr_med_corr_z_6_rangea =
+	pdat->tp_uwr_med_corr_z_6_rangea =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_6_RANGEA_DEFAULT;
-	pdata->tp_uwr_med_corr_z_6_rangeb =
+	pdat->tp_uwr_med_corr_z_6_rangeb =
 		VL53L1_TUNINGPARM_UWR_MEDIUM_CORRECTION_ZONE_6_RANGEB_DEFAULT;
-	pdata->tp_uwr_lng_z_1_min =
+	pdat->tp_uwr_lng_z_1_min =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_1_MIN_DEFAULT;
-	pdata->tp_uwr_lng_z_1_max =
+	pdat->tp_uwr_lng_z_1_max =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_1_MAX_DEFAULT;
-	pdata->tp_uwr_lng_z_2_min =
+	pdat->tp_uwr_lng_z_2_min =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_2_MIN_DEFAULT;
-	pdata->tp_uwr_lng_z_2_max =
+	pdat->tp_uwr_lng_z_2_max =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_2_MAX_DEFAULT;
-	pdata->tp_uwr_lng_z_3_min =
+	pdat->tp_uwr_lng_z_3_min =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_3_MIN_DEFAULT;
-	pdata->tp_uwr_lng_z_3_max =
+	pdat->tp_uwr_lng_z_3_max =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_3_MAX_DEFAULT;
-	pdata->tp_uwr_lng_z_4_min =
+	pdat->tp_uwr_lng_z_4_min =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_4_MIN_DEFAULT;
-	pdata->tp_uwr_lng_z_4_max =
+	pdat->tp_uwr_lng_z_4_max =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_4_MAX_DEFAULT;
-	pdata->tp_uwr_lng_z_5_min =
+	pdat->tp_uwr_lng_z_5_min =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_5_MIN_DEFAULT;
-	pdata->tp_uwr_lng_z_5_max =
+	pdat->tp_uwr_lng_z_5_max =
 		VL53L1_TUNINGPARM_UWR_LONG_ZONE_5_MAX_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_1_rangea =
+	pdat->tp_uwr_lng_corr_z_1_rangea =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_1_RANGEA_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_1_rangeb =
+	pdat->tp_uwr_lng_corr_z_1_rangeb =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_1_RANGEB_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_2_rangea =
+	pdat->tp_uwr_lng_corr_z_2_rangea =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_2_RANGEA_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_2_rangeb =
+	pdat->tp_uwr_lng_corr_z_2_rangeb =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_2_RANGEB_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_3_rangea =
+	pdat->tp_uwr_lng_corr_z_3_rangea =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_3_RANGEA_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_3_rangeb =
+	pdat->tp_uwr_lng_corr_z_3_rangeb =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_3_RANGEB_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_4_rangea =
+	pdat->tp_uwr_lng_corr_z_4_rangea =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_4_RANGEA_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_4_rangeb =
+	pdat->tp_uwr_lng_corr_z_4_rangeb =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_4_RANGEB_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_5_rangea =
+	pdat->tp_uwr_lng_corr_z_5_rangea =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_5_RANGEA_DEFAULT;
-	pdata->tp_uwr_lng_corr_z_5_rangeb =
+	pdat->tp_uwr_lng_corr_z_5_rangeb =
 		VL53L1_TUNINGPARM_UWR_LONG_CORRECTION_ZONE_5_RANGEB_DEFAULT;
-	pdata->tp_min_signal_secondary_targets =
+	pdat->tp_min_signal_secondary_targets =
 		VL53L1_TUNINGPARM_MIN_SIGNAL_SECONDARY_TARGETS_DEFAULT;
-	pdata->tp_dss_max_total_rate_per_spad_mcps =
+	pdat->tp_dss_max_total_rate_per_spad_mcps =
 		VL53L1_TUNINGPARM_MAX_TOTAL_RATE_PER_SPAD_DEFAULT;
-	pdata->tp_dss_rec_total_rate_per_spad_mcps =
+	pdat->tp_dss_rec_total_rate_per_spad_mcps =
 		VL53L1_TUNINGPARM_RECOVER_TOTAL_RATE_PER_SPAD_DEFAULT;
 	LOG_FUNCTION_END(status);
 
@@ -695,7 +695,7 @@ VL53L1_Error VL53L1_init_tuning_parm_storage_struct(
 
 
 VL53L1_Error VL53L1_init_hist_gen3_dmax_config_struct(
-	VL53L1_hist_gen3_dmax_config_t   *pdata)
+	VL53L1_hist_gen3_dmax_config_t   *pdat)
 {
 
 
@@ -704,27 +704,27 @@ VL53L1_Error VL53L1_init_hist_gen3_dmax_config_struct(
 	LOG_FUNCTION_START("");
 
 
-	pdata->dss_config__target_total_rate_mcps = 0x1400;
-	pdata->dss_config__aperture_attenuation = 0x38;
+	pdat->dss_config__target_total_rate_mcps = 0x1400;
+	pdat->dss_config__aperture_attenuation = 0x38;
 
-	pdata->signal_thresh_sigma                 =
+	pdat->signal_thresh_sigma                 =
 			VL53L1_TUNINGPARM_DMAX_CFG_SIGNAL_THRESH_SIGMA_DEFAULT;
-	pdata->ambient_thresh_sigma = 0x70;
-	pdata->min_ambient_thresh_events           = 16;
-	pdata->signal_total_events_limit           = 100;
-	pdata->max_effective_spads = 0xFFFF;
+	pdat->ambient_thresh_sigma = 0x70;
+	pdat->min_ambient_thresh_events           = 16;
+	pdat->signal_total_events_limit           = 100;
+	pdat->max_effective_spads = 0xFFFF;
 
 
 
-	pdata->target_reflectance_for_dmax_calc[0] =
+	pdat->target_reflectance_for_dmax_calc[0] =
 			VL53L1_TUNINGPARM_DMAX_CFG_REFLECTANCE_ARRAY_0_DEFAULT;
-	pdata->target_reflectance_for_dmax_calc[1] =
+	pdat->target_reflectance_for_dmax_calc[1] =
 			VL53L1_TUNINGPARM_DMAX_CFG_REFLECTANCE_ARRAY_1_DEFAULT;
-	pdata->target_reflectance_for_dmax_calc[2] =
+	pdat->target_reflectance_for_dmax_calc[2] =
 			VL53L1_TUNINGPARM_DMAX_CFG_REFLECTANCE_ARRAY_2_DEFAULT;
-	pdata->target_reflectance_for_dmax_calc[3] =
+	pdat->target_reflectance_for_dmax_calc[3] =
 			VL53L1_TUNINGPARM_DMAX_CFG_REFLECTANCE_ARRAY_3_DEFAULT;
-	pdata->target_reflectance_for_dmax_calc[4] =
+	pdat->target_reflectance_for_dmax_calc[4] =
 			VL53L1_TUNINGPARM_DMAX_CFG_REFLECTANCE_ARRAY_4_DEFAULT;
 
 	LOG_FUNCTION_END(status);

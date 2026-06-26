@@ -23,27 +23,27 @@
 #include "vl53l1_sigma_estimate.h"
 
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_PROTECTED, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_PROTECTED, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_PROTECTED, \
-	status, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_PROTECTED, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_PROTECTED, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_PROTECTED, \
+// 	status, fmt, __VA_ARGS__)
 
-#define trace_print(level, ...) \
-	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_PROTECTED, \
-	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
+// #define trace_print(level, ...) \
+// 	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_PROTECTED, \
+// 	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
 
 
 uint16_t  VL53L1_f_042(
 		uint8_t	 sigma_estimator__effective_pulse_width_ns,
 		uint8_t  sigma_estimator__effective_ambient_width_ns,
 		uint8_t	 sigma_estimator__sigma_ref_mm,
-		VL53L1_range_data_t *pdata)
+		VL53L1_range_data_t *pdat)
 {
 
 
@@ -59,8 +59,8 @@ uint16_t  VL53L1_f_042(
 
 	LOG_FUNCTION_START("");
 
-	if (pdata->peak_signal_count_rate_mcps  > 0 &&
-		pdata->VL53L1_p_013 > 0) {
+	if (pdat->peak_signal_count_rate_mcps  > 0 &&
+		pdat->VL53L1_p_013 > 0) {
 
 
 
@@ -74,8 +74,8 @@ uint16_t  VL53L1_f_042(
 			(uint32_t)sigma_estimator__effective_ambient_width_ns);
 
 		tmp1 =  (tmp1 +
-			(uint32_t)pdata->peak_signal_count_rate_mcps/2) /
-			(uint32_t)pdata->peak_signal_count_rate_mcps;
+			(uint32_t)pdat->peak_signal_count_rate_mcps/2) /
+			(uint32_t)pdat->peak_signal_count_rate_mcps;
 
 
 
@@ -91,7 +91,7 @@ uint16_t  VL53L1_f_042(
 
 
 		tmp2 =
-			VL53L1_isqrt(12 * (uint32_t)pdata->VL53L1_p_013);
+			VL53L1_isqrt(12 * (uint32_t)pdat->VL53L1_p_013);
 
 		if (tmp2 > 0) {
 
@@ -114,7 +114,7 @@ uint16_t  VL53L1_f_042(
 
 	}
 
-	pdata->VL53L1_p_005  = sigma_est;
+	pdat->VL53L1_p_005  = sigma_est;
 
 	LOG_FUNCTION_END(0);
 
@@ -127,7 +127,7 @@ uint16_t VL53L1_f_044(
 	uint8_t	 sigma_estimator__effective_pulse_width_ns,
 	uint8_t  sigma_estimator__effective_ambient_width_ns,
 	uint8_t	 sigma_estimator__sigma_ref_mm,
-	VL53L1_range_data_t *pdata)
+	VL53L1_range_data_t *pdat)
 {
 
 
@@ -142,13 +142,13 @@ uint16_t VL53L1_f_044(
 
 	LOG_FUNCTION_START("");
 
-	if (pdata->peak_signal_count_rate_mcps > 0 &&
-		pdata->VL53L1_p_013         > 0) {
+	if (pdat->peak_signal_count_rate_mcps > 0 &&
+		pdat->VL53L1_p_013         > 0) {
 
 
 
 		eqn7 =  4573 * 4573;
-		eqn7 =  eqn7 / (3 * (uint32_t)pdata->VL53L1_p_013);
+		eqn7 =  eqn7 / (3 * (uint32_t)pdat->VL53L1_p_013);
 
 
 
@@ -157,12 +157,12 @@ uint16_t VL53L1_f_044(
 
 
 
-		tmp1 = ((uint64_t)pdata->ambient_count_rate_mcps *
+		tmp1 = ((uint64_t)pdat->ambient_count_rate_mcps *
 			(uint64_t)sigma_estimator__effective_ambient_width_ns)
 					<< 8;
 
 		tmp1 = do_division_u(tmp1,
-			(uint64_t)pdata->peak_signal_count_rate_mcps);
+			(uint64_t)pdat->peak_signal_count_rate_mcps);
 
 
 
@@ -184,7 +184,7 @@ uint16_t VL53L1_f_044(
 
 	}
 
-	pdata->VL53L1_p_005  = sigma_est;
+	pdat->VL53L1_p_005  = sigma_est;
 
 	LOG_FUNCTION_END(0);
 

@@ -21,10 +21,10 @@
 #include "vl53l1_platform_ipp.h"
 
 
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_CORE, fmt, __VA_ARGS__)
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_CORE, status, __VA_ARGS__)
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_CORE, fmt, __VA_ARGS__)
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_CORE, status, __VA_ARGS__)
 
 
 VL53L1_Error VL53L1_ipp_hist_process_data(

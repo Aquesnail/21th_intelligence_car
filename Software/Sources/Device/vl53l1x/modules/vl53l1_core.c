@@ -26,20 +26,20 @@
 
 
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_CORE, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_CORE, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_CORE, \
-		status, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_CORE, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_CORE, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_CORE, \
+// 		status, fmt, __VA_ARGS__)
 
-#define trace_print(level, ...) \
-	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_CORE, \
-	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
+// #define trace_print(level, ...) \
+// 	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_CORE, \
+// 	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
 
 
 void  VL53L1_init_version(
@@ -476,85 +476,85 @@ VL53L1_Error  VL53L1_update_ll_driver_cfg_state(
 
 
 void VL53L1_copy_rtn_good_spads_to_buffer(
-	VL53L1_nvm_copy_data_t  *pdata,
+	VL53L1_nvm_copy_data_t  *pdat,
 	uint8_t                 *pbuffer)
 {
 
 
-	*(pbuffer +  0) = pdata->global_config__spad_enables_rtn_0;
-	*(pbuffer +  1) = pdata->global_config__spad_enables_rtn_1;
-	*(pbuffer +  2) = pdata->global_config__spad_enables_rtn_2;
-	*(pbuffer +  3) = pdata->global_config__spad_enables_rtn_3;
-	*(pbuffer +  4) = pdata->global_config__spad_enables_rtn_4;
-	*(pbuffer +  5) = pdata->global_config__spad_enables_rtn_5;
-	*(pbuffer +  6) = pdata->global_config__spad_enables_rtn_6;
-	*(pbuffer +  7) = pdata->global_config__spad_enables_rtn_7;
-	*(pbuffer +  8) = pdata->global_config__spad_enables_rtn_8;
-	*(pbuffer +  9) = pdata->global_config__spad_enables_rtn_9;
-	*(pbuffer + 10) = pdata->global_config__spad_enables_rtn_10;
-	*(pbuffer + 11) = pdata->global_config__spad_enables_rtn_11;
-	*(pbuffer + 12) = pdata->global_config__spad_enables_rtn_12;
-	*(pbuffer + 13) = pdata->global_config__spad_enables_rtn_13;
-	*(pbuffer + 14) = pdata->global_config__spad_enables_rtn_14;
-	*(pbuffer + 15) = pdata->global_config__spad_enables_rtn_15;
-	*(pbuffer + 16) = pdata->global_config__spad_enables_rtn_16;
-	*(pbuffer + 17) = pdata->global_config__spad_enables_rtn_17;
-	*(pbuffer + 18) = pdata->global_config__spad_enables_rtn_18;
-	*(pbuffer + 19) = pdata->global_config__spad_enables_rtn_19;
-	*(pbuffer + 20) = pdata->global_config__spad_enables_rtn_20;
-	*(pbuffer + 21) = pdata->global_config__spad_enables_rtn_21;
-	*(pbuffer + 22) = pdata->global_config__spad_enables_rtn_22;
-	*(pbuffer + 23) = pdata->global_config__spad_enables_rtn_23;
-	*(pbuffer + 24) = pdata->global_config__spad_enables_rtn_24;
-	*(pbuffer + 25) = pdata->global_config__spad_enables_rtn_25;
-	*(pbuffer + 26) = pdata->global_config__spad_enables_rtn_26;
-	*(pbuffer + 27) = pdata->global_config__spad_enables_rtn_27;
-	*(pbuffer + 28) = pdata->global_config__spad_enables_rtn_28;
-	*(pbuffer + 29) = pdata->global_config__spad_enables_rtn_29;
-	*(pbuffer + 30) = pdata->global_config__spad_enables_rtn_30;
-	*(pbuffer + 31) = pdata->global_config__spad_enables_rtn_31;
+	*(pbuffer +  0) = pdat->global_config__spad_enables_rtn_0;
+	*(pbuffer +  1) = pdat->global_config__spad_enables_rtn_1;
+	*(pbuffer +  2) = pdat->global_config__spad_enables_rtn_2;
+	*(pbuffer +  3) = pdat->global_config__spad_enables_rtn_3;
+	*(pbuffer +  4) = pdat->global_config__spad_enables_rtn_4;
+	*(pbuffer +  5) = pdat->global_config__spad_enables_rtn_5;
+	*(pbuffer +  6) = pdat->global_config__spad_enables_rtn_6;
+	*(pbuffer +  7) = pdat->global_config__spad_enables_rtn_7;
+	*(pbuffer +  8) = pdat->global_config__spad_enables_rtn_8;
+	*(pbuffer +  9) = pdat->global_config__spad_enables_rtn_9;
+	*(pbuffer + 10) = pdat->global_config__spad_enables_rtn_10;
+	*(pbuffer + 11) = pdat->global_config__spad_enables_rtn_11;
+	*(pbuffer + 12) = pdat->global_config__spad_enables_rtn_12;
+	*(pbuffer + 13) = pdat->global_config__spad_enables_rtn_13;
+	*(pbuffer + 14) = pdat->global_config__spad_enables_rtn_14;
+	*(pbuffer + 15) = pdat->global_config__spad_enables_rtn_15;
+	*(pbuffer + 16) = pdat->global_config__spad_enables_rtn_16;
+	*(pbuffer + 17) = pdat->global_config__spad_enables_rtn_17;
+	*(pbuffer + 18) = pdat->global_config__spad_enables_rtn_18;
+	*(pbuffer + 19) = pdat->global_config__spad_enables_rtn_19;
+	*(pbuffer + 20) = pdat->global_config__spad_enables_rtn_20;
+	*(pbuffer + 21) = pdat->global_config__spad_enables_rtn_21;
+	*(pbuffer + 22) = pdat->global_config__spad_enables_rtn_22;
+	*(pbuffer + 23) = pdat->global_config__spad_enables_rtn_23;
+	*(pbuffer + 24) = pdat->global_config__spad_enables_rtn_24;
+	*(pbuffer + 25) = pdat->global_config__spad_enables_rtn_25;
+	*(pbuffer + 26) = pdat->global_config__spad_enables_rtn_26;
+	*(pbuffer + 27) = pdat->global_config__spad_enables_rtn_27;
+	*(pbuffer + 28) = pdat->global_config__spad_enables_rtn_28;
+	*(pbuffer + 29) = pdat->global_config__spad_enables_rtn_29;
+	*(pbuffer + 30) = pdat->global_config__spad_enables_rtn_30;
+	*(pbuffer + 31) = pdat->global_config__spad_enables_rtn_31;
 }
 
 
 void VL53L1_init_system_results(
-		VL53L1_system_results_t  *pdata)
+		VL53L1_system_results_t  *pdat)
 {
 
 
-	pdata->result__interrupt_status                       = 0xFF;
-	pdata->result__range_status                           = 0xFF;
-	pdata->result__report_status                          = 0xFF;
-	pdata->result__stream_count                           = 0xFF;
+	pdat->result__interrupt_status                       = 0xFF;
+	pdat->result__range_status                           = 0xFF;
+	pdat->result__report_status                          = 0xFF;
+	pdat->result__stream_count                           = 0xFF;
 
-	pdata->result__dss_actual_effective_spads_sd0         = 0xFFFF;
-	pdata->result__peak_signal_count_rate_mcps_sd0        = 0xFFFF;
-	pdata->result__ambient_count_rate_mcps_sd0            = 0xFFFF;
-	pdata->result__sigma_sd0                              = 0xFFFF;
-	pdata->result__phase_sd0                              = 0xFFFF;
-	pdata->result__final_crosstalk_corrected_range_mm_sd0 = 0xFFFF;
-	pdata->result__peak_signal_count_rate_crosstalk_corrected_mcps_sd0 =
+	pdat->result__dss_actual_effective_spads_sd0         = 0xFFFF;
+	pdat->result__peak_signal_count_rate_mcps_sd0        = 0xFFFF;
+	pdat->result__ambient_count_rate_mcps_sd0            = 0xFFFF;
+	pdat->result__sigma_sd0                              = 0xFFFF;
+	pdat->result__phase_sd0                              = 0xFFFF;
+	pdat->result__final_crosstalk_corrected_range_mm_sd0 = 0xFFFF;
+	pdat->result__peak_signal_count_rate_crosstalk_corrected_mcps_sd0 =
 			0xFFFF;
-	pdata->result__mm_inner_actual_effective_spads_sd0    = 0xFFFF;
-	pdata->result__mm_outer_actual_effective_spads_sd0    = 0xFFFF;
-	pdata->result__avg_signal_count_rate_mcps_sd0         = 0xFFFF;
+	pdat->result__mm_inner_actual_effective_spads_sd0    = 0xFFFF;
+	pdat->result__mm_outer_actual_effective_spads_sd0    = 0xFFFF;
+	pdat->result__avg_signal_count_rate_mcps_sd0         = 0xFFFF;
 
-	pdata->result__dss_actual_effective_spads_sd1         = 0xFFFF;
-	pdata->result__peak_signal_count_rate_mcps_sd1        = 0xFFFF;
-	pdata->result__ambient_count_rate_mcps_sd1            = 0xFFFF;
-	pdata->result__sigma_sd1                              = 0xFFFF;
-	pdata->result__phase_sd1                              = 0xFFFF;
-	pdata->result__final_crosstalk_corrected_range_mm_sd1 = 0xFFFF;
-	pdata->result__spare_0_sd1                            = 0xFFFF;
-	pdata->result__spare_1_sd1                            = 0xFFFF;
-	pdata->result__spare_2_sd1                            = 0xFFFF;
-	pdata->result__spare_3_sd1                            = 0xFF;
+	pdat->result__dss_actual_effective_spads_sd1         = 0xFFFF;
+	pdat->result__peak_signal_count_rate_mcps_sd1        = 0xFFFF;
+	pdat->result__ambient_count_rate_mcps_sd1            = 0xFFFF;
+	pdat->result__sigma_sd1                              = 0xFFFF;
+	pdat->result__phase_sd1                              = 0xFFFF;
+	pdat->result__final_crosstalk_corrected_range_mm_sd1 = 0xFFFF;
+	pdat->result__spare_0_sd1                            = 0xFFFF;
+	pdat->result__spare_1_sd1                            = 0xFFFF;
+	pdat->result__spare_2_sd1                            = 0xFFFF;
+	pdat->result__spare_3_sd1                            = 0xFF;
 
 }
 
 
 void V53L1_init_zone_results_structure(
 	uint8_t                 active_zones,
-	VL53L1_zone_results_t  *pdata)
+	VL53L1_zone_results_t  *pdat)
 {
 
 
@@ -562,11 +562,11 @@ void V53L1_init_zone_results_structure(
 	uint8_t  z = 0;
 	VL53L1_zone_objects_t *pobjects;
 
-	pdata->max_zones    = VL53L1_MAX_USER_ZONES;
-	pdata->active_zones = active_zones;
+	pdat->max_zones    = VL53L1_MAX_USER_ZONES;
+	pdat->active_zones = active_zones;
 
-	for (z = 0; z < pdata->max_zones; z++) {
-		pobjects = &(pdata->VL53L1_p_002[z]);
+	for (z = 0; z < pdat->max_zones; z++) {
+		pobjects = &(pdat->VL53L1_p_002[z]);
 		pobjects->cfg_device_state = VL53L1_DEVICESTATE_SW_STANDBY;
 		pobjects->rd_device_state  = VL53L1_DEVICESTATE_SW_STANDBY;
 		pobjects->max_objects      = VL53L1_MAX_RANGE_RESULTS;
@@ -584,12 +584,12 @@ void V53L1_init_zone_dss_configs(
 			VL53L1DevStructGetLLResultsHandle(Dev);
 	uint8_t  z = 0;
 	uint8_t max_zones    = VL53L1_MAX_USER_ZONES;
-	VL53L1_zone_private_dyn_cfgs_t *pdata = &(pres->zone_dyn_cfgs);
+	VL53L1_zone_private_dyn_cfgs_t *pdat = &(pres->zone_dyn_cfgs);
 
 	for (z = 0; z < max_zones; z++) {
-		pdata->VL53L1_p_002[z].dss_mode =
+		pdat->VL53L1_p_002[z].dss_mode =
 			VL53L1_DSS_CONTROL__MODE_TARGET_RATE;
-		pdata->VL53L1_p_002[z].dss_requested_effective_spad_count = 0;
+		pdat->VL53L1_p_002[z].dss_requested_effective_spad_count = 0;
 	}
 }
 
@@ -607,62 +607,62 @@ void VL53L1_init_histogram_config_structure(
 	uint8_t   odd_bin3,
 	uint8_t   odd_bin4,
 	uint8_t   odd_bin5,
-	VL53L1_histogram_config_t  *pdata)
+	VL53L1_histogram_config_t  *pdat)
 {
 
 
-	pdata->histogram_config__low_amb_even_bin_0_1  =
+	pdat->histogram_config__low_amb_even_bin_0_1  =
 			(even_bin1 << 4) + even_bin0;
-	pdata->histogram_config__low_amb_even_bin_2_3  =
+	pdat->histogram_config__low_amb_even_bin_2_3  =
 			(even_bin3 << 4) + even_bin2;
-	pdata->histogram_config__low_amb_even_bin_4_5  =
+	pdat->histogram_config__low_amb_even_bin_4_5  =
 			(even_bin5 << 4) + even_bin4;
 
-	pdata->histogram_config__low_amb_odd_bin_0_1   =
+	pdat->histogram_config__low_amb_odd_bin_0_1   =
 			(odd_bin1 << 4) + odd_bin0;
-	pdata->histogram_config__low_amb_odd_bin_2_3   =
+	pdat->histogram_config__low_amb_odd_bin_2_3   =
 			(odd_bin3 << 4) + odd_bin2;
-	pdata->histogram_config__low_amb_odd_bin_4_5   =
+	pdat->histogram_config__low_amb_odd_bin_4_5   =
 			(odd_bin5 << 4) + odd_bin4;
 
-	pdata->histogram_config__mid_amb_even_bin_0_1  =
-			pdata->histogram_config__low_amb_even_bin_0_1;
-	pdata->histogram_config__mid_amb_even_bin_2_3  =
-			pdata->histogram_config__low_amb_even_bin_2_3;
-	pdata->histogram_config__mid_amb_even_bin_4_5  =
-			pdata->histogram_config__low_amb_even_bin_4_5;
+	pdat->histogram_config__mid_amb_even_bin_0_1  =
+			pdat->histogram_config__low_amb_even_bin_0_1;
+	pdat->histogram_config__mid_amb_even_bin_2_3  =
+			pdat->histogram_config__low_amb_even_bin_2_3;
+	pdat->histogram_config__mid_amb_even_bin_4_5  =
+			pdat->histogram_config__low_amb_even_bin_4_5;
 
-	pdata->histogram_config__mid_amb_odd_bin_0_1   =
-			pdata->histogram_config__low_amb_odd_bin_0_1;
-	pdata->histogram_config__mid_amb_odd_bin_2     = odd_bin2;
-	pdata->histogram_config__mid_amb_odd_bin_3_4   =
+	pdat->histogram_config__mid_amb_odd_bin_0_1   =
+			pdat->histogram_config__low_amb_odd_bin_0_1;
+	pdat->histogram_config__mid_amb_odd_bin_2     = odd_bin2;
+	pdat->histogram_config__mid_amb_odd_bin_3_4   =
 			(odd_bin4 << 4) + odd_bin3;
-	pdata->histogram_config__mid_amb_odd_bin_5     = odd_bin5;
+	pdat->histogram_config__mid_amb_odd_bin_5     = odd_bin5;
 
-	pdata->histogram_config__user_bin_offset       = 0x00;
+	pdat->histogram_config__user_bin_offset       = 0x00;
 
-	pdata->histogram_config__high_amb_even_bin_0_1 =
-			pdata->histogram_config__low_amb_even_bin_0_1;
-	pdata->histogram_config__high_amb_even_bin_2_3 =
-			pdata->histogram_config__low_amb_even_bin_2_3;
-	pdata->histogram_config__high_amb_even_bin_4_5 =
-			pdata->histogram_config__low_amb_even_bin_4_5;
+	pdat->histogram_config__high_amb_even_bin_0_1 =
+			pdat->histogram_config__low_amb_even_bin_0_1;
+	pdat->histogram_config__high_amb_even_bin_2_3 =
+			pdat->histogram_config__low_amb_even_bin_2_3;
+	pdat->histogram_config__high_amb_even_bin_4_5 =
+			pdat->histogram_config__low_amb_even_bin_4_5;
 
-	pdata->histogram_config__high_amb_odd_bin_0_1  =
-			pdata->histogram_config__low_amb_odd_bin_0_1;
-	pdata->histogram_config__high_amb_odd_bin_2_3  =
-			pdata->histogram_config__low_amb_odd_bin_2_3;
-	pdata->histogram_config__high_amb_odd_bin_4_5  =
-			pdata->histogram_config__low_amb_odd_bin_4_5;
-
-
-
-	pdata->histogram_config__amb_thresh_low        = 0xFFFF;
-	pdata->histogram_config__amb_thresh_high       = 0xFFFF;
+	pdat->histogram_config__high_amb_odd_bin_0_1  =
+			pdat->histogram_config__low_amb_odd_bin_0_1;
+	pdat->histogram_config__high_amb_odd_bin_2_3  =
+			pdat->histogram_config__low_amb_odd_bin_2_3;
+	pdat->histogram_config__high_amb_odd_bin_4_5  =
+			pdat->histogram_config__low_amb_odd_bin_4_5;
 
 
 
-	pdata->histogram_config__spad_array_selection  = 0x00;
+	pdat->histogram_config__amb_thresh_low        = 0xFFFF;
+	pdat->histogram_config__amb_thresh_high       = 0xFFFF;
+
+
+
+	pdat->histogram_config__spad_array_selection  = 0x00;
 
 }
 
@@ -679,96 +679,96 @@ void VL53L1_init_histogram_multizone_config_structure(
 	uint8_t   odd_bin3,
 	uint8_t   odd_bin4,
 	uint8_t   odd_bin5,
-	VL53L1_histogram_config_t  *pdata)
+	VL53L1_histogram_config_t  *pdat)
 {
 
 
-	pdata->histogram_config__low_amb_even_bin_0_1  =
+	pdat->histogram_config__low_amb_even_bin_0_1  =
 			(even_bin1 << 4) + even_bin0;
-	pdata->histogram_config__low_amb_even_bin_2_3  =
+	pdat->histogram_config__low_amb_even_bin_2_3  =
 			(even_bin3 << 4) + even_bin2;
-	pdata->histogram_config__low_amb_even_bin_4_5  =
+	pdat->histogram_config__low_amb_even_bin_4_5  =
 			(even_bin5 << 4) + even_bin4;
 
-	pdata->histogram_config__low_amb_odd_bin_0_1   =
-			pdata->histogram_config__low_amb_even_bin_0_1;
-	pdata->histogram_config__low_amb_odd_bin_2_3
-		= pdata->histogram_config__low_amb_even_bin_2_3;
-	pdata->histogram_config__low_amb_odd_bin_4_5
-		= pdata->histogram_config__low_amb_even_bin_4_5;
+	pdat->histogram_config__low_amb_odd_bin_0_1   =
+			pdat->histogram_config__low_amb_even_bin_0_1;
+	pdat->histogram_config__low_amb_odd_bin_2_3
+		= pdat->histogram_config__low_amb_even_bin_2_3;
+	pdat->histogram_config__low_amb_odd_bin_4_5
+		= pdat->histogram_config__low_amb_even_bin_4_5;
 
-	pdata->histogram_config__mid_amb_even_bin_0_1  =
-		pdata->histogram_config__low_amb_even_bin_0_1;
-	pdata->histogram_config__mid_amb_even_bin_2_3
-		= pdata->histogram_config__low_amb_even_bin_2_3;
-	pdata->histogram_config__mid_amb_even_bin_4_5
-		= pdata->histogram_config__low_amb_even_bin_4_5;
+	pdat->histogram_config__mid_amb_even_bin_0_1  =
+		pdat->histogram_config__low_amb_even_bin_0_1;
+	pdat->histogram_config__mid_amb_even_bin_2_3
+		= pdat->histogram_config__low_amb_even_bin_2_3;
+	pdat->histogram_config__mid_amb_even_bin_4_5
+		= pdat->histogram_config__low_amb_even_bin_4_5;
 
-	pdata->histogram_config__mid_amb_odd_bin_0_1
-		= pdata->histogram_config__low_amb_odd_bin_0_1;
-	pdata->histogram_config__mid_amb_odd_bin_2     = odd_bin2;
-	pdata->histogram_config__mid_amb_odd_bin_3_4   =
+	pdat->histogram_config__mid_amb_odd_bin_0_1
+		= pdat->histogram_config__low_amb_odd_bin_0_1;
+	pdat->histogram_config__mid_amb_odd_bin_2     = odd_bin2;
+	pdat->histogram_config__mid_amb_odd_bin_3_4   =
 			(odd_bin4 << 4) + odd_bin3;
-	pdata->histogram_config__mid_amb_odd_bin_5     = odd_bin5;
+	pdat->histogram_config__mid_amb_odd_bin_5     = odd_bin5;
 
-	pdata->histogram_config__user_bin_offset       = 0x00;
+	pdat->histogram_config__user_bin_offset       = 0x00;
 
-	pdata->histogram_config__high_amb_even_bin_0_1 =
+	pdat->histogram_config__high_amb_even_bin_0_1 =
 			(odd_bin1 << 4) + odd_bin0;
-	pdata->histogram_config__high_amb_even_bin_2_3 =
+	pdat->histogram_config__high_amb_even_bin_2_3 =
 			(odd_bin3 << 4) + odd_bin2;
-	pdata->histogram_config__high_amb_even_bin_4_5 =
+	pdat->histogram_config__high_amb_even_bin_4_5 =
 			(odd_bin5 << 4) + odd_bin4;
 
-	pdata->histogram_config__high_amb_odd_bin_0_1
-		= pdata->histogram_config__high_amb_even_bin_0_1;
-	pdata->histogram_config__high_amb_odd_bin_2_3
-		= pdata->histogram_config__high_amb_even_bin_2_3;
-	pdata->histogram_config__high_amb_odd_bin_4_5
-		= pdata->histogram_config__high_amb_even_bin_4_5;
+	pdat->histogram_config__high_amb_odd_bin_0_1
+		= pdat->histogram_config__high_amb_even_bin_0_1;
+	pdat->histogram_config__high_amb_odd_bin_2_3
+		= pdat->histogram_config__high_amb_even_bin_2_3;
+	pdat->histogram_config__high_amb_odd_bin_4_5
+		= pdat->histogram_config__high_amb_even_bin_4_5;
 
 
 
-	pdata->histogram_config__amb_thresh_low        = 0xFFFF;
-	pdata->histogram_config__amb_thresh_high       = 0xFFFF;
+	pdat->histogram_config__amb_thresh_low        = 0xFFFF;
+	pdat->histogram_config__amb_thresh_high       = 0xFFFF;
 
 
 
-	pdata->histogram_config__spad_array_selection  = 0x00;
+	pdat->histogram_config__spad_array_selection  = 0x00;
 }
 
 
 void VL53L1_init_xtalk_bin_data_struct(
 	uint32_t                        bin_value,
 	uint16_t                        VL53L1_p_024,
-	VL53L1_xtalk_histogram_shape_t *pdata)
+	VL53L1_xtalk_histogram_shape_t *pdat)
 {
 
 
 
 	uint16_t          i = 0;
 
-	pdata->zone_id                   = 0;
-	pdata->time_stamp                = 0;
+	pdat->zone_id                   = 0;
+	pdat->time_stamp                = 0;
 
-	pdata->VL53L1_p_022                 = 0;
-	pdata->VL53L1_p_023               = VL53L1_XTALK_HISTO_BINS;
-	pdata->VL53L1_p_024            = (uint8_t)VL53L1_p_024;
+	pdat->VL53L1_p_022                 = 0;
+	pdat->VL53L1_p_023               = VL53L1_XTALK_HISTO_BINS;
+	pdat->VL53L1_p_024            = (uint8_t)VL53L1_p_024;
 
-	pdata->phasecal_result__reference_phase   = 0;
-	pdata->phasecal_result__vcsel_start       = 0;
-	pdata->cal_config__vcsel_start            = 0;
+	pdat->phasecal_result__reference_phase   = 0;
+	pdat->phasecal_result__vcsel_start       = 0;
+	pdat->cal_config__vcsel_start            = 0;
 
-	pdata->vcsel_width                        = 0;
-	pdata->VL53L1_p_019                = 0;
+	pdat->vcsel_width                        = 0;
+	pdat->VL53L1_p_019                = 0;
 
-	pdata->zero_distance_phase                = 0;
+	pdat->zero_distance_phase                = 0;
 
 	for (i = 0; i < VL53L1_XTALK_HISTO_BINS; i++) {
 		if (i < VL53L1_p_024)
-			pdata->bin_data[i] = bin_value;
+			pdat->bin_data[i] = bin_value;
 		else
-			pdata->bin_data[i] = 0;
+			pdat->bin_data[i] = 0;
 	}
 }
 
@@ -1578,7 +1578,7 @@ VL53L1_Error  VL53L1_hist_copy_and_scale_ambient_info(
 
 void  VL53L1_hist_get_bin_sequence_config(
 	VL53L1_DEV                     Dev,
-	VL53L1_histogram_bin_data_t   *pdata)
+	VL53L1_histogram_bin_data_t   *pdat)
 {
 
 
@@ -1602,119 +1602,119 @@ void  VL53L1_hist_get_bin_sequence_config(
 
 	if ((pdev->ll_state.rd_stream_count & 0x01) == 0) {
 
-		pdata->bin_seq[5] =
+		pdat->bin_seq[5] =
 		pdev->hist_cfg.histogram_config__mid_amb_even_bin_4_5 >> 4;
-		pdata->bin_seq[4] =
+		pdat->bin_seq[4] =
 		pdev->hist_cfg.histogram_config__mid_amb_even_bin_4_5 & 0x0F;
-		pdata->bin_seq[3] =
+		pdat->bin_seq[3] =
 		pdev->hist_cfg.histogram_config__mid_amb_even_bin_2_3 >> 4;
-		pdata->bin_seq[2] =
+		pdat->bin_seq[2] =
 		pdev->hist_cfg.histogram_config__mid_amb_even_bin_2_3 & 0x0F;
-		pdata->bin_seq[1] =
+		pdat->bin_seq[1] =
 		pdev->hist_cfg.histogram_config__mid_amb_even_bin_0_1 >> 4;
-		pdata->bin_seq[0] =
+		pdat->bin_seq[0] =
 		pdev->hist_cfg.histogram_config__mid_amb_even_bin_0_1 & 0x0F;
 
-		if (pdata->ambient_events_sum > amb_thresh_high) {
-			pdata->bin_seq[5] =
+		if (pdat->ambient_events_sum > amb_thresh_high) {
+			pdat->bin_seq[5] =
 			pdev->hist_cfg.histogram_config__high_amb_even_bin_4_5
 			>> 4;
-			pdata->bin_seq[4] =
+			pdat->bin_seq[4] =
 			pdev->hist_cfg.histogram_config__high_amb_even_bin_4_5
 			& 0x0F;
-			pdata->bin_seq[3] =
+			pdat->bin_seq[3] =
 			pdev->hist_cfg.histogram_config__high_amb_even_bin_2_3
 			>> 4;
-			pdata->bin_seq[2] =
+			pdat->bin_seq[2] =
 			pdev->hist_cfg.histogram_config__high_amb_even_bin_2_3
 			& 0x0F;
-			pdata->bin_seq[1] =
+			pdat->bin_seq[1] =
 			pdev->hist_cfg.histogram_config__high_amb_even_bin_0_1
 			>> 4;
-			pdata->bin_seq[0] =
+			pdat->bin_seq[0] =
 			pdev->hist_cfg.histogram_config__high_amb_even_bin_0_1
 			& 0x0F;
 		}
 
-		if (pdata->ambient_events_sum < amb_thresh_low) {
-			pdata->bin_seq[5] =
+		if (pdat->ambient_events_sum < amb_thresh_low) {
+			pdat->bin_seq[5] =
 			pdev->hist_cfg.histogram_config__low_amb_even_bin_4_5
 			>> 4;
-			pdata->bin_seq[4] =
+			pdat->bin_seq[4] =
 			pdev->hist_cfg.histogram_config__low_amb_even_bin_4_5
 			& 0x0F;
-			pdata->bin_seq[3] =
+			pdat->bin_seq[3] =
 			pdev->hist_cfg.histogram_config__low_amb_even_bin_2_3
 			>> 4;
-			pdata->bin_seq[2] =
+			pdat->bin_seq[2] =
 			pdev->hist_cfg.histogram_config__low_amb_even_bin_2_3
 			& 0x0F;
-			pdata->bin_seq[1] =
+			pdat->bin_seq[1] =
 			pdev->hist_cfg.histogram_config__low_amb_even_bin_0_1
 			>> 4;
-			pdata->bin_seq[0] =
+			pdat->bin_seq[0] =
 			pdev->hist_cfg.histogram_config__low_amb_even_bin_0_1
 			& 0x0F;
 		}
 
 	} else {
-		pdata->bin_seq[5] =
+		pdat->bin_seq[5] =
 			pdev->hist_cfg.histogram_config__mid_amb_odd_bin_5
 			& 0x0F;
-		pdata->bin_seq[4] =
+		pdat->bin_seq[4] =
 			pdev->hist_cfg.histogram_config__mid_amb_odd_bin_3_4
 			& 0x0F;
-		pdata->bin_seq[3] =
+		pdat->bin_seq[3] =
 			pdev->hist_cfg.histogram_config__mid_amb_odd_bin_3_4
 			>> 4;
-		pdata->bin_seq[2] =
+		pdat->bin_seq[2] =
 			pdev->hist_cfg.histogram_config__mid_amb_odd_bin_2 &
 			0x0F;
-		pdata->bin_seq[1] =
+		pdat->bin_seq[1] =
 			pdev->hist_cfg.histogram_config__mid_amb_odd_bin_0_1
 			>> 4;
-		pdata->bin_seq[0] =
+		pdat->bin_seq[0] =
 			pdev->hist_cfg.histogram_config__mid_amb_odd_bin_0_1
 			& 0x0F;
 
-		if (pdata->ambient_events_sum > amb_thresh_high) {
-			pdata->bin_seq[5] =
+		if (pdat->ambient_events_sum > amb_thresh_high) {
+			pdat->bin_seq[5] =
 			pdev->hist_cfg.histogram_config__high_amb_odd_bin_4_5
 			>> 4;
-			pdata->bin_seq[4] =
+			pdat->bin_seq[4] =
 			pdev->hist_cfg.histogram_config__high_amb_odd_bin_4_5
 			& 0x0F;
-			pdata->bin_seq[3] =
+			pdat->bin_seq[3] =
 			pdev->hist_cfg.histogram_config__high_amb_odd_bin_2_3
 			>> 4;
-			pdata->bin_seq[2] =
+			pdat->bin_seq[2] =
 			pdev->hist_cfg.histogram_config__high_amb_odd_bin_2_3
 			& 0x0F;
-			pdata->bin_seq[1] =
+			pdat->bin_seq[1] =
 			pdev->hist_cfg.histogram_config__high_amb_odd_bin_0_1
 			>> 4;
-			pdata->bin_seq[0] =
+			pdat->bin_seq[0] =
 			pdev->hist_cfg.histogram_config__high_amb_odd_bin_0_1
 			& 0x0F;
 		}
 
-		if (pdata->ambient_events_sum < amb_thresh_low) {
-			pdata->bin_seq[5] =
+		if (pdat->ambient_events_sum < amb_thresh_low) {
+			pdat->bin_seq[5] =
 			pdev->hist_cfg.histogram_config__low_amb_odd_bin_4_5
 			>> 4;
-			pdata->bin_seq[4] =
+			pdat->bin_seq[4] =
 			pdev->hist_cfg.histogram_config__low_amb_odd_bin_4_5
 			& 0x0F;
-			pdata->bin_seq[3] =
+			pdat->bin_seq[3] =
 			pdev->hist_cfg.histogram_config__low_amb_odd_bin_2_3
 			>> 4;
-			pdata->bin_seq[2] =
+			pdat->bin_seq[2] =
 			pdev->hist_cfg.histogram_config__low_amb_odd_bin_2_3
 			& 0x0F;
-			pdata->bin_seq[1] =
+			pdat->bin_seq[1] =
 			pdev->hist_cfg.histogram_config__low_amb_odd_bin_0_1
 			>> 4;
-			pdata->bin_seq[0] =
+			pdat->bin_seq[0] =
 			pdev->hist_cfg.histogram_config__low_amb_odd_bin_0_1
 			& 0x0F;
 		}
@@ -1723,7 +1723,7 @@ void  VL53L1_hist_get_bin_sequence_config(
 
 
 	for (i = 0; i < VL53L1_MAX_BIN_SEQUENCE_LENGTH; i++)
-		pdata->bin_rep[i] = 1;
+		pdat->bin_rep[i] = 1;
 
 	LOG_FUNCTION_END(0);
 
@@ -1995,7 +1995,7 @@ VL53L1_Error  VL53L1_hist_events_consistency_check(
 
 VL53L1_Error  VL53L1_hist_merged_pulse_check(
 	int16_t                      min_max_tolerance_mm,
-	VL53L1_range_data_t         *pdata,
+	VL53L1_range_data_t         *pdat,
 	VL53L1_DeviceError          *prange_status)
 {
 
@@ -2003,12 +2003,12 @@ VL53L1_Error  VL53L1_hist_merged_pulse_check(
 	VL53L1_Error  status   = VL53L1_ERROR_NONE;
 	int16_t       delta_mm = 0;
 
-	if (pdata->max_range_mm > pdata->min_range_mm)
+	if (pdat->max_range_mm > pdat->min_range_mm)
 		delta_mm =
-			pdata->max_range_mm - pdata->min_range_mm;
+			pdat->max_range_mm - pdat->min_range_mm;
 	else
 		delta_mm =
-			pdata->min_range_mm - pdata->max_range_mm;
+			pdat->min_range_mm - pdat->max_range_mm;
 
 	if (min_max_tolerance_mm > 0 &&
 		delta_mm > min_max_tolerance_mm)
@@ -2965,7 +2965,7 @@ void VL53L1_hist_copy_results_to_sys_and_core(
 
 	uint8_t  i = 0;
 
-	VL53L1_range_data_t  *pdata;
+	VL53L1_range_data_t  *pdat;
 
 	LOG_FUNCTION_START("");
 
@@ -2980,65 +2980,65 @@ void VL53L1_hist_copy_results_to_sys_and_core(
 	psys->result__report_status    = pbins->result__report_status;
 	psys->result__stream_count     = pbins->result__stream_count;
 
-	pdata = &(phist->VL53L1_p_002[0]);
+	pdat = &(phist->VL53L1_p_002[0]);
 
 	for (i = 0; i < phist->active_results; i++) {
 
 		switch (i) {
 		case 0:
 			psys->result__dss_actual_effective_spads_sd0 =
-					pdata->VL53L1_p_006;
+					pdat->VL53L1_p_006;
 			psys->result__peak_signal_count_rate_mcps_sd0 =
-					pdata->peak_signal_count_rate_mcps;
+					pdat->peak_signal_count_rate_mcps;
 			psys->result__avg_signal_count_rate_mcps_sd0 =
-					pdata->avg_signal_count_rate_mcps;
+					pdat->avg_signal_count_rate_mcps;
 			psys->result__ambient_count_rate_mcps_sd0 =
-					pdata->ambient_count_rate_mcps;
+					pdat->ambient_count_rate_mcps;
 
-			psys->result__sigma_sd0 = pdata->VL53L1_p_005;
-			psys->result__phase_sd0 = pdata->VL53L1_p_014;
+			psys->result__sigma_sd0 = pdat->VL53L1_p_005;
+			psys->result__phase_sd0 = pdat->VL53L1_p_014;
 
 			psys->result__final_crosstalk_corrected_range_mm_sd0 =
-					(uint16_t)pdata->median_range_mm;
+					(uint16_t)pdat->median_range_mm;
 
-			psys->result__phase_sd1  = pdata->zero_distance_phase;
+			psys->result__phase_sd1  = pdat->zero_distance_phase;
 
 			pcore->result_core__ranging_total_events_sd0 =
-					pdata->VL53L1_p_021;
+					pdat->VL53L1_p_021;
 			pcore->result_core__signal_total_events_sd0 =
-					pdata->VL53L1_p_013;
+					pdat->VL53L1_p_013;
 			pcore->result_core__total_periods_elapsed_sd0 =
-					pdata->total_periods_elapsed;
+					pdat->total_periods_elapsed;
 			pcore->result_core__ambient_window_events_sd0 =
-					pdata->VL53L1_p_020;
+					pdat->VL53L1_p_020;
 
 			break;
 		case 1:
 			psys->result__dss_actual_effective_spads_sd1 =
-				pdata->VL53L1_p_006;
+				pdat->VL53L1_p_006;
 			psys->result__peak_signal_count_rate_mcps_sd1 =
-				pdata->peak_signal_count_rate_mcps;
+				pdat->peak_signal_count_rate_mcps;
 			psys->result__ambient_count_rate_mcps_sd1 =
-				pdata->ambient_count_rate_mcps;
+				pdat->ambient_count_rate_mcps;
 
-			psys->result__sigma_sd1 = pdata->VL53L1_p_005;
-			psys->result__phase_sd1 = pdata->VL53L1_p_014;
+			psys->result__sigma_sd1 = pdat->VL53L1_p_005;
+			psys->result__phase_sd1 = pdat->VL53L1_p_014;
 
 			psys->result__final_crosstalk_corrected_range_mm_sd1 =
-				(uint16_t)pdata->median_range_mm;
+				(uint16_t)pdat->median_range_mm;
 
 			pcore->result_core__ranging_total_events_sd1 =
-				pdata->VL53L1_p_021;
+				pdat->VL53L1_p_021;
 			pcore->result_core__signal_total_events_sd1 =
-				pdata->VL53L1_p_013;
+				pdat->VL53L1_p_013;
 			pcore->result_core__total_periods_elapsed_sd1 =
-				pdata->total_periods_elapsed;
+				pdat->total_periods_elapsed;
 			pcore->result_core__ambient_window_events_sd1 =
-				pdata->VL53L1_p_020;
+				pdat->VL53L1_p_020;
 			break;
 		}
 
-		pdata++;
+		pdat++;
 	}
 
 	LOG_FUNCTION_END(0);
@@ -3823,7 +3823,7 @@ VL53L1_Error VL53L1_get_spad_rate_data(
 	int               i = 0;
 
 	uint8_t  VL53L1_p_002[512];
-	uint8_t *pdata = &VL53L1_p_002[0];
+	uint8_t *pdat = &VL53L1_p_002[0];
 
 	LOG_FUNCTION_START("");
 
@@ -3839,15 +3839,15 @@ VL53L1_Error VL53L1_get_spad_rate_data(
 			VL53L1_ReadMulti(
 				Dev,
 				VL53L1_PRIVATE__PATCH_BASE_ADDR_RSLV,
-				pdata,
+				pdat,
 				512);
 
 
-	pdata = &VL53L1_p_002[0];
+	pdat = &VL53L1_p_002[0];
 	for (i = 0; i < VL53L1_NO_OF_SPAD_ENABLES; i++) {
 		pspad_rates->rate_data[i] =
-			(uint16_t)VL53L1_decode_unsigned_integer(pdata, 2);
-		pdata += 2;
+			(uint16_t)VL53L1_decode_unsigned_integer(pdat, 2);
+		pdat += 2;
 	}
 
 
@@ -4548,24 +4548,24 @@ VL53L1_Error VL53L1_dynamic_xtalk_correction_output_init(
 
 	VL53L1_Error  status = VL53L1_ERROR_NONE;
 
-	VL53L1_smudge_corrector_data_t *pdata;
+	VL53L1_smudge_corrector_data_t *pdat;
 
 	LOG_FUNCTION_START("");
 
 
-	pdata = &(pres->range_results.smudge_corrector_data);
+	pdat = &(pres->range_results.smudge_corrector_data);
 
-	pdata->smudge_corr_valid = 0;
-	pdata->smudge_corr_clipped = 0;
-	pdata->single_xtalk_delta_flag = 0;
-	pdata->averaged_xtalk_delta_flag = 0;
-	pdata->sample_limit_exceeded_flag = 0;
-	pdata->gradient_zero_flag = 0;
-	pdata->new_xtalk_applied_flag = 0;
+	pdat->smudge_corr_valid = 0;
+	pdat->smudge_corr_clipped = 0;
+	pdat->single_xtalk_delta_flag = 0;
+	pdat->averaged_xtalk_delta_flag = 0;
+	pdat->sample_limit_exceeded_flag = 0;
+	pdat->gradient_zero_flag = 0;
+	pdat->new_xtalk_applied_flag = 0;
 
-	pdata->algo__crosstalk_compensation_plane_offset_kcps = 0;
-	pdata->algo__crosstalk_compensation_x_plane_gradient_kcps = 0;
-	pdata->algo__crosstalk_compensation_y_plane_gradient_kcps = 0;
+	pdat->algo__crosstalk_compensation_plane_offset_kcps = 0;
+	pdat->algo__crosstalk_compensation_x_plane_gradient_kcps = 0;
+	pdat->algo__crosstalk_compensation_y_plane_gradient_kcps = 0;
 
 	LOG_FUNCTION_END(status);
 

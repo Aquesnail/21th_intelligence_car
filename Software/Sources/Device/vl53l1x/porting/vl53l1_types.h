@@ -3,7 +3,7 @@
  * Copyright (c) 2020, STMicroelectronics - All Rights Reserved
  *
  * Adapted for Keil C251 (C89) — 2024
- *   C251 keyword workaround: pdata = paged external RAM qualifier
+ *   C251 keyword workaround: pdat = paged external RAM qualifier
  *   C251 has no native 64-bit integer
  ******************************************************************************
  */
@@ -20,15 +20,15 @@
 
 /*
  * ─── C251 keyword workarounds ───
- * 'pdata' and 'data' are Keil C251 memory-space keywords.
+ * 'pdat' and 'data' are Keil C251 memory-space keywords.
  * ST driver headers use them as parameter/local-variable names
  * pervasively. These macros transparently rename every occurrence.
  *
- * Safe: the project uses LARGE memory model and never uses 'pdata'
+ * Safe: the project uses LARGE memory model and never uses 'pdat'
  *       or 'data' as memory-space qualifiers.
  *       Struct fields use capital-D 'Data' (unaffected).
  */
-#define pdata _pdata
+#define pdat _pdat
 #define data  _data
 
 #include <stddef.h>

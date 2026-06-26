@@ -27,20 +27,20 @@
 
 
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_HISTOGRAM, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_HISTOGRAM, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_HISTOGRAM,\
-	status, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_HISTOGRAM, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_HISTOGRAM, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_HISTOGRAM,\
+// 	status, fmt, __VA_ARGS__)
 
-#define trace_print(level, ...) \
-	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_HISTOGRAM, \
-	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
+// #define trace_print(level, ...) \
+// 	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_HISTOGRAM, \
+// 	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
 
 
 void VL53L1_f_016(
@@ -299,7 +299,7 @@ VL53L1_Error VL53L1_f_021(
 
 	uint8_t  max_filter_half_width = 0;
 
-	VL53L1_hist_pulse_data_t *pdata;
+	VL53L1_hist_pulse_data_t *pdat;
 
 	LOG_FUNCTION_START("");
 
@@ -331,12 +331,12 @@ VL53L1_Error VL53L1_f_021(
 				pulse_no = palgo->VL53L1_p_047[j] - 1;
 
 				if (pulse_no < palgo->VL53L1_p_050) {
-					pdata = &(palgo->VL53L1_p_002[pulse_no]);
-					pdata->VL53L1_p_015 = blb;
-					pdata->VL53L1_p_022    = blb + 1;
-					pdata->VL53L1_p_025   = 0xFF;
-					pdata->VL53L1_p_026     = 0;
-					pdata->VL53L1_p_016   = 0;
+					pdat = &(palgo->VL53L1_p_002[pulse_no]);
+					pdat->VL53L1_p_015 = blb;
+					pdat->VL53L1_p_022    = blb + 1;
+					pdat->VL53L1_p_025   = 0xFF;
+					pdat->VL53L1_p_026     = 0;
+					pdat->VL53L1_p_016   = 0;
 				}
 			}
 
@@ -348,20 +348,20 @@ VL53L1_Error VL53L1_f_021(
 				pulse_no = palgo->VL53L1_p_047[i] - 1;
 
 				if (pulse_no < palgo->VL53L1_p_050) {
-					pdata = &(palgo->VL53L1_p_002[pulse_no]);
-					pdata->VL53L1_p_026    = blb;
-					pdata->VL53L1_p_016  = blb + 1;
+					pdat = &(palgo->VL53L1_p_002[pulse_no]);
+					pdat->VL53L1_p_026    = blb;
+					pdat->VL53L1_p_016  = blb + 1;
 
-					pdata->VL53L1_p_027 =
-						(pdata->VL53L1_p_026 + 1) -
-						pdata->VL53L1_p_022;
-					pdata->VL53L1_p_055 =
-						(pdata->VL53L1_p_016 + 1) -
-						pdata->VL53L1_p_015;
+					pdat->VL53L1_p_027 =
+						(pdat->VL53L1_p_026 + 1) -
+						pdat->VL53L1_p_022;
+					pdat->VL53L1_p_055 =
+						(pdat->VL53L1_p_016 + 1) -
+						pdat->VL53L1_p_015;
 
-					if (pdata->VL53L1_p_055 >
+					if (pdat->VL53L1_p_055 >
 						max_filter_half_width)
-						pdata->VL53L1_p_055 =
+						pdat->VL53L1_p_055 =
 						max_filter_half_width;
 				}
 
@@ -467,25 +467,25 @@ VL53L1_Error VL53L1_f_022(
 	uint8_t  i            = 0;
 	uint8_t  lb            = 0;
 
-	VL53L1_hist_pulse_data_t *pdata = &(palgo->VL53L1_p_002[pulse_no]);
+	VL53L1_hist_pulse_data_t *pdat = &(palgo->VL53L1_p_002[pulse_no]);
 
 	LOG_FUNCTION_START("");
 
 
 
-	pdata->VL53L1_p_021  = 0;
-	pdata->VL53L1_p_020 = 0;
+	pdat->VL53L1_p_021  = 0;
+	pdat->VL53L1_p_020 = 0;
 
-	for (lb = pdata->VL53L1_p_015; lb <= pdata->VL53L1_p_016; lb++) {
+	for (lb = pdat->VL53L1_p_015; lb <= pdat->VL53L1_p_016; lb++) {
 		i =  lb % palgo->VL53L1_p_031;
-		pdata->VL53L1_p_021  += pbins->bin_data[i];
-		pdata->VL53L1_p_020 += palgo->VL53L1_p_004;
+		pdat->VL53L1_p_021  += pbins->bin_data[i];
+		pdat->VL53L1_p_020 += palgo->VL53L1_p_004;
 	}
 
 
 
-	pdata->VL53L1_p_013 =
-		pdata->VL53L1_p_021 - pdata->VL53L1_p_020;
+	pdat->VL53L1_p_013 =
+		pdat->VL53L1_p_021 - pdat->VL53L1_p_020;
 
 	LOG_FUNCTION_END(status);
 
@@ -509,24 +509,24 @@ VL53L1_Error VL53L1_f_027(
 	int16_t   window_width = 0;
 	uint32_t  tmp_phase    = 0;
 
-	VL53L1_hist_pulse_data_t *pdata = &(palgo->VL53L1_p_002[pulse_no]);
+	VL53L1_hist_pulse_data_t *pdat = &(palgo->VL53L1_p_002[pulse_no]);
 
 	LOG_FUNCTION_START("");
 
 
 
-	if (pdata->VL53L1_p_025 == 0xFF)
-		pdata->VL53L1_p_025 = 1;
+	if (pdat->VL53L1_p_025 == 0xFF)
+		pdat->VL53L1_p_025 = 1;
 
-	i = pdata->VL53L1_p_025 % palgo->VL53L1_p_031;
+	i = pdat->VL53L1_p_025 % palgo->VL53L1_p_031;
 
 	VL53L1_p_015  = (int16_t)i;
-	VL53L1_p_015 += (int16_t)pdata->VL53L1_p_015;
-	VL53L1_p_015 -= (int16_t)pdata->VL53L1_p_025;
+	VL53L1_p_015 += (int16_t)pdat->VL53L1_p_015;
+	VL53L1_p_015 -= (int16_t)pdat->VL53L1_p_025;
 
 	VL53L1_p_016    = (int16_t)i;
-	VL53L1_p_016   += (int16_t)pdata->VL53L1_p_016;
-	VL53L1_p_016   -= (int16_t)pdata->VL53L1_p_025;
+	VL53L1_p_016   += (int16_t)pdat->VL53L1_p_016;
+	VL53L1_p_016   -= (int16_t)pdat->VL53L1_p_025;
 
 
 	window_width = VL53L1_p_016 - VL53L1_p_015;
@@ -540,7 +540,7 @@ VL53L1_Error VL53L1_f_027(
 			palgo->VL53L1_p_031,
 			clip_events,
 			pbins,
-			&(pdata->VL53L1_p_028));
+			&(pdat->VL53L1_p_028));
 
 
 	if (status == VL53L1_ERROR_NONE)
@@ -551,22 +551,22 @@ VL53L1_Error VL53L1_f_027(
 				palgo->VL53L1_p_031,
 				clip_events,
 				pbins,
-				&(pdata->VL53L1_p_029));
+				&(pdat->VL53L1_p_029));
 
 
-	if (pdata->VL53L1_p_028 > pdata->VL53L1_p_029) {
-		tmp_phase        = pdata->VL53L1_p_028;
-		pdata->VL53L1_p_028 = pdata->VL53L1_p_029;
-		pdata->VL53L1_p_029 = tmp_phase;
+	if (pdat->VL53L1_p_028 > pdat->VL53L1_p_029) {
+		tmp_phase        = pdat->VL53L1_p_028;
+		pdat->VL53L1_p_028 = pdat->VL53L1_p_029;
+		pdat->VL53L1_p_029 = tmp_phase;
 	}
 
 
-	if (pdata->VL53L1_p_014 < pdata->VL53L1_p_028)
-		pdata->VL53L1_p_028 = pdata->VL53L1_p_014;
+	if (pdat->VL53L1_p_014 < pdat->VL53L1_p_028)
+		pdat->VL53L1_p_028 = pdat->VL53L1_p_014;
 
 
-	if (pdata->VL53L1_p_014 > pdata->VL53L1_p_029)
-		pdata->VL53L1_p_029 = pdata->VL53L1_p_014;
+	if (pdat->VL53L1_p_014 > pdat->VL53L1_p_029)
+		pdat->VL53L1_p_029 = pdat->VL53L1_p_014;
 
 	LOG_FUNCTION_END(status);
 
@@ -657,7 +657,7 @@ VL53L1_Error VL53L1_f_023(
 	uint8_t  i            = 0;
 	uint8_t  lb            = 0;
 
-	VL53L1_hist_pulse_data_t *pdata = &(palgo->VL53L1_p_002[pulse_no]);
+	VL53L1_hist_pulse_data_t *pdat = &(palgo->VL53L1_p_002[pulse_no]);
 
 	LOG_FUNCTION_START("");
 
@@ -672,7 +672,7 @@ VL53L1_Error VL53L1_f_023(
 		palgo->VL53L1_p_031);
 		lb++) {
 
-		if (lb < pdata->VL53L1_p_015 || lb > pdata->VL53L1_p_016) {
+		if (lb < pdat->VL53L1_p_015 || lb > pdat->VL53L1_p_016) {
 			i =  lb % palgo->VL53L1_p_031;
 			if (i < ppulse->VL53L1_p_024)
 				ppulse->bin_data[i] = pad_value;
@@ -786,7 +786,7 @@ void VL53L1_f_029(
 	uint16_t                     sigma_thres,
 	VL53L1_histogram_bin_data_t *pbins,
 	VL53L1_hist_pulse_data_t    *ppulse,
-	VL53L1_range_data_t         *pdata)
+	VL53L1_range_data_t         *pdat)
 {
 
 	uint16_t  lower_phase_limit = 0;
@@ -794,48 +794,48 @@ void VL53L1_f_029(
 
 
 
-	pdata->range_id              = range_id;
-	pdata->time_stamp            = 0;
+	pdat->range_id              = range_id;
+	pdat->time_stamp            = 0;
 
-	pdata->VL53L1_p_015          = ppulse->VL53L1_p_015;
-	pdata->VL53L1_p_022             = ppulse->VL53L1_p_022;
-	pdata->VL53L1_p_025            = ppulse->VL53L1_p_025;
-	pdata->VL53L1_p_026              = ppulse->VL53L1_p_026;
-	pdata->VL53L1_p_016            = ppulse->VL53L1_p_016;
-	pdata->VL53L1_p_027             = ppulse->VL53L1_p_027;
+	pdat->VL53L1_p_015          = ppulse->VL53L1_p_015;
+	pdat->VL53L1_p_022             = ppulse->VL53L1_p_022;
+	pdat->VL53L1_p_025            = ppulse->VL53L1_p_025;
+	pdat->VL53L1_p_026              = ppulse->VL53L1_p_026;
+	pdat->VL53L1_p_016            = ppulse->VL53L1_p_016;
+	pdat->VL53L1_p_027             = ppulse->VL53L1_p_027;
 
 
 
-	pdata->VL53L1_p_030  =
+	pdat->VL53L1_p_030  =
 		(ppulse->VL53L1_p_016 + 1) - ppulse->VL53L1_p_015;
 
 
 
-	pdata->zero_distance_phase   = pbins->zero_distance_phase;
-	pdata->VL53L1_p_005              = ppulse->VL53L1_p_005;
-	pdata->VL53L1_p_028             = (uint16_t)ppulse->VL53L1_p_028;
-	pdata->VL53L1_p_014          = (uint16_t)ppulse->VL53L1_p_014;
-	pdata->VL53L1_p_029             = (uint16_t)ppulse->VL53L1_p_029;
-	pdata->VL53L1_p_021  = (uint32_t)ppulse->VL53L1_p_021;
-	pdata->VL53L1_p_013   = ppulse->VL53L1_p_013;
-	pdata->VL53L1_p_020 = (uint32_t)ppulse->VL53L1_p_020;
-	pdata->total_periods_elapsed = pbins->total_periods_elapsed;
+	pdat->zero_distance_phase   = pbins->zero_distance_phase;
+	pdat->VL53L1_p_005              = ppulse->VL53L1_p_005;
+	pdat->VL53L1_p_028             = (uint16_t)ppulse->VL53L1_p_028;
+	pdat->VL53L1_p_014          = (uint16_t)ppulse->VL53L1_p_014;
+	pdat->VL53L1_p_029             = (uint16_t)ppulse->VL53L1_p_029;
+	pdat->VL53L1_p_021  = (uint32_t)ppulse->VL53L1_p_021;
+	pdat->VL53L1_p_013   = ppulse->VL53L1_p_013;
+	pdat->VL53L1_p_020 = (uint32_t)ppulse->VL53L1_p_020;
+	pdat->total_periods_elapsed = pbins->total_periods_elapsed;
 
 
 
-	pdata->range_status = VL53L1_DEVICEERROR_RANGECOMPLETE_NO_WRAP_CHECK;
+	pdat->range_status = VL53L1_DEVICEERROR_RANGECOMPLETE_NO_WRAP_CHECK;
 
 
 	if (sigma_thres > 0 &&
 		(uint32_t)ppulse->VL53L1_p_005 > ((uint32_t)sigma_thres << 5))
-		pdata->range_status = VL53L1_DEVICEERROR_SIGMATHRESHOLDCHECK;
+		pdat->range_status = VL53L1_DEVICEERROR_SIGMATHRESHOLDCHECK;
 
 
 
 	lower_phase_limit  = (uint8_t)valid_phase_low << 8;
-	if (lower_phase_limit < pdata->zero_distance_phase)
+	if (lower_phase_limit < pdat->zero_distance_phase)
 		lower_phase_limit =
-			pdata->zero_distance_phase -
+			pdat->zero_distance_phase -
 			lower_phase_limit;
 	else
 		lower_phase_limit  = 0;
@@ -843,9 +843,9 @@ void VL53L1_f_029(
 	upper_phase_limit  = (uint8_t)valid_phase_high << 8;
 	upper_phase_limit += pbins->zero_distance_phase;
 
-	if (pdata->VL53L1_p_014 < lower_phase_limit ||
-		pdata->VL53L1_p_014 > upper_phase_limit)
-		pdata->range_status = VL53L1_DEVICEERROR_RANGEPHASECHECK;
+	if (pdat->VL53L1_p_014 < lower_phase_limit ||
+		pdat->VL53L1_p_014 > upper_phase_limit)
+		pdat->range_status = VL53L1_DEVICEERROR_RANGEPHASECHECK;
 
 }
 

@@ -35,20 +35,20 @@
 
 
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_HISTOGRAM, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_HISTOGRAM, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_HISTOGRAM, \
-	status, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_HISTOGRAM, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_HISTOGRAM, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_HISTOGRAM, \
+// 	status, fmt, __VA_ARGS__)
 
-#define trace_print(level, ...) \
-	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_HISTOGRAM, \
-	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
+// #define trace_print(level, ...) \
+// 	_LOG_TRACE_PRINT(VL53L1_TRACE_MODULE_HISTOGRAM, \
+// 	level, VL53L1_TRACE_FUNCTION_NONE, __VA_ARGS__)
 
 
 VL53L1_Error VL53L1_hist_process_data(
@@ -79,7 +79,7 @@ VL53L1_Error VL53L1_hist_process_data(
 	VL53L1_histogram_bin_data_t             bins_averaged;
 	VL53L1_histogram_bin_data_t           *pbins_averaged = &bins_averaged;
 
-	VL53L1_range_data_t                   *pdata;
+	VL53L1_range_data_t                   *pdat;
 
 	uint32_t xtalk_rate_kcps               = 0;
 	uint32_t max_xtalk_rate_per_spad_kcps  = 0;
@@ -190,10 +190,10 @@ VL53L1_Error VL53L1_hist_process_data(
 
 
 		if (presults->active_results == 0) {
-			pdata = &(presults->VL53L1_p_002[0]);
-			pdata->ambient_count_rate_mcps =
+			pdat = &(presults->VL53L1_p_002[0]);
+			pdat->ambient_count_rate_mcps =
 				pdmax_algo_gen3->VL53L1_p_001;
-			pdata->VL53L1_p_006 =
+			pdat->VL53L1_p_006 =
 				pdmax_algo_gen3->VL53L1_p_006;
 		}
 
@@ -206,30 +206,30 @@ VL53L1_Error VL53L1_hist_process_data(
 
 		for (t = 0 ; t < presults->active_results ; t++) {
 
-			pdata = &(presults->VL53L1_p_002[t]);
+			pdat = &(presults->VL53L1_p_002[t]);
 
 
 
-			if (pdata->max_range_mm > pdata->min_range_mm)
+			if (pdat->max_range_mm > pdat->min_range_mm)
 				delta_mm =
-					pdata->max_range_mm -
-					pdata->min_range_mm;
+					pdat->max_range_mm -
+					pdat->min_range_mm;
 			else
 				delta_mm =
-					pdata->min_range_mm -
-					pdata->max_range_mm;
+					pdat->min_range_mm -
+					pdat->max_range_mm;
 
 			XtalkDetectMaxSigma =
 				ppost_cfg->algo__crosstalk_detect_max_sigma_mm;
 			XtalkDetectMaxSigma *= (uint32_t)(*HistMergeNumber);
 			XtalkDetectMaxSigma <<= 5;
-			if (pdata->median_range_mm  >
+			if (pdat->median_range_mm  >
 			ppost_cfg->algo__crosstalk_detect_min_valid_range_mm &&
-			pdata->median_range_mm  <
+			pdat->median_range_mm  <
 			ppost_cfg->algo__crosstalk_detect_max_valid_range_mm &&
-			pdata->VL53L1_p_012 <
+			pdat->VL53L1_p_012 <
 			max_xtalk_rate_per_spad_kcps &&
-			pdata->VL53L1_p_005 < XtalkDetectMaxSigma &&
+			pdat->VL53L1_p_005 < XtalkDetectMaxSigma &&
 			delta_mm <
 			ppost_cfg->algo__crosstalk_detect_min_max_tolerance) {
 
@@ -237,7 +237,7 @@ VL53L1_Error VL53L1_hist_process_data(
 
 				memcpy(
 					&(presults->xmonitor),
-					pdata,
+					pdat,
 					sizeof(VL53L1_range_data_t));
 
 			}

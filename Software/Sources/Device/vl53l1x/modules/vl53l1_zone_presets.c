@@ -18,16 +18,16 @@
 #include "vl53l1_zone_presets.h"
 
 
-#undef LOG_FUNCTION_START
-#define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_CORE, fmt, __VA_ARGS__)
-#undef LOG_FUNCTION_END
-#define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_CORE, status, __VA_ARGS__)
-#undef LOG_FUNCTION_END_FMT
-#define LOG_FUNCTION_END_FMT(status, fmt, ...) \
-	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_CORE,\
-			status, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_START
+// #define LOG_FUNCTION_START(fmt, ...) \
+// 	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_CORE, fmt, __VA_ARGS__)
+// #undef LOG_FUNCTION_END
+// #define LOG_FUNCTION_END(status, ...) \
+// 	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_CORE, status, __VA_ARGS__)
+// #undef LOG_FUNCTION_END_FMT
+// #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
+// 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_CORE,\
+// 			status, fmt, __VA_ARGS__)
 
 
 VL53L1_Error VL53L1_init_zone_config_structure(
@@ -39,7 +39,7 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 	uint8_t y_zones,
 	uint8_t width,
 	uint8_t height,
-	VL53L1_zone_config_t   *pdata)
+	VL53L1_zone_config_t   *pdat)
 {
 
 
@@ -51,7 +51,7 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 
 	LOG_FUNCTION_START("");
 
-	pdata->max_zones = VL53L1_MAX_USER_ZONES;
+	pdat->max_zones = VL53L1_MAX_USER_ZONES;
 
 	i = 0;
 
@@ -60,12 +60,12 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 
 			if (i < VL53L1_MAX_USER_ZONES) {
 
-				pdata->active_zones = (uint8_t)i;
-				pdata->user_zones[i].height   = height;
-				pdata->user_zones[i].width    = width;
-				pdata->user_zones[i].x_centre =
+				pdat->active_zones = (uint8_t)i;
+				pdat->user_zones[i].height   = height;
+				pdat->user_zones[i].width    = width;
+				pdat->user_zones[i].x_centre =
 						x_off + (x * x_inc);
-				pdata->user_zones[i].y_centre =
+				pdat->user_zones[i].y_centre =
 						y_off + (y * y_inc);
 			}
 
@@ -73,7 +73,7 @@ VL53L1_Error VL53L1_init_zone_config_structure(
 		}
 	}
 
-	status = VL53L1_init_zone_config_histogram_bins(pdata);
+	status = VL53L1_init_zone_config_histogram_bins(pdat);
 
 
 	LOG_FUNCTION_END(status);
@@ -135,7 +135,7 @@ VL53L1_Error VL53L1_zone_preset_xtalk_planar(
 
 
 VL53L1_Error VL53L1_init_zone_config_histogram_bins(
-	VL53L1_zone_config_t   *pdata)
+	VL53L1_zone_config_t   *pdat)
 {
 
 
@@ -145,8 +145,8 @@ VL53L1_Error VL53L1_init_zone_config_histogram_bins(
 
 	LOG_FUNCTION_START("");
 
-	for (i = 0; i < pdata->max_zones; i++)
-		pdata->bin_config[i] = VL53L1_ZONECONFIG_BINCONFIG__LOWAMB;
+	for (i = 0; i < pdat->max_zones; i++)
+		pdat->bin_config[i] = VL53L1_ZONECONFIG_BINCONFIG__LOWAMB;
 
 	LOG_FUNCTION_END(status);
 

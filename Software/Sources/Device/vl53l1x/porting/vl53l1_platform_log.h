@@ -55,28 +55,31 @@
 #else
     /* ————— Logging disabled (default) —————
      *
-     * Pre-define the LOG_* macros that every modules/*.c redefines locally.
-     * This prevents C307 "parameter count mismatch" when the local .c file
-     * redefines them with the same (fmt, ...) signature.
+     * C51-compatible stub macros (no variadic `...` — C51 treats it as a
+     * literal parameter name, causing C307 at every call site).
      *
-     * Using `...` (variadic) here — C251 accepts this syntax as proven by
-     * vl53l1_platform_ipp.c compiling cleanly.
+     * Every modules/*.c file has its local LOG_FUNCTION_* definitions
+     * commented out; these stubs are the sole definitions.
+     *
+     * To re-enable logging: define VL53L1_LOG_ENABLE, uncomment the local
+     * definitions in the relevant .c files, and provide implementations
+     * for _LOG_FUNCTION_START / _LOG_FUNCTION_END / trace_print.
      */
 
-    #define LOG_FUNCTION_START(fmt, ...)
-    #define LOG_FUNCTION_END(status, ...)
-    #define LOG_FUNCTION_END_FMT(status, fmt, ...)
+    #define LOG_FUNCTION_START(fmt)
+    #define LOG_FUNCTION_END(status)
+    #define LOG_FUNCTION_END_FMT(status, fmt)
 
-    #define _LOG_TRACE_PRINT(module, level, function, ...)
-    #define _LOG_FUNCTION_START(module, fmt, ...)
-    #define _LOG_FUNCTION_END(module, status, ...)
-    #define _LOG_FUNCTION_END_FMT(module, status, fmt, ...)
+    #define _LOG_TRACE_PRINT(module, level, function)
+    #define _LOG_FUNCTION_START(module, fmt)
+    #define _LOG_FUNCTION_END(module, status)
+    #define _LOG_FUNCTION_END_FMT(module, status, fmt)
     #define _LOG_GET_TRACE_FUNCTIONS()          0
     #define _LOG_SET_TRACE_FUNCTIONS(functions) ((void)0)
     #define _LOG_STRING_BUFFER(x)               ((void)0)
 
-    /* For .c files that also #define trace_print locally */
-    #define trace_print(level, ...)
+    /* trace_print is always called as trace_print(LEVEL, "msg") — 2 args */
+    #define trace_print(level, fmt)
 
 #endif
 
