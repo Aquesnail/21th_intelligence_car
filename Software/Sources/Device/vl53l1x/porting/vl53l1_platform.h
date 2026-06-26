@@ -112,7 +112,7 @@ VL53L1_Error VL53L1_ReadMulti(
 VL53L1_Error VL53L1_WrByte(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint8_t       data);
+		uint8_t       dat);
 
 
 /**
@@ -132,7 +132,7 @@ VL53L1_Error VL53L1_WrByte(
 VL53L1_Error VL53L1_WrWord(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint16_t      data);
+		uint16_t      dat);
 
 
 /**
@@ -152,7 +152,7 @@ VL53L1_Error VL53L1_WrWord(
 VL53L1_Error VL53L1_WrDWord(
 		VL53L1_DEV    Dev,
 		uint16_t      index,
-		uint32_t      data);
+		uint32_t      dat);
 
 
 

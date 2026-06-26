@@ -2,20 +2,21 @@
  ******************************************************************************
  * Copyright (c) 2020, STMicroelectronics - All Rights Reserved
  *
- * Adapted: C89-compatible no-logging stubs for STC32G.
- *          VL53L1_LOG_ENABLE is NOT defined → all trace macros are empty.
+ * Adapted: no-logging stubs for STC32G.
+ *          VL53L1_LOG_ENABLE is NOT defined by default.
+ *
+ * When logging is OFF we pre-define LOG_FUNCTION_START / LOG_FUNCTION_END
+ * as empty macros so that the local definitions inside every modules/*.c
+ * are a harmless no-op redefinition (C251 tolerates identical-parameter
+ * redefinitions).
  ******************************************************************************
  */
 
 #ifndef _VL53L1_PLATFORM_LOG_H_
 #define _VL53L1_PLATFORM_LOG_H_
 
-/*
- * Logging is disabled by default.
- * To enable, #define VL53L1_LOG_ENABLE and implement the trace callbacks.
- */
 #ifdef VL53L1_LOG_ENABLE
-    /* ——— Logging enabled ——— */
+    /* ————— Logging enabled ————— */
     #include "vl53l1_platform_user_config.h"
     #include "vl53l1_types.h"
 
@@ -52,18 +53,31 @@
     void VL53L1_set_trace_functions(uint32_t function);
 
 #else
-    /* ——— Logging disabled (default) ———
-     * C89-compatible: fixed-parameter macros, no `...` / __VA_ARGS__.
-     * Modules/*.c still define LOG_FUNCTION_START(fmt,...) locally,
-     * but they resolve to these stubs which discard everything.
+    /* ————— Logging disabled (default) —————
+     *
+     * Pre-define the LOG_* macros that every modules/*.c redefines locally.
+     * This prevents C307 "parameter count mismatch" when the local .c file
+     * redefines them with the same (fmt, ...) signature.
+     *
+     * Using `...` (variadic) here — C251 accepts this syntax as proven by
+     * vl53l1_platform_ipp.c compiling cleanly.
      */
-    #define _LOG_TRACE_PRINT(module, level, function, dummy)
-    #define _LOG_FUNCTION_START(module, fmt, dummy)
-    #define _LOG_FUNCTION_END(module, status, dummy)
-    #define _LOG_FUNCTION_END_FMT(module, status, fmt, dummy)
+
+    #define LOG_FUNCTION_START(fmt, ...)
+    #define LOG_FUNCTION_END(status, ...)
+    #define LOG_FUNCTION_END_FMT(status, fmt, ...)
+
+    #define _LOG_TRACE_PRINT(module, level, function, ...)
+    #define _LOG_FUNCTION_START(module, fmt, ...)
+    #define _LOG_FUNCTION_END(module, status, ...)
+    #define _LOG_FUNCTION_END_FMT(module, status, fmt, ...)
     #define _LOG_GET_TRACE_FUNCTIONS()          0
     #define _LOG_SET_TRACE_FUNCTIONS(functions) ((void)0)
     #define _LOG_STRING_BUFFER(x)               ((void)0)
+
+    /* For .c files that also #define trace_print locally */
+    #define trace_print(level, ...)
+
 #endif
 
 #endif /* _VL53L1_PLATFORM_LOG_H_ */

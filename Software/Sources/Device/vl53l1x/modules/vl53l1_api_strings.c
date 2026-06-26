@@ -19,13 +19,16 @@
 #include "vl53l1_error_codes.h"
 #include "vl53l1_error_strings.h"
 
+#undef LOG_FUNCTION_START
 #define LOG_FUNCTION_START(fmt, ...) \
-	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_API, fmt, ##__VA_ARGS__)
+	_LOG_FUNCTION_START(VL53L1_TRACE_MODULE_API, fmt, __VA_ARGS__)
+#undef LOG_FUNCTION_END
 #define LOG_FUNCTION_END(status, ...) \
-	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_API, status, ##__VA_ARGS__)
+	_LOG_FUNCTION_END(VL53L1_TRACE_MODULE_API, status, __VA_ARGS__)
+#undef LOG_FUNCTION_END_FMT
 #define LOG_FUNCTION_END_FMT(status, fmt, ...) \
 	_LOG_FUNCTION_END_FMT(VL53L1_TRACE_MODULE_API, status, fmt, \
-			##__VA_ARGS__)
+			__VA_ARGS__)
 
 
 VL53L1_Error VL53L1_get_range_status_string(

@@ -130,10 +130,10 @@ VL53L1_Error VL53L1_ReadMulti(
 /*  Data is big-endian on the wire (VL53L1 register map convention).        */
 /* ======================================================================== */
 
-VL53L1_Error VL53L1_WrByte(VL53L1_DEV Dev, uint16_t index, uint8_t data)
+VL53L1_Error VL53L1_WrByte(VL53L1_DEV Dev, uint16_t index, uint8_t dat)
 {
     if (Dev == NULL) return VL53L1_ERROR_INVALID_PARAMS;
-    I2C1_WriteRegByte(Dev->i2c_wr_addr, index, data);
+    I2C1_WriteRegByte(Dev->i2c_wr_addr, index, dat);
     return VL53L1_ERROR_NONE;
 }
 
@@ -144,12 +144,12 @@ VL53L1_Error VL53L1_RdByte(VL53L1_DEV Dev, uint16_t index, uint8_t *pdata)
     return VL53L1_ERROR_NONE;
 }
 
-VL53L1_Error VL53L1_WrWord(VL53L1_DEV Dev, uint16_t index, uint16_t data)
+VL53L1_Error VL53L1_WrWord(VL53L1_DEV Dev, uint16_t index, uint16_t dat)
 {
     uint8_t buf[2];
     if (Dev == NULL) return VL53L1_ERROR_INVALID_PARAMS;
-    buf[0] = (uint8_t)(data >> 8);      /* MSB first (big-endian) */
-    buf[1] = (uint8_t)(data & 0xFF);
+    buf[0] = (uint8_t)(dat >> 8);      /* MSB first (big-endian) */
+    buf[1] = (uint8_t)(dat & 0xFF);
     I2C1_WriteRegMulti(Dev->i2c_wr_addr, index, buf, 2);
     return VL53L1_ERROR_NONE;
 }
@@ -163,14 +163,14 @@ VL53L1_Error VL53L1_RdWord(VL53L1_DEV Dev, uint16_t index, uint16_t *pdata)
     return VL53L1_ERROR_NONE;
 }
 
-VL53L1_Error VL53L1_WrDWord(VL53L1_DEV Dev, uint16_t index, uint32_t data)
+VL53L1_Error VL53L1_WrDWord(VL53L1_DEV Dev, uint16_t index, uint32_t dat)
 {
     uint8_t buf[4];
     if (Dev == NULL) return VL53L1_ERROR_INVALID_PARAMS;
-    buf[0] = (uint8_t)(data >> 24);
-    buf[1] = (uint8_t)(data >> 16);
-    buf[2] = (uint8_t)(data >> 8);
-    buf[3] = (uint8_t)(data);
+    buf[0] = (uint8_t)(dat >> 24);
+    buf[1] = (uint8_t)(dat >> 16);
+    buf[2] = (uint8_t)(dat >> 8);
+    buf[3] = (uint8_t)(dat);
     I2C1_WriteRegMulti(Dev->i2c_wr_addr, index, buf, 4);
     return VL53L1_ERROR_NONE;
 }
