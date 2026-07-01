@@ -552,7 +552,7 @@ static unsigned char Check_WallEntry(ElementCtx_t *ctx)
 {
     if (!Track_CheckExpected(ctx, ELEMENT_WALL)) return 0;
 
-    if (ctx->vote_wall.len == 0) {
+    if (ctx->vote_wall.len == 0) { //如果窗长为零就忽略后面的VoteWin_Reached，等于取消了时间滤波
         return (ctx->tilt_fb < wall_entry_tiltb) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_wall, ctx->vote_wall.entry_thresh);
@@ -585,7 +585,7 @@ static unsigned char Check_WallHorizToDescend(ElementCtx_t *ctx)
 /* ---- 下行→STRAIGHT: TiltB > 阈值 (四元数前后倾角) ---- */
 static unsigned char Check_WallDescendExit(ElementCtx_t *ctx)
 {
-    if (ctx->vote_wall_descend.len == 0) {
+    if (ctx->vote_wall_descend.len == 0) { 
         return (ctx->tilt_fb > wall_descend_exit_tiltb) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_wall_descend, ctx->vote_wall_descend.entry_thresh);
@@ -596,9 +596,9 @@ static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
 {
     if (!Track_CheckExpected(ctx, ELEMENT_BARREL)) return 0;
 
-    if (ctx->vote_barrel.len == 0) {
-        return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) > barrel_entry_tilt) ? 1 : 0;
-    }
+    // if (ctx->vote_barrel.len == 0) {
+    //     return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) > barrel_entry_tilt) ? 1 : 0;
+    // }
     return VoteWin_Reached(&ctx->vote_barrel, ctx->vote_barrel.entry_thresh);
 }
 
@@ -706,6 +706,20 @@ static void Enter_RingExit(ElementCtx_t *ctx)
     Enter_ExitToStraight(ctx);
 }
 
+/* ---- 退出滚筒: 清空投票窗, 推进元素表 ---- */
+static void Enter_BarrelExit(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_barrel);
+    Enter_ExitToStraight(ctx);
+}
+
+/* ---- 退出十字: 清空投票窗, 推进元素表 ---- */
+static void Enter_CrossExit(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_cross);
+    Enter_ExitToStraight(ctx);
+}
+
 /* ---- 进入上墙: 复位帧计数, 清空全部上墙投票窗 ---- */
 static void Enter_Wall(ElementCtx_t *ctx)
 {
@@ -714,6 +728,18 @@ static void Enter_Wall(ElementCtx_t *ctx)
     VoteWin_Reset(&ctx->vote_wall_climb);
     VoteWin_Reset(&ctx->vote_wall_horiz);
     VoteWin_Reset(&ctx->vote_wall_descend);
+}
+
+/* ---- 进入滚筒: 清空投票窗, 冲刷入口票 ---- */
+static void Enter_Barrel(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_barrel);
+}
+
+/* ---- 进入十字: 清空投票窗, 冲刷入口票 ---- */
+static void Enter_Cross(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_cross);
 }
 
 /* ---- 进入上爬: 清空上爬投票窗 ---- */
@@ -746,8 +772,8 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_STRAIGHT, ELEMENT_RING_LEFT_ENTRANCE,  1, Check_RingLeftEntry,  Enter_RingEntry },
     { ELEMENT_STRAIGHT, ELEMENT_RING_RIGHT_ENTRANCE, 1, Check_RingRightEntry, Enter_RingEntry },
     { ELEMENT_STRAIGHT, ELEMENT_WALL,    2, Check_WallEntry,    Enter_Wall },
-    { ELEMENT_STRAIGHT, ELEMENT_BARREL,  3, Check_BarrelEntry,  NULL },
-    { ELEMENT_STRAIGHT, ELEMENT_CROSS,   4, Check_CrossEntry,   NULL },
+    { ELEMENT_STRAIGHT, ELEMENT_BARREL,  3, Check_BarrelEntry,  Enter_Barrel },
+    { ELEMENT_STRAIGHT, ELEMENT_CROSS,   4, Check_CrossEntry,   Enter_Cross },
 
     /* PASS → IN_RING (帧超时) */
     { ELEMENT_RING_LEFT_PASS,  ELEMENT_IN_RING, 0, Check_PassTimeout, Enter_InRing },
@@ -763,8 +789,8 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_WALL_DESCEND,    ELEMENT_STRAIGHT,      0, Check_WallDescendExit,    Enter_ExitToStraight },
 
     /* 退出各元素 → STRAIGHT */
-    { ELEMENT_BARREL, ELEMENT_STRAIGHT, 0, Check_BarrelExit, Enter_ExitToStraight },
-    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossExit,  Enter_ExitToStraight },
+    { ELEMENT_BARREL, ELEMENT_STRAIGHT, 0, Check_BarrelExit, Enter_BarrelExit },
+    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossExit,  Enter_CrossExit },
 };
 
 #define TRANSITION_COUNT  (sizeof(g_transitions) / sizeof(g_transitions[0]))
