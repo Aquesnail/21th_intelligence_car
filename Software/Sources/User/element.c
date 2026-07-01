@@ -74,7 +74,9 @@ static float   wall_entry_tiltb;              /* STRAIGHT→WALL 进入 TiltB �
 static float   wall_climb_exit_tiltr;         /* CLIMB→HORIZONTAL |TiltR| 阈值 (默认 70) */
 static float   wall_horiz_exit_tiltr;         /* HORIZONTAL→DESCEND |TiltR| 阈值 (默认 70) */
 static float   wall_descend_exit_tiltb;       /* DESCEND→STRAIGHT 退出 TiltB 阈值 (默认 60) */
-static unsigned short g_wall_timeout_frames = 2000; /* 上墙总超时 (帧, =4s) */
+static unsigned short g_wall_timeout_frames   = 2000; /* 上墙总超时 (帧, =4s) */
+static unsigned short g_barrel_timeout_frames = 2000; /* 滚筒总超时 (帧, =4s) */
+static unsigned short g_cross_timeout_frames  = 1000; /* 十字总超时 (帧, =2s) */
 static VoteWindow_t vote_win_wall;
 
 /* ---- 上墙子状态投票窗 ---- */
@@ -316,7 +318,7 @@ void Element_Init(ElementCtx_t *ctx)
     /* Phase 3: 初始化上下文 (NULL = 兼容旧接口, 仅初始化静态变量) */
     if (ctx != NULL) {
         ctx->ring_side        = 0;
-        ctx->pass_frame_cnt   = 0;
+        ctx->elem_frame_cnt   = 0;
         ctx->ring_entry_yaw   = 0.0f;
         ctx->exit_lockout_cnt = 0;
         ctx->track_idx        = 0;
@@ -325,10 +327,8 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->offtrack_start_tick = 0;
         ctx->current = ELEMENT_STRAIGHT;
         ctx->prev    = ELEMENT_STRAIGHT;
-        ctx->frame_cnt = 0;
         ctx->tilt_fb   = 0.0f;
-    ctx->tilt_lr   = 0.0f;
-        ctx->wall_frame_cnt  = 0;
+        ctx->tilt_lr   = 0.0f;
 
     }
 
@@ -380,6 +380,8 @@ void Element_Init(ElementCtx_t *ctx)
     /* 滚筒倾角阈值 */
     Debug_Register("Bar_EnTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_entry_tilt);
     Debug_Register("Bar_ExTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
+    /* 滚筒超时 (帧数) */
+    Debug_Register("Bar_Timeout", DBG_UINT16 | STATIC_TYPE, &g_barrel_timeout_frames);
 
     /* 滚筒投票窗参数 (上位机可调) */
    // Debug_Register("Bar_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.entry_thresh);
@@ -389,6 +391,8 @@ void Element_Init(ElementCtx_t *ctx)
     /* 十字竖直电感和阈值 */
     Debug_Register("Cross_EnSum", DBG_FLOAT | STATIC_TYPE, &cross_entry_sum);
     Debug_Register("Cross_ExSum", DBG_FLOAT | STATIC_TYPE, &cross_exit_sum);
+    /* 十字超时 (帧数) */
+    Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
 
     /* 十字投票窗参数 (上位机可调) */
     Debug_Register("Cross_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.entry_thresh);
@@ -639,8 +643,7 @@ static unsigned char Check_CrossExit(ElementCtx_t *ctx)
 /* ---- PASS 帧超时 ---- */
 static unsigned char Check_PassTimeout(ElementCtx_t *ctx)
 {
-    ctx->pass_frame_cnt++;
-    return (ctx->pass_frame_cnt >= g_pass_timeout_frames) ? 1 : 0;
+    return (ctx->elem_frame_cnt >= g_pass_timeout_frames) ? 1 : 0;
 }
 
 /* ---- 环岛退出 (yaw 门禁 + 任一外侧电感超过退出阈值) ---- */
@@ -669,7 +672,7 @@ static unsigned char Check_RingExit(ElementCtx_t *ctx)
 /* ---- 进入环岛 PASS: 重置帧计数 ---- */
 static void Enter_RingPass(ElementCtx_t *ctx)
 {
-    ctx->pass_frame_cnt = 0;
+    ctx->elem_frame_cnt = 0;
 }
 
 /* ---- 进入环岛 ENTRANCE: 设置 ring_side ---- */
@@ -723,23 +726,67 @@ static void Enter_CrossExit(ElementCtx_t *ctx)
 /* ---- 进入上墙: 复位帧计数, 清空全部上墙投票窗 ---- */
 static void Enter_Wall(ElementCtx_t *ctx)
 {
-    ctx->wall_frame_cnt  = 0;
+    ctx->elem_frame_cnt  = 0;
     VoteWin_Reset(&ctx->vote_wall);
     VoteWin_Reset(&ctx->vote_wall_climb);
     VoteWin_Reset(&ctx->vote_wall_horiz);
     VoteWin_Reset(&ctx->vote_wall_descend);
 }
 
-/* ---- 进入滚筒: 清空投票窗, 冲刷入口票 ---- */
+/* ---- 进入滚筒: 复位帧计数, 清空投票窗 ---- */
 static void Enter_Barrel(ElementCtx_t *ctx)
 {
+    ctx->elem_frame_cnt = 0;
     VoteWin_Reset(&ctx->vote_barrel);
 }
 
-/* ---- 进入十字: 清空投票窗, 冲刷入口票 ---- */
+/* ---- 进入十字: 复位帧计数, 清空投票窗 ---- */
 static void Enter_Cross(ElementCtx_t *ctx)
 {
+    ctx->elem_frame_cnt = 0;
     VoteWin_Reset(&ctx->vote_cross);
+}
+
+/* ---- 上墙超时: 检查帧计数 ---- */
+static unsigned char Check_WallTimeout(ElementCtx_t *ctx)
+{
+    return (ctx->elem_frame_cnt >= g_wall_timeout_frames) ? 1 : 0;
+}
+
+/* ---- 上墙超时: 清空投票窗, 推进元素表 ---- */
+static void Enter_WallTimeout(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_wall);
+    VoteWin_Reset(&ctx->vote_wall_climb);
+    VoteWin_Reset(&ctx->vote_wall_horiz);
+    VoteWin_Reset(&ctx->vote_wall_descend);
+    Enter_ExitToStraight(ctx);
+}
+
+/* ---- 滚筒超时: 检查帧计数 ---- */
+static unsigned char Check_BarrelTimeout(ElementCtx_t *ctx)
+{
+    return (ctx->elem_frame_cnt >= g_barrel_timeout_frames) ? 1 : 0;
+}
+
+/* ---- 滚筒超时: 清空投票窗, 推进元素表 ---- */
+static void Enter_BarrelTimeout(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_barrel);
+    Enter_ExitToStraight(ctx);
+}
+
+/* ---- 十字超时: 检查帧计数 ---- */
+static unsigned char Check_CrossTimeout(ElementCtx_t *ctx)
+{
+    return (ctx->elem_frame_cnt >= g_cross_timeout_frames) ? 1 : 0;
+}
+
+/* ---- 十字超时: 清空投票窗, 推进元素表 ---- */
+static void Enter_CrossTimeout(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_cross);
+    Enter_ExitToStraight(ctx);
 }
 
 /* ---- 进入上爬: 清空上爬投票窗 ---- */
@@ -788,9 +835,16 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_WALL_HORIZONTAL, ELEMENT_WALL_DESCEND, 0, Check_WallHorizToDescend, Enter_WallDescend },
     { ELEMENT_WALL_DESCEND,    ELEMENT_STRAIGHT,      0, Check_WallDescendExit,    Enter_ExitToStraight },
 
+    /* 上墙超时兜底 (prio=1: 正常子状态转移优先, 超时才触发) */
+    { ELEMENT_WALL_CLIMB,    ELEMENT_STRAIGHT, 1, Check_WallTimeout,    Enter_WallTimeout },
+    { ELEMENT_WALL_HORIZONTAL, ELEMENT_STRAIGHT, 1, Check_WallTimeout,    Enter_WallTimeout },
+    { ELEMENT_WALL_DESCEND,  ELEMENT_STRAIGHT, 1, Check_WallTimeout,    Enter_WallTimeout },
+
     /* 退出各元素 → STRAIGHT */
     { ELEMENT_BARREL, ELEMENT_STRAIGHT, 0, Check_BarrelExit, Enter_BarrelExit },
+    { ELEMENT_BARREL, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout },
     { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossExit,  Enter_CrossExit },
+    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 1, Check_CrossTimeout,  Enter_CrossTimeout },
 };
 
 #define TRANSITION_COUNT  (sizeof(g_transitions) / sizeof(g_transitions[0]))
@@ -888,6 +942,9 @@ element_t Element_Update(ElementCtx_t *ctx)
         g_track_idx = 0;
     }
 
+    /* ---- 0.6 通用帧计数 (各元素超时检测共用) ---- */
+    ctx->elem_frame_cnt++;
+
     /* ---- 1. 倾角绝对值 (四元数前后倾角, 供投票使用) ---- */
     tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
 
@@ -939,24 +996,6 @@ element_t Element_Update(ElementCtx_t *ctx)
         wall_descend_vote = 0;
     }
     VoteWin_Push(&ctx->vote_wall_descend, wall_descend_vote);
-
-    /* 上墙总超时兜底: 任一上墙状态超时强行切回 STRAIGHT */
-    if (ctx->current == ELEMENT_WALL
-        || ctx->current == ELEMENT_WALL_CLIMB
-        || ctx->current == ELEMENT_WALL_HORIZONTAL
-        || ctx->current == ELEMENT_WALL_DESCEND) {
-        ctx->wall_frame_cnt++;
-        if (ctx->wall_frame_cnt >= g_wall_timeout_frames) {
-            ctx->prev    = ctx->current;
-            ctx->current = ELEMENT_STRAIGHT;
-            VoteWin_Reset(&ctx->vote_wall);
-            VoteWin_Reset(&ctx->vote_wall_climb);
-            VoteWin_Reset(&ctx->vote_wall_horiz);
-            VoteWin_Reset(&ctx->vote_wall_descend);
-            Track_Advance();
-            Debug_Log(Element_GetProp(ELEMENT_STRAIGHT)->name);
-        }
-    }
 
     /* 滚筒投票 */
     if (ctx->current == ELEMENT_STRAIGHT) {

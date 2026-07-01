@@ -93,12 +93,11 @@ typedef struct {
 
     /* ---- 环岛专用状态 ---- */
     unsigned char  ring_side;           /* 0=左环, 1=右环 */
-    unsigned short pass_frame_cnt;
     float          ring_entry_yaw;
     unsigned short exit_lockout_cnt;    /* 出环锁存倒计时 */
 
-    /* ---- 上墙专用状态 ---- */
-    unsigned short wall_frame_cnt;      /* 上墙帧计数 (超时兜底) */
+    /* ---- 通用元素帧计数 (在 element Enter 时归零, Element_Update 开头累加) ---- */
+    unsigned short elem_frame_cnt;
 
     /* ---- 元素表 ---- */
     unsigned char track_idx;
@@ -111,9 +110,6 @@ typedef struct {
     /* ---- 当前/前一状态 ---- */
     element_t current;
     element_t prev;
-
-    /* ---- 帧计数（PASS 超时等通用计时） ---- */
-    unsigned short frame_cnt;
 } ElementCtx_t;
 
 /* ================================================================
