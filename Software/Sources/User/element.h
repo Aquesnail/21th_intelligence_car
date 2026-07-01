@@ -95,6 +95,7 @@ typedef struct {
     unsigned char  ring_side;           /* 0=左环, 1=右环 */
     float          ring_entry_yaw;
     unsigned short exit_lockout_cnt;    /* 出环锁存倒计时 */
+    unsigned short ring_frame_cnt;      /* 环岛链总帧计数 (ENTRANCE→PASS→IN_RING 超时兜底) */
 
     /* ---- 通用元素帧计数 (在 element Enter 时归零, Element_Update 开头累加) ---- */
     unsigned short elem_frame_cnt;

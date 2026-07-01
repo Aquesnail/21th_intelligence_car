@@ -74,6 +74,7 @@ static float   wall_entry_tiltb;              /* STRAIGHT→WALL 进入 TiltB �
 static float   wall_climb_exit_tiltr;         /* CLIMB→HORIZONTAL |TiltR| 阈值 (默认 70) */
 static float   wall_horiz_exit_tiltr;         /* HORIZONTAL→DESCEND |TiltR| 阈值 (默认 70) */
 static float   wall_descend_exit_tiltb;       /* DESCEND→STRAIGHT 退出 TiltB 阈值 (默认 60) */
+static unsigned short g_ring_timeout_frames   = 3000; /* 环岛总超时 (帧, =6s, 覆盖ENTRANCE+PASS+IN_RING) */
 static unsigned short g_wall_timeout_frames   = 2000; /* 上墙总超时 (帧, =4s) */
 static unsigned short g_barrel_timeout_frames = 2000; /* 滚筒总超时 (帧, =4s) */
 static unsigned short g_cross_timeout_frames  = 1000; /* 十字总超时 (帧, =2s) */
@@ -318,6 +319,7 @@ void Element_Init(ElementCtx_t *ctx)
     /* Phase 3: 初始化上下文 (NULL = 兼容旧接口, 仅初始化静态变量) */
     if (ctx != NULL) {
         ctx->ring_side        = 0;
+        ctx->ring_frame_cnt   = 0;
         ctx->elem_frame_cnt   = 0;
         ctx->ring_entry_yaw   = 0.0f;
         ctx->exit_lockout_cnt = 0;
@@ -356,6 +358,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("PassTmOut",  DBG_UINT16 | STATIC_TYPE, &g_pass_timeout_frames);
     Debug_Register("RingExYaw",  DBG_FLOAT | STATIC_TYPE, &g_ring_exit_yaw_thresh);
     Debug_Register("RingExLock", DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
+    Debug_Register("Ring_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ring_timeout_frames);
     Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
     Debug_Register("DbgElem",    DBG_UINT8 | STATIC_TYPE, &g_single_element_debug);
     Debug_Register("PushMode",   DBG_UINT8 | STATIC_TYPE, &g_debug_push_mode);
@@ -673,6 +676,7 @@ static unsigned char Check_RingExit(ElementCtx_t *ctx)
 static void Enter_RingPass(ElementCtx_t *ctx)
 {
     ctx->elem_frame_cnt = 0;
+    ctx->ring_frame_cnt = 0;
 }
 
 /* ---- 进入环岛 ENTRANCE: 设置 ring_side ---- */
@@ -789,6 +793,18 @@ static void Enter_CrossTimeout(ElementCtx_t *ctx)
     Enter_ExitToStraight(ctx);
 }
 
+static unsigned char Check_RingTimeout(ElementCtx_t *ctx)
+{
+    return (ctx->ring_frame_cnt >= g_ring_timeout_frames) ? 1 : 0;
+}
+
+static void Enter_RingTimeout(ElementCtx_t *ctx)
+{
+    ctx->ring_frame_cnt = 0;
+    VoteWin_Reset(&ctx->vote_ring);
+    Enter_ExitToStraight(ctx);
+}
+
 /* ---- 进入上爬: 清空上爬投票窗 ---- */
 static void Enter_WallClimb(ElementCtx_t *ctx)
 {
@@ -825,9 +841,10 @@ static const Transition_t g_transitions[] = {
     /* PASS → IN_RING (帧超时) */
     { ELEMENT_RING_LEFT_PASS,  ELEMENT_IN_RING, 0, Check_PassTimeout, Enter_InRing },
     { ELEMENT_RING_RIGHT_PASS, ELEMENT_IN_RING, 0, Check_PassTimeout, Enter_InRing },
-
     /* IN_RING → STRAIGHT (出环) */
     { ELEMENT_IN_RING, ELEMENT_STRAIGHT, 0, Check_RingExit, Enter_RingExit },
+    /* IN_RING 超时兜底 (prio=1: 正常出环优先) */
+    { ELEMENT_IN_RING, ELEMENT_STRAIGHT, 1, Check_RingTimeout, Enter_RingTimeout },
 
     /* 上墙线性子状态链: WALL → CLIMB → HORIZONTAL → DESCEND → STRAIGHT */
     { ELEMENT_WALL,       ELEMENT_WALL_CLIMB,      0, NULL,                     Enter_WallClimb },
@@ -944,6 +961,15 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* ---- 0.6 通用帧计数 (各元素超时检测共用) ---- */
     ctx->elem_frame_cnt++;
+
+    /* 环岛链帧计数 (ENTRANCE/PASS/IN_RING 超时兜底) */
+    if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
+        || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+        || ctx->current == ELEMENT_RING_LEFT_PASS
+        || ctx->current == ELEMENT_RING_RIGHT_PASS
+        || ctx->current == ELEMENT_IN_RING) {
+        ctx->ring_frame_cnt++;
+    }
 
     /* ---- 1. 倾角绝对值 (四元数前后倾角, 供投票使用) ---- */
     tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
