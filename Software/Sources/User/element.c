@@ -47,10 +47,10 @@ static unsigned short g_ring_exit_lockout_frames = 1000;  /* 锁存时长(帧), 
 #define TRACK_TABLE_LEN  8  /* 根据实际赛道元素数量修改 */
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
-   // ELEMENT_RING_LEFT_ENTRANCE,
+    ELEMENT_RING_LEFT_ENTRANCE,
    /* ELEMENT_CROSS, */
    /* ELEMENT_CROSS, */
-    ELEMENT_WALL, 
+   /* ELEMENT_WALL,  */
    /* ELEMENT_BARREL */
 };
 
