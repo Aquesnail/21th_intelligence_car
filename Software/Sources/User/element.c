@@ -108,6 +108,20 @@ static float   cross_exit_sum;
 static VoteWindow_t vote_win_cross;
 
 /* ================================================================
+ * 直角转弯检测缓冲区 + 投票窗实例
+ *   子元素: STRAIGHT → RIGHT_ANGLE_LEFT/RIGHT → STRAIGHT
+ *   进入: |err_filtered| > entry_thresh (传感器即将串道)
+ *   退出: |err_raw| < exit_thresh (车身回到线上)
+ *   左右共用同一投票窗 (方向由赛道表 Track_CheckExpected 区分)
+ * ================================================================ */
+#define RA_WIN_MAX  20
+static unsigned char xdata ra_vote_buf[RA_WIN_MAX];
+static VoteWindow_t vote_win_ra;
+static float   g_ra_entry_thresh    = 100.0f;   /* |err_filtered| > 此值 → 进入直角 */
+static float   g_ra_exit_thresh     = 30.0f;    /* |err_raw| < 此值 → 退出直角 (滞回) */
+static unsigned short g_ra_timeout_frames = 500;  /* 直角超时帧数 (默认500帧=1s) */
+
+/* ================================================================
  * 安全停车检测 (Safety Stop)
  *   离赛道超时: 4路ADC全部丢失超过 g_offtrack_timeout_ms → SAFETY_STOP
  * ================================================================ */
@@ -161,7 +175,11 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
     { ELEMENT_WALL_HORIZONTAL, "WALL_HORIZ", &g_speed_wall_horiz, 255, 255, 0, CTRL_NORMAL, NULL, 0 },
     /* [12] ELEMENT_WALL_DESCEND */
     { ELEMENT_WALL_DESCEND, "WALL_DESC", &g_speed_wall_descend, 0, 255, 255, CTRL_NORMAL, NULL, 0 },
-    /* [13] ELEMENT_SAFETY_STOP */
+    /* [13] ELEMENT_RIGHT_ANGLE_LEFT */
+    { ELEMENT_RIGHT_ANGLE_LEFT,  "RT_ANG_L", &g_speed_cruising, 128, 0, 255, CTRL_ERR_FREEZE, NULL, 0 },
+    /* [14] ELEMENT_RIGHT_ANGLE_RIGHT */
+    { ELEMENT_RIGHT_ANGLE_RIGHT, "RT_ANG_R", &g_speed_cruising, 255, 128, 0, CTRL_ERR_FREEZE, NULL, 0 },
+    /* [15] ELEMENT_SAFETY_STOP */
     { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 255, 0, 0, CTRL_BRAKE, NULL, 0 },
 };
 
@@ -331,6 +349,10 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->prev    = ELEMENT_STRAIGHT;
         ctx->tilt_fb   = 0.0f;
         ctx->tilt_lr   = 0.0f;
+        ctx->frozen_err       = 0.0f;
+        ctx->right_angle_side = 0;
+        ctx->err_raw          = 0.0f;
+        ctx->err_filtered     = 0.0f;
 
     }
 
@@ -401,6 +423,14 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("Cross_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.entry_thresh);
     Debug_Register("Cross_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.exit_thresh);
 
+    /* 直角转弯参数 (上位机在线调参) */
+    Debug_Register("RA_EnThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_entry_thresh);
+    Debug_Register("RA_ExThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_exit_thresh);
+    Debug_Register("RA_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ra_timeout_frames);
+    Debug_Register("RA_WinLen",  DBG_UINT8  | STATIC_TYPE, &vote_win_ra.len);
+    Debug_Register("RA_WinEnTh", DBG_UINT8  | STATIC_TYPE, &vote_win_ra.entry_thresh);
+    Debug_Register("RA_WinExTh", DBG_UINT8  | STATIC_TYPE, &vote_win_ra.exit_thresh);
+
     /* 安全停车参数 (上位机在线调参) */
     Debug_Register("OffTkMs",   DBG_FLOAT | STATIC_TYPE, &g_offtrack_timeout_ms);
 
@@ -433,6 +463,7 @@ void Element_Init(ElementCtx_t *ctx)
     VoteWin_Init(&vote_win_wall_descend, wall_descend_vote_buf,  WALL_DESCEND_WIN_MAX);
     VoteWin_Init(&vote_win_barrel,       barrel_vote_buf,        BARREL_WIN_MAX);
     VoteWin_Init(&vote_win_cross,        cross_vote_buf,         CROSS_WIN_MAX);
+    VoteWin_Init(&vote_win_ra,           ra_vote_buf,             RA_WIN_MAX);
 
     /* 覆盖各元素特定默认值 */
     /* 环岛: 窗长 10, 进入阈值 3 */
@@ -475,6 +506,11 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_cross.entry_thresh = 7;
     vote_win_cross.exit_thresh  = 7;
 
+    /* 直角转弯默认: |err_filtered|>100 进入, |err_raw|<30 退出, 窗长5帧 */
+    vote_win_ra.len          = 5;
+    vote_win_ra.entry_thresh = 3;
+    vote_win_ra.exit_thresh  = 3;
+
     /* 绑定投票窗到上下文 (必须在 VoteWin_Init + 参数设置之后, 确保 buf/len/thresh 有效) */
     if (ctx != NULL) {
         ctx->vote_ring         = vote_win_ring;
@@ -484,6 +520,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->vote_wall_descend = vote_win_wall_descend;
         ctx->vote_barrel       = vote_win_barrel;
         ctx->vote_cross        = vote_win_cross;
+        ctx->vote_right_angle  = vote_win_ra;
     }
 
     /* 显式复位元素表索引 */
@@ -823,6 +860,55 @@ static void Enter_WallDescend(ElementCtx_t *ctx)
     VoteWin_Reset(&ctx->vote_wall_descend);
 }
 
+/* ---- 直角转弯进入: 记录冻结 err, 清空投票窗 ---- */
+static void Enter_RightAngle(ElementCtx_t *ctx)
+{
+    ctx->frozen_err       = ctx->err_filtered;
+    ctx->right_angle_side = (ctx->current == ELEMENT_RIGHT_ANGLE_LEFT) ? 0 : 1;
+    ctx->elem_frame_cnt   = 0;
+    VoteWin_Reset(&ctx->vote_right_angle);
+}
+
+/* ---- 直角转弯退出: 清空投票窗 (管线 seed 由 OnCtrlTransition 处理) ---- */
+static void Enter_RightAngleExit(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_right_angle);
+}
+
+/* ---- 直角转弯进入条件 (左): 无赛道表约束 + 投票达标 + err 为负 ---- */
+static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
+{
+    if (!VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.entry_thresh))
+        return 0;
+    return (ctx->err_filtered < -g_ra_entry_thresh) ? 1 : 0;
+}
+
+/* ---- 直角转弯进入条件 (右): 无赛道表约束 + 投票达标 + err 为正 ---- */
+static unsigned char Check_RightAngleRightEntry(ElementCtx_t *ctx)
+{
+    if (!VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.entry_thresh))
+        return 0;
+    return (ctx->err_filtered > g_ra_entry_thresh) ? 1 : 0;
+}
+
+/* ---- 直角转弯退出条件: |raw_err| < exit_thresh ---- */
+static unsigned char Check_RightAngleExit(ElementCtx_t *ctx)
+{
+    float err_raw_abs;
+    err_raw_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
+
+    if (ctx->vote_right_angle.len == 0) {
+        return (err_raw_abs < g_ra_exit_thresh) ? 1 : 0;
+    }
+    return VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.exit_thresh);
+}
+
+/* ---- 直角转弯超时 ---- */
+static unsigned char Check_RATimeout(ElementCtx_t *ctx)
+{
+    return (ctx->elem_frame_cnt >= g_ra_timeout_frames) ? 1 : 0;
+}
+
 /* ================================================================
  * 转移表 (按优先级排列, 同 from 内先匹配先触发)
  * ================================================================ */
@@ -831,12 +917,14 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_RING_LEFT_ENTRANCE,  ELEMENT_RING_LEFT_PASS,  0, NULL, Enter_RingPass },
     { ELEMENT_RING_RIGHT_ENTRANCE, ELEMENT_RING_RIGHT_PASS, 0, NULL, Enter_RingPass },
 
-    /* STRAIGHT → 各元素 (优先级: 环岛=1 > 上墙=2 > 滚筒=3 > 十字=4) */
+    /* STRAIGHT → 各元素 (优先级: 环岛=1 > 上墙=2 > 滚筒=3 > 十字=4 > 直角=5) */
     { ELEMENT_STRAIGHT, ELEMENT_RING_LEFT_ENTRANCE,  1, Check_RingLeftEntry,  Enter_RingEntry },
     { ELEMENT_STRAIGHT, ELEMENT_RING_RIGHT_ENTRANCE, 1, Check_RingRightEntry, Enter_RingEntry },
     { ELEMENT_STRAIGHT, ELEMENT_WALL,    2, Check_WallEntry,    Enter_Wall },
     { ELEMENT_STRAIGHT, ELEMENT_BARREL,  3, Check_BarrelEntry,  Enter_Barrel },
     { ELEMENT_STRAIGHT, ELEMENT_CROSS,   4, Check_CrossEntry,   Enter_Cross },
+    { ELEMENT_STRAIGHT, ELEMENT_RIGHT_ANGLE_LEFT,  5, Check_RightAngleLeftEntry,  Enter_RightAngle },
+    { ELEMENT_STRAIGHT, ELEMENT_RIGHT_ANGLE_RIGHT, 5, Check_RightAngleRightEntry, Enter_RightAngle },
 
     /* PASS → IN_RING (帧超时) */
     { ELEMENT_RING_LEFT_PASS,  ELEMENT_IN_RING, 0, Check_PassTimeout, Enter_InRing },
@@ -862,6 +950,12 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_BARREL, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout },
     { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossExit,  Enter_CrossExit },
     { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 1, Check_CrossTimeout,  Enter_CrossTimeout },
+
+    /* 直角转弯退出 */
+    { ELEMENT_RIGHT_ANGLE_LEFT,  ELEMENT_STRAIGHT, 0, Check_RightAngleExit, Enter_RightAngleExit },
+    { ELEMENT_RIGHT_ANGLE_LEFT,  ELEMENT_STRAIGHT, 1, Check_RATimeout,      Enter_RightAngleExit },
+    { ELEMENT_RIGHT_ANGLE_RIGHT, ELEMENT_STRAIGHT, 0, Check_RightAngleExit, Enter_RightAngleExit },
+    { ELEMENT_RIGHT_ANGLE_RIGHT, ELEMENT_STRAIGHT, 1, Check_RATimeout,      Enter_RightAngleExit },
 };
 
 #define TRANSITION_COUNT  (sizeof(g_transitions) / sizeof(g_transitions[0]))
@@ -915,6 +1009,8 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned char wall_descend_vote;
     unsigned char barrel_vote;
     unsigned char cross_vote;
+    unsigned char ra_vote;
+    float err_abs;
     float tilt_lr_abs;
 
     /* ---- 0. 安全检测层 (最高优先级) ---- */
@@ -1043,6 +1139,19 @@ element_t Element_Update(ElementCtx_t *ctx)
         cross_vote = 0;
     }
     VoteWin_Push(&ctx->vote_cross, cross_vote);
+
+    /* 直角转弯投票: STRAIGHT 下 |err_filtered| > entry_thresh 则投票进入 */
+    if (ctx->current == ELEMENT_STRAIGHT) {
+        err_abs = (ctx->err_filtered > 0.0f) ? ctx->err_filtered : -ctx->err_filtered;
+        ra_vote = (err_abs > g_ra_entry_thresh) ? 1 : 0;
+    } else if (ctx->current == ELEMENT_RIGHT_ANGLE_LEFT
+            || ctx->current == ELEMENT_RIGHT_ANGLE_RIGHT) {
+        err_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
+        ra_vote = (err_abs < g_ra_exit_thresh) ? 1 : 0;
+    } else {
+        ra_vote = 0;
+    }
+    VoteWin_Push(&ctx->vote_right_angle, ra_vote);
 
     /* ---- 4. 状态转移评估 (遍历转移表) ---- */
     Element_EvaluateTransitions(ctx);

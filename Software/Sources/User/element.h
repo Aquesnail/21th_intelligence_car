@@ -19,7 +19,10 @@ typedef enum ElementType {
     ELEMENT_WALL_CLIMB,           /* 上墙子状态1: 上爬, TiltB < -60 进入, |TiltR| > 70 退出 */
     ELEMENT_WALL_HORIZONTAL,      /* 上墙子状态2: 墙上水平, |TiltR| > 70 进入, |TiltR| < 70 退出 */
     ELEMENT_WALL_DESCEND,         /* 上墙子状态3: 下行冲刺, |TiltR| < 70 进入, TiltB > 60 退出 */
-    
+
+    ELEMENT_RIGHT_ANGLE_LEFT,     /* 左直角转弯: 传感器极性反转屏蔽 */
+    ELEMENT_RIGHT_ANGLE_RIGHT,    /* 右直角转弯: 传感器极性反转屏蔽 */
+
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
     /* 以下保留，暂未使用 */
     ELEMENT_RING_LEFT_EXIT,
@@ -37,6 +40,7 @@ typedef enum {
     CTRL_OL_YAW,     /* 开环角速度覆盖（PASS 阶段） → 写电机 */
     CTRL_BRAKE,      /* 紧急刹车（SAFETY_STOP） → 写0 */
     CTRL_FREEWHEEL,  /* 自由滑行（推车调试） → 写0, 元素检测/LED照跑 */
+    CTRL_ERR_FREEZE, /* 冻结 Err_Angle（直角转弯 → 屏蔽传感器极性反转） */
 } ControlStrategy_t;
 
 /* ================================================================
@@ -77,6 +81,8 @@ typedef struct {
     float adc[4];
     float ax, ay, az;
     float yaw;
+    float err_raw;                /* 原始 Err_Angle (未滤波), 供退出检测用 */
+    float err_filtered;           /* 滤波后 Err_Angle, 供进入检测用 */
 
     /* ---- 计算中间量 ---- */
     float tilt_fb;                /* 前后倾角(度), 四元数重力向量版 */
@@ -90,12 +96,17 @@ typedef struct {
     VoteWindow_t vote_wall_descend;
     VoteWindow_t vote_barrel;
     VoteWindow_t vote_cross;
+    VoteWindow_t vote_right_angle;  /* 直角转弯投票窗 */
 
     /* ---- 环岛专用状态 ---- */
     unsigned char  ring_side;           /* 0=左环, 1=右环 */
     float          ring_entry_yaw;
     unsigned short exit_lockout_cnt;    /* 出环锁存倒计时 */
     unsigned short ring_frame_cnt;      /* 环岛链总帧计数 (ENTRANCE→PASS→IN_RING 超时兜底) */
+
+    /* ---- 直角转弯专用状态 ---- */
+    float          frozen_err;           /* 进入冻结时记录的 err_angle_filtered */
+    unsigned char  right_angle_side;     /* 0=左直角, 1=右直角 */
 
     /* ---- 通用元素帧计数 (在 element Enter 时归零, Element_Update 开头累加) ---- */
     unsigned short elem_frame_cnt;

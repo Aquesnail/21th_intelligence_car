@@ -16,6 +16,61 @@
 #include "led_indicator.h"
 #include "pwm_user.h"
 #pragma warning disable = 174
+
+/* ================================================================
+ * 控制管道类型定义
+ * ================================================================ */
+
+/* 内环 PI 参数 */
+typedef struct {
+    float Kp;
+    float Ki;
+    float Kd;
+    float error_sum_max;
+    float min_sep;
+    float max_sep;
+} PIParams_t;
+
+/* 内环 PI 状态 */
+typedef struct {
+    float error_sum;
+    float last_error;
+} PIState_t;
+
+/* 外环 + 内环 全部可调参数 (上位机在线调参) */
+typedef struct {
+    float   outer_slew_max;
+    float   outer_lpf_fc;
+    float   gyro_lpf_fc;
+    float   Kd_diff;
+    float   Kd_diff_high;
+    float   Kd_diff_low;
+    float   Kd_diff_thresh;
+    float   diff_deadband;
+    uint8_t d_ma_window;
+    float   outer_Ki;
+    float   outer_i_limit;
+    float   outer_i_sep_hi;
+    float   outer_i_sep_lo;
+    PIParams_t inner;
+} ControlParams_t;
+
+/* 控制管线运行时状态 (每帧变化) */
+typedef struct {
+    float   err_slewed;
+    float   err_filtered;
+    Lpf_t   lpf_outer;
+    float   last_err;
+    MovingAvg_t d_ma;
+    float   filtered_d_term;
+    float   i_sum;
+    float   i_term;
+    Lpf_t   lpf_gyro;
+    float   gyro_filtered;
+    float   tar_yaw_raw;
+    float   target_yaw;
+    PIState_t inner;
+} ControlState_t;
 /* ================================================================
  * 速度目标值宏 (临时占位, 后续调整)
  * ================================================================ */
@@ -168,33 +223,22 @@ static void Motor_Reg_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 }
 
 /* ================================================================
- * 内环 PID 控制器 (角速度)
+ * 内环 PI 控制器 (角速度)
  * ================================================================ */
-typedef struct {
-    float Kp;
-    float Ki;
-    float Kd;
-    float error_sum;
-    float error_sum_max;
-    float last_error;
-    float min_sep;
-    float max_sep;
-} PI_Controller;
-
-float PI_Step(PI_Controller *pi, float setpoint, float actual)
+float PI_Step(const PIParams_t *params, PIState_t *state, float setpoint, float actual)
 {
     float error;
     float output;
     float d_term;
     error = setpoint - actual;
-    pi->error_sum += pi->Ki*error;
-    if (pi->error_sum > pi->error_sum_max)  pi->error_sum = pi->error_sum_max;
-    if (pi->error_sum < -pi->error_sum_max) pi->error_sum = -pi->error_sum_max;
-    if(error < pi->min_sep && error > -pi->min_sep)pi->error_sum = 0;
-    if(error > pi->max_sep || error < -pi->max_sep)pi->error_sum = 0;
-    d_term = pi->Kd * (error - pi->last_error);
-    pi->last_error = error;
-    output = pi->Kp * error + pi->error_sum + d_term;
+    state->error_sum += params->Ki * error;
+    if (state->error_sum > params->error_sum_max)  state->error_sum = params->error_sum_max;
+    if (state->error_sum < -params->error_sum_max) state->error_sum = -params->error_sum_max;
+    if (error < params->min_sep && error > -params->min_sep) state->error_sum = 0;
+    if (error > params->max_sep || error < -params->max_sep) state->error_sum = 0;
+    d_term = params->Kd * (error - state->last_error);
+    state->last_error = error;
+    output = params->Kp * error + state->error_sum + d_term;
     return output;
 }
 
@@ -284,39 +328,67 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     val = fan_D;
     memcpy(pData, &val, sizeof(uint16_t));
 }
-static float g_outer_slew_max = 100.0f;       /* Err_Angle 每周期(2ms)最大变化量 */
-static float g_err_angle_slewed = 0.0f;     /* Err_Angle 斜率限制状态 */
-static float g_pid_output_filtered = 0.0f;  /* 最终目标角速度 (送入内环) */
-static Lpf_t g_lpf_outer;                    /* 外环低通滤波器 */
-static float g_outer_lpf_fc = 100.0f;        /* 外环LPF截止频率(Hz), 上位机可调 */
-static Lpf_t g_lpf_gyro;                     /* 陀螺仪角速度低通滤波器 */
-static float g_gyro_lpf_fc = 100.0f;         /* 陀螺仪LPF截止频率(Hz), 上位机可调 */
-static float g_gyro_filtered = 0.0f;         /* 滤波后陀螺仪角速度 (调试观测) */
-/* 外环方案2+3: 不完全微分(MA) + 微分死区 */
-static float   g_Kd_diff        = 0.0f;      /* 不完全微分系数 (0=关闭) */
-static float   g_Kd_diff_high   = 0.0f;      /* 不完全微分系数 (大误差时使用) */
-static float   g_Kd_diff_low    = 0.0f;      /* 不完全微分系数 (小误差时使用) */
-static float   g_Kd_diff_thresh = 100.0f;     /* 误差阈值, 超过此值切换为高 Kd_diff */
-static float   g_diff_deadband  = 0.5f;      /* 微分死区阈值 (0=关闭) */
-static MovingAvg_t g_d_ma;                   /* 微分项移动平均滤波器 */
-static uint8_t g_d_ma_window    = 80;         /* MA窗口 0~100 (0=旁路) */
-static float   g_last_err_angle = 0.0f;      /* 上周期滤波后 Err_Angle (微分用) */
-static float   g_filtered_d_term = 0.0f;     /* 滤波后微分项 (调试观测) */
-static float   g_tar_yaw_raw    = 0.0f;      /* 组合后原始目标角速度 (调试观测) */
-/* 外环积分项 (积分分离: 误差过大或过小均清零) */
-static float   g_outer_Ki       = 0.23f;     /* 外环积分系数 */
-static float   g_outer_i_sum    = 0.0f;      /* 外环积分累加值 */
-static float   g_outer_i_limit  = 3.6f;     /* 外环积分限幅 */
-static float   g_outer_i_sep_hi = 10000.0f;     /* 积分分离上限: |error|超过此值清零 */
-static float   g_outer_i_sep_lo = 30.0f;      /* 积分分离下限: |error|低于此值清零 */
-static float   g_outer_i_term   = 0.0f;      /* 外环积分项输出 (调试观测) */
+/* ================================================================
+ * 控制管道参数 + 状态 (Phase 3: 集中管理, 替代散落变量)
+ * ================================================================ */
+static ControlParams_t g_params;  /* 运行时 memset 初始化 */
+static ControlState_t  g_state;   /* 运行时 memset 初始化 */
+
+/* ================================================================
+ * 控制管道 API
+ * ================================================================ */
+
+/* 全量复位 — 刹车/滑行/切手动时调用 */
+static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
+{
+    (void)p;
+    s->err_slewed      = 0.0f;
+    s->err_filtered    = 0.0f;
+    s->last_err        = 0.0f;
+    s->filtered_d_term = 0.0f;
+    s->i_sum           = 0.0f;
+    s->i_term          = 0.0f;
+    s->tar_yaw_raw     = 0.0f;
+    s->target_yaw      = 0.0f;
+    s->gyro_filtered   = 0.0f;
+    lpf_reset(&s->lpf_outer, 0.0f);
+    lpf_reset(&s->lpf_gyro,  0.0f);
+    ma_reset(&s->d_ma, 0.0f);
+    s->inner.error_sum  = 0.0f;
+    s->inner.last_error = 0.0f;
+}
+
+/* 用指定值 seed 整个管线 — 退出冻结/退出开环时调用, 保证连续性 */
+static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float seed_val)
+{
+    (void)p;
+    s->err_slewed      = seed_val;
+    s->last_err        = seed_val;
+    s->i_sum           = 0.0f;
+    s->i_term          = 0.0f;
+    s->filtered_d_term = 0.0f;
+    lpf_reset(&s->lpf_outer, seed_val);
+    ma_reset(&s->d_ma, 0.0f);
+    s->inner.error_sum  = 0.0f;
+    s->inner.last_error = 0.0f;
+}
+
+/* 冻结/保持模式 — 进入开环或冻结时调用, 清零积分+微分 */
+static void CtrlState_Hold(ControlState_t *s)
+{
+    s->i_sum           = 0.0f;
+    s->i_term          = 0.0f;
+    s->last_err        = s->err_filtered;
+    s->filtered_d_term = 0.0f;
+    ma_reset(&s->d_ma, 0.0f);
+}
 /* 外环 LPF 截止频率读写回调 (上位机在线调参) */
 static void OuterLpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
     float val;
     (void)len;
     (void)peri_addr;
-    val = g_outer_lpf_fc;
+    val = g_params.outer_lpf_fc;
     memcpy(pData, &val, sizeof(float));
 }
 
@@ -329,10 +401,10 @@ static void OuterLpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     memcpy(&new_fc, pData, sizeof(float));
     if (new_fc < 1.0f)  new_fc = 1.0f;
     if (new_fc > 400.0f) new_fc = 400.0f;
-    g_outer_lpf_fc = new_fc;
+    g_params.outer_lpf_fc = new_fc;
     alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
-    g_lpf_outer.alpha = alpha;
-    g_lpf_outer.freq = new_fc;
+    g_state.lpf_outer.alpha = alpha;
+    g_state.lpf_outer.freq = new_fc;
     /* 不重置 output, 保持滤波连续性 */
 }
 /* 微分移动平均窗口读写回调 (上位机在线调参) */
@@ -341,7 +413,7 @@ static void D_MA_Win_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     uint16_t val;
     (void)len;
     (void)peri_addr;
-    val = (uint16_t)g_d_ma_window;
+    val = (uint16_t)g_params.d_ma_window;
     memcpy(pData, &val, sizeof(uint16_t));
 }
 
@@ -352,8 +424,8 @@ static void D_MA_Win_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     (void)peri_addr;
     memcpy(&new_val, pData, sizeof(uint16_t));
     if (new_val > MA_MAX_WINDOW) new_val = MA_MAX_WINDOW;
-    g_d_ma_window = (uint8_t)new_val;
-    ma_set_window(&g_d_ma, g_d_ma_window);
+    g_params.d_ma_window = (uint8_t)new_val;
+    ma_set_window(&g_state.d_ma, g_params.d_ma_window);
 }
 static DebugPeriDesc_t g_pid_a_kp_desc   = {REG_A_PID_SPEED_KP,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_ki_desc   = {REG_A_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
@@ -442,11 +514,9 @@ uint8_t Motor_HandleCommand(const char* cmd)
 static FuzzyPID pid_struct; // 运行时 memset 初始化
 static float pid_output=0.0f;
 static float common_speed=50.0f;
-/* 外环带宽限制: 斜率限制 + 低通滤波 */
+/* 外环带宽限制: 斜率限制 + 低通滤波 — 参数g_params + 状态g_state */
 
-static PI_Controller inner_yaw_rate_pi; // 运行时 memset 初始化
-static float actual_yaw_rate_debug = 0.0f;
-static float pid_output_k = 0.10f;
+/* PI 已移入 g_params.inner + g_state.inner */
 static motor_data_t speed_target_l; // 运行时 memset 初始化
 static motor_data_t speed_target_r; // 运行时 memset 初始化
 static float speed_target_r_nagtive=0.0f;
@@ -516,15 +586,7 @@ void Change_Maunal(){
         g_auto_transition = 1;
         g_auto_fan_tick = xTaskGetTickCount();
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
-        g_err_angle_slewed = 0.0f;     /* 重置Err_Angle带宽限制 */
-        lpf_reset(&g_lpf_outer, 0.0f);
-        g_pid_output_filtered = 0.0f;   /* 重置目标角速度 */
-        g_last_err_angle = 0.0f;       /* 重置微分状态 */
-        ma_reset(&g_d_ma, 0.0f);
-        lpf_reset(&g_lpf_gyro, 0.0f);                     /* 重置陀螺仪LPF */
-        g_outer_i_sum = 0.0f;                    /* 重置外环积分 */
-        inner_yaw_rate_pi.last_error = 0.0f;      /* 重置内环D项 */
-        inner_yaw_rate_pi.error_sum = 0.0f;       /* 重置内环积分 */
+        CtrlState_Reset(&g_state, &g_params);  /* 全量复位控制管线 */
         current_element = ELEMENT_STRAIGHT;
         prev_ctrl = CTRL_NORMAL;                   /* 对齐自动模式初始控制策略 */
         Element_ResetOfftrackTimer(NULL);
@@ -560,10 +622,10 @@ static float abs_f(float t){
         return -t;
     }
 }
-static float err_angle_filtered = 0.0f;  /* 外环: 滤波后 Err_Angle */
+/* err_angle_filtered 已移入 g_state.err_filtered */
 /* ================================================================
  * SelectTargetYaw — 统一目标角速度选择器
- *   替代原来在 PID 输出之后手动覆盖 g_pid_output_filtered 的"劫持"模式
+ *   替代原来在 PID 输出之后手动覆盖 target_yaw 的"劫持"模式
  *   CTRL_NORMAL:  使用外环 PID 输出
  *   CTRL_OL_YAW:  使用属性表中的开环角速度 (符号 × 幅值)
  *   CTRL_BRAKE / CTRL_FREEWHEEL: 返回 0
@@ -589,37 +651,33 @@ static void OnCtrlTransition(ControlStrategy_t from, ControlStrategy_t to)
 {
     if (from == to) return;
 
-    /* 进入开环: 清零外环积分和微分历史 (防止恢复时带着脏状态) */
+    /* 进入开环: 清零外环积分和微分历史 */
     if (to == CTRL_OL_YAW) {
-        g_outer_i_sum = 0.0f;
-        g_last_err_angle = err_angle_filtered;
-        ma_reset(&g_d_ma, 0.0f);
+        CtrlState_Hold(&g_state);
         return;
     }
 
-    /* 开环恢复到正常 PID: 用当前误差 seeding 滤波器, 清零积分 */
+    /* 开环恢复到正常 PID: 用当前误差 seed 管线 */
     if (from == CTRL_OL_YAW && to == CTRL_NORMAL) {
-        lpf_reset(&g_lpf_outer, err_angle_filtered);
-        g_err_angle_slewed = err_angle_filtered;
-        g_outer_i_sum = 0.0f;
-        g_last_err_angle = err_angle_filtered;
-        ma_reset(&g_d_ma, 0.0f);
-        inner_yaw_rate_pi.error_sum = 0.0f;
-        inner_yaw_rate_pi.last_error = 0.0f;
+        CtrlState_Seed(&g_state, &g_params, g_state.err_filtered);
         return;
     }
 
-    /* 进入刹车/滑行: 全量复位所有滤波器 + 积分器 */
+    /* 进入冻结: 清零 I/D 历史, 冻结在 Err_Angle 层面处理 */
+    if (to == CTRL_ERR_FREEZE) {
+        CtrlState_Hold(&g_state);
+        return;
+    }
+
+    /* 退出冻结: seed 管线到当前滤波值 */
+    if (from == CTRL_ERR_FREEZE && to == CTRL_NORMAL) {
+        CtrlState_Seed(&g_state, &g_params, g_state.err_filtered);
+        return;
+    }
+
+    /* 进入刹车/滑行: 全量复位 */
     if (to == CTRL_BRAKE || to == CTRL_FREEWHEEL) {
-        g_outer_i_sum = 0.0f;
-        g_last_err_angle = 0.0f;
-        g_err_angle_slewed = 0.0f;
-        g_pid_output_filtered = 0.0f;
-        ma_reset(&g_d_ma, 0.0f);
-        lpf_reset(&g_lpf_outer, 0.0f);
-        lpf_reset(&g_lpf_gyro, 0.0f);
-        inner_yaw_rate_pi.error_sum = 0.0f;
-        inner_yaw_rate_pi.last_error = 0.0f;
+        CtrlState_Reset(&g_state, &g_params);
         return;
     }
 }
@@ -633,6 +691,7 @@ static void ControlDispatch(ControlStrategy_t ctrl, float spd_r, float spd_l)
     switch (ctrl) {
     case CTRL_NORMAL:
     case CTRL_OL_YAW:
+    case CTRL_ERR_FREEZE:
         Motor_Write_Speeds(spd_r, spd_l);
         break;
     case CTRL_BRAKE:
@@ -765,16 +824,25 @@ void Main_Control_Task(void *pvParameters)
                 } else {
                     Err_Angle = numerator / denominator * 100.0f;
                 }
-                /* 外环带宽限制作用于电感原始数据 Err_Angle: 1.斜率限制 → 2.低通滤波 */
-                slew_diff = Err_Angle - g_err_angle_slewed;
-                if (slew_diff > g_outer_slew_max) {
-                    g_err_angle_slewed += g_outer_slew_max;
-                } else if (slew_diff < -g_outer_slew_max) {
-                    g_err_angle_slewed -= g_outer_slew_max;
-                } else {
-                    g_err_angle_slewed = Err_Angle;
+                /* 填充元素状态机的 err 观测值 (先于 Element_Update + 冻结) */
+                g_ectx.err_raw      = Err_Angle;
+                g_ectx.err_filtered = g_state.err_filtered;
+
+                /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
+                if (ctrl == CTRL_ERR_FREEZE) {
+                    Err_Angle = g_ectx.frozen_err;
                 }
-                err_angle_filtered = lpf_update(&g_lpf_outer, g_err_angle_slewed);
+
+                /* 外环带宽限制作用于电感原始数据 Err_Angle: 1.斜率限制 → 2.低通滤波 */
+                slew_diff = Err_Angle - g_state.err_slewed;
+                if (slew_diff > g_params.outer_slew_max) {
+                    g_state.err_slewed += g_params.outer_slew_max;
+                } else if (slew_diff < -g_params.outer_slew_max) {
+                    g_state.err_slewed -= g_params.outer_slew_max;
+                } else {
+                    g_state.err_slewed = Err_Angle;
+                }
+                g_state.err_filtered = lpf_update(&g_state.lpf_outer, g_state.err_slewed);
 
                 /* ===== 元素状态机更新 (先于控制决策, 保证本帧状态最新) ===== */
                 {
@@ -838,51 +906,50 @@ void Main_Control_Task(void *pvParameters)
                     common_speed = *(prop->speed_ptr);
                 }
 
-                pid_output = FuzzyPID_Step(&pid_struct, err_angle_filtered);
+                pid_output = FuzzyPID_Step(&pid_struct, g_state.err_filtered);
                 /* 外环积分项: 积分分离
                  *   |error| > sep_hi → 清零 (抗积分饱和)
                  *   |error| < sep_lo → 清零 (防噪声积累)
                  *   仅 sep_lo <= |error| <= sep_hi 时积分 */
-                if (abs_f(err_angle_filtered) > g_outer_i_sep_hi) {
-                    g_outer_i_sum = 0.0f;
-                } else if (abs_f(err_angle_filtered) < g_outer_i_sep_lo) {
-                    g_outer_i_sum = 0.0f;
+                if (abs_f(g_state.err_filtered) > g_params.outer_i_sep_hi) {
+                    g_state.i_sum = 0.0f;
+                } else if (abs_f(g_state.err_filtered) < g_params.outer_i_sep_lo) {
+                    g_state.i_sum = 0.0f;
                 } else {
-                    g_outer_i_sum += g_outer_Ki * (-err_angle_filtered);
-                    if (g_outer_i_sum > g_outer_i_limit)  g_outer_i_sum = g_outer_i_limit;
-                    if (g_outer_i_sum < -g_outer_i_limit) g_outer_i_sum = -g_outer_i_limit;
+                    g_state.i_sum += g_params.outer_Ki * (-g_state.err_filtered);
+                    if (g_state.i_sum > g_params.outer_i_limit)  g_state.i_sum = g_params.outer_i_limit;
+                    if (g_state.i_sum < -g_params.outer_i_limit) g_state.i_sum = -g_params.outer_i_limit;
                 }
-                g_outer_i_term = g_outer_i_sum;
+                g_state.i_term = g_state.i_sum;
                 /* 读取陀螺仪原始角速度, 经低通滤波后供内环 PID 使用 */
                 actual_yaw_rate_raw = IMU_Get_Gyro_Z();
-                actual_yaw_rate = lpf_update(&g_lpf_gyro, actual_yaw_rate_raw);
-                g_gyro_filtered = actual_yaw_rate;
-                actual_yaw_rate_debug = actual_yaw_rate;
+                actual_yaw_rate = lpf_update(&g_state.lpf_gyro, actual_yaw_rate_raw);
+                g_state.gyro_filtered = actual_yaw_rate;
                 /* 方案二+三: 不完全微分(MA)+死区, 对滤波后 Err_Angle 取微分 */
-                err_diff = err_angle_filtered - g_last_err_angle;
-                if (err_diff > -g_diff_deadband && err_diff < g_diff_deadband) {
+                err_diff = g_state.err_filtered - g_state.last_err;
+                if (err_diff > -g_params.diff_deadband && err_diff < g_params.diff_deadband) {
                     err_diff = 0.0f;  /* 方案三: 微分死区 */
                 }
                 raw_d_term = err_diff / 0.002f;
-                g_filtered_d_term = ma_update(&g_d_ma, raw_d_term);
-                g_last_err_angle = err_angle_filtered;  /* 保存滤波后 Err_Angle, 供下一周期微分 */
+                g_state.filtered_d_term = ma_update(&g_state.d_ma, raw_d_term);
+                g_state.last_err = g_state.err_filtered;  /* 保存滤波后 Err_Angle, 供下一周期微分 */
                 /* 根据滤波后误差大小选择不完全微分系数 */
-                if (abs_f(err_angle_filtered) > g_Kd_diff_thresh) {
-                    g_Kd_diff = g_Kd_diff_high;
+                if (abs_f(g_state.err_filtered) > g_params.Kd_diff_thresh) {
+                    g_params.Kd_diff = g_params.Kd_diff_high;
                 } else {
-                    g_Kd_diff = g_Kd_diff_low;
+                    g_params.Kd_diff = g_params.Kd_diff_low;
                 }
                 /* 外环组合:
                  *   tar_yaw = P输出 + I项 - Kd*滤波后微分 */
-                g_tar_yaw_raw = pid_output
-                              + g_outer_i_term
-                              - g_Kd_diff * g_filtered_d_term;
+                g_state.tar_yaw_raw = pid_output
+                              + g_state.i_term
+                              - g_params.Kd_diff * g_state.filtered_d_term;
 //角速度环路劫持
                 /* 统一目标角速度选择 (替代原 OL_YAW 劫持) */
-                g_pid_output_filtered = SelectTargetYaw(ctrl, prop, g_tar_yaw_raw);
+                g_state.target_yaw = SelectTargetYaw(ctrl, prop, g_state.tar_yaw_raw);
 
                 /* 内环 PI + 速度合成 (唯一一次, 基于最新状态机输出) */
-                differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
+                differential_speed = PI_Step(&g_params.inner, &g_state.inner, g_state.target_yaw, actual_yaw_rate);
                 speed_target_l.f = common_speed - differential_speed;
                 speed_target_r.f = -(common_speed + differential_speed);
                 speed_target_r_nagtive = -speed_target_r.f;
@@ -950,10 +1017,10 @@ void Main_Control_Task(void *pvParameters)
                     if (g_auto_transition == 1) {
                         if ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)) {
                             g_auto_transition = 2;
-                            lpf_reset(&g_lpf_gyro, 0.0f);
-                            inner_yaw_rate_pi.error_sum = 0.0f;
-                            inner_yaw_rate_pi.last_error = 0.0f;
-                            g_outer_i_sum = 0.0f;
+                            lpf_reset(&g_state.lpf_gyro, 0.0f);
+                            g_state.inner.error_sum = 0.0f;
+                            g_state.inner.last_error = 0.0f;
+                            g_state.i_sum = 0.0f;
                         }
                     }
 
@@ -1005,7 +1072,8 @@ void Main_Control_Task_Init(void)
     memset(&g_right_speed_target, 0, sizeof(g_right_speed_target));
     memset(adc_normalized,       0, sizeof(adc_normalized));
     memset(&pid_struct,          0, sizeof(pid_struct));
-    memset(&inner_yaw_rate_pi,   0, sizeof(inner_yaw_rate_pi));
+    memset(&g_params,            0, sizeof(g_params));
+    memset(&g_state,             0, sizeof(g_state));
     memset(&speed_target_l,      0, sizeof(speed_target_l));
     memset(&speed_target_r,      0, sizeof(speed_target_r));
 
@@ -1017,7 +1085,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
     Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE,&tmp_adc13);
     Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
-    Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &err_angle_filtered);
+    Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_filtered);
     /* 注册电机调试变量 */
     // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
@@ -1034,12 +1102,24 @@ void Main_Control_Task_Init(void)
     // Debug_Register("Mech",  DBG_UINT32 | HIGH_FREQ_TYPE, &g_mech_state);
     g_stream_active = 0;
 
+    /* 设置默认参数 (memset 归零后覆盖) */
+    g_params.outer_slew_max  = 100.0f;
+    g_params.outer_lpf_fc    = 100.0f;
+    g_params.gyro_lpf_fc     = 100.0f;
+    g_params.Kd_diff_thresh  = 100.0f;
+    g_params.diff_deadband   = 0.5f;
+    g_params.d_ma_window     = 80;
+    g_params.outer_Ki        = 0.23f;
+    g_params.outer_i_limit   = 3.6f;
+    g_params.outer_i_sep_hi  = 10000.0f;
+    g_params.outer_i_sep_lo  = 30.0f;
+
     /* 初始化低通滤波器, 截止频率可在此修改 */
-    lpf_init_fc(&g_lpf_left,  400.0f, 0.002f);  /* fc=20Hz, dt=2ms(500Hz) */
-    lpf_init_fc(&g_lpf_right, 400.0f, 0.002f);
-    lpf_init_fc(&g_lpf_outer, g_outer_lpf_fc, 0.002f);  /* 外环 fc=100Hz, dt=2ms */
-    lpf_init_fc(&g_lpf_gyro,  g_gyro_lpf_fc,  0.002f);  /* 陀螺仪 fc=200Hz, dt=2ms */
-    ma_init(&g_d_ma, g_d_ma_window);                     /* 微分MA滤波器, 默认窗口0=旁路 */
+    lpf_init_fc(&g_lpf_left,              400.0f, 0.002f);
+    lpf_init_fc(&g_lpf_right,             400.0f, 0.002f);
+    lpf_init_fc(&g_state.lpf_outer, g_params.outer_lpf_fc, 0.002f);
+    lpf_init_fc(&g_state.lpf_gyro,  g_params.gyro_lpf_fc,  0.002f);
+    ma_init(&g_state.d_ma, g_params.d_ma_window);
 
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
     Debug_Register("CH_Induct",  DBG_UINT8 | STATIC_TYPE , &change_inductor);
@@ -1064,35 +1144,33 @@ void Main_Control_Task_Init(void)
     Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
     // Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
 
-    /* 内环 PID 控制器参数 (静态, 上位机在线调参) */
-    Debug_Register("Yaw_Kp",    DBG_FLOAT | STATIC_TYPE, &inner_yaw_rate_pi.Kp);
-    Debug_Register("Yaw_Ki",    DBG_FLOAT | STATIC_TYPE, &inner_yaw_rate_pi.Ki);
-    Debug_Register("Yaw_Kd",    DBG_FLOAT | STATIC_TYPE, &inner_yaw_rate_pi.Kd);
-    Debug_Register("YawLimit",DBG_FLOAT | STATIC_TYPE,&inner_yaw_rate_pi.error_sum_max);
-    Debug_Register("YawHiLi",DBG_FLOAT|STATIC_TYPE,&inner_yaw_rate_pi.max_sep);
-    Debug_Register("YawLoLi",DBG_FLOAT|STATIC_TYPE,&inner_yaw_rate_pi.min_sep);
+    /* 内环 PI 控制器参数 (静态, 上位机在线调参) */
+    Debug_Register("Yaw_Kp",    DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kp);
+    Debug_Register("Yaw_Ki",    DBG_FLOAT | STATIC_TYPE, &g_params.inner.Ki);
+    Debug_Register("Yaw_Kd",    DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kd);
+    Debug_Register("YawLimit",  DBG_FLOAT | STATIC_TYPE, &g_params.inner.error_sum_max);
+    Debug_Register("YawHiLi",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.max_sep);
+    Debug_Register("YawLoLi",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.min_sep);
     /* 外环模糊 P 输出 = 目标角速度, 内环实际角速度 (高频, 观察跟随效果) */
     Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
- //   Debug_Register("TgtYawF",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_pid_output_filtered);
-    Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_outer_slew_max);
+    Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_params.outer_slew_max);
     Debug_Register("OutLPFFc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
     Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
-    Debug_Register("Kd_Diff",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff);
-    Debug_Register("KdDifHi",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff_high);
-    Debug_Register("KdDifLo",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff_low);
-    Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_Kd_diff_thresh);
-    Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_diff_deadband);
-    Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_filtered_d_term);
-    Debug_Register("TarYawR",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_tar_yaw_raw);
-    Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &actual_yaw_rate_debug);
-   // Debug_Register("GyroFilt",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_gyro_filtered);
-    Debug_Register("GyroLPFFc", DBG_FLOAT | STATIC_TYPE, &g_gyro_lpf_fc);
+    Debug_Register("Kd_Diff",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff);
+    Debug_Register("KdDifHi",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_high);
+    Debug_Register("KdDifLo",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_low);
+    Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_thresh);
+    Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_params.diff_deadband);
+    Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.filtered_d_term);
+    Debug_Register("TarYawR",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
+    Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
+    Debug_Register("GyroLPFFc", DBG_FLOAT | STATIC_TYPE, &g_params.gyro_lpf_fc);
     /* 外环积分项参数 (静态, 上位机在线调参) */
-    Debug_Register("Out_Ki",    DBG_FLOAT | STATIC_TYPE, &g_outer_Ki);
-    Debug_Register("OutILim",   DBG_FLOAT | STATIC_TYPE, &g_outer_i_limit);
-    Debug_Register("OutIHi",    DBG_FLOAT | STATIC_TYPE, &g_outer_i_sep_hi);
-    Debug_Register("OutILo",    DBG_FLOAT | STATIC_TYPE, &g_outer_i_sep_lo);
-    Debug_Register("OutITrm",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_outer_i_term);
+    Debug_Register("Out_Ki",    DBG_FLOAT | STATIC_TYPE, &g_params.outer_Ki);
+    Debug_Register("OutILim",   DBG_FLOAT | STATIC_TYPE, &g_params.outer_i_limit);
+    Debug_Register("OutIHi",    DBG_FLOAT | STATIC_TYPE, &g_params.outer_i_sep_hi);
+    Debug_Register("OutILo",    DBG_FLOAT | STATIC_TYPE, &g_params.outer_i_sep_lo);
+    Debug_Register("OutITrm",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
 
     Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &common_speed);
 
@@ -1129,15 +1207,15 @@ void Main_Control_Task_Init(void)
     ADC2_DMA_Init(adc_dma_buf);
     ADC2_DMA_Start();
 
-    /* 内环 PID 控制器初始参数 (上位机可在线调参) */
-    inner_yaw_rate_pi.Kp = 5.5f;
-    inner_yaw_rate_pi.Ki = 0.0f;
-    inner_yaw_rate_pi.Kd = 0.10000000149011612f;
-    inner_yaw_rate_pi.error_sum = 0.0f;
-    inner_yaw_rate_pi.last_error = 0.0f;
-    inner_yaw_rate_pi.error_sum_max = 0.0f;
-    inner_yaw_rate_pi.max_sep = 100000.0f;
-    inner_yaw_rate_pi.min_sep = 0.0f;
+    /* 内环 PI 控制器初始参数 (上位机可在线调参) */
+    g_params.inner.Kp = 5.5f;
+    g_params.inner.Ki = 0.0f;
+    g_params.inner.Kd = 0.10000000149011612f;
+    g_state.inner.error_sum = 0.0f;
+    g_state.inner.last_error = 0.0f;
+    g_params.inner.error_sum_max = 0.0f;
+    g_params.inner.max_sep = 100000.0f;
+    g_params.inner.min_sep = 0.0f;
     pid_struct.e_max = 150.0f; /* 根据实际误差范围调整 */
     pid_struct.Kp0 = 0.06300000101327896f; /* 基础 Kp */
     pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
