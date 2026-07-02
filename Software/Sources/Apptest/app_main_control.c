@@ -454,6 +454,7 @@ static float numerator, denominator;
 static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
 static element_t prev_element    = ELEMENT_STRAIGHT;  /* 上一次元素, 用于检测切换 */
+static ControlStrategy_t prev_ctrl = CTRL_NORMAL;     /* 上一次控制策略, 用于检测切换 */
 
 static ElementCtx_t g_ectx;  /* 元素状态机上下文 */
 
@@ -523,7 +524,9 @@ void Change_Maunal(){
         lpf_reset(&g_lpf_gyro, 0.0f);                     /* 重置陀螺仪LPF */
         g_outer_i_sum = 0.0f;                    /* 重置外环积分 */
         inner_yaw_rate_pi.last_error = 0.0f;      /* 重置内环D项 */
+        inner_yaw_rate_pi.error_sum = 0.0f;       /* 重置内环积分 */
         current_element = ELEMENT_STRAIGHT;
+        prev_ctrl = CTRL_NORMAL;                   /* 对齐自动模式初始控制策略 */
         Element_ResetOfftrackTimer(NULL);
         Element_ResetTrackIndex(NULL);
         g_ectx.current = ELEMENT_STRAIGHT;
@@ -558,6 +561,92 @@ static float abs_f(float t){
     }
 }
 static float err_angle_filtered = 0.0f;  /* 外环: 滤波后 Err_Angle */
+/* ================================================================
+ * SelectTargetYaw — 统一目标角速度选择器
+ *   替代原来在 PID 输出之后手动覆盖 g_pid_output_filtered 的"劫持"模式
+ *   CTRL_NORMAL:  使用外环 PID 输出
+ *   CTRL_OL_YAW:  使用属性表中的开环角速度 (符号 × 幅值)
+ *   CTRL_BRAKE / CTRL_FREEWHEEL: 返回 0
+ * ================================================================ */
+static float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop,
+                              float tar_yaw_raw)
+{
+    if (ctrl == CTRL_OL_YAW && prop != NULL && prop->ol_yawrate_ptr != NULL) {
+        return (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr);
+    }
+    if (ctrl == CTRL_BRAKE || ctrl == CTRL_FREEWHEEL) {
+        return 0.0f;
+    }
+    return tar_yaw_raw;
+}
+
+/* ================================================================
+ * OnCtrlTransition — 控制策略切换时的状态清理
+ *   集中管理所有 PID/滤波器状态复位, 替代原来散落在
+ *   SAFETY_STOP case / Change_Maunal / 自动过渡 中的重复代码
+ * ================================================================ */
+static void OnCtrlTransition(ControlStrategy_t from, ControlStrategy_t to)
+{
+    if (from == to) return;
+
+    /* 进入开环: 清零外环积分和微分历史 (防止恢复时带着脏状态) */
+    if (to == CTRL_OL_YAW) {
+        g_outer_i_sum = 0.0f;
+        g_last_err_angle = err_angle_filtered;
+        ma_reset(&g_d_ma, 0.0f);
+        return;
+    }
+
+    /* 开环恢复到正常 PID: 用当前误差 seeding 滤波器, 清零积分 */
+    if (from == CTRL_OL_YAW && to == CTRL_NORMAL) {
+        lpf_reset(&g_lpf_outer, err_angle_filtered);
+        g_err_angle_slewed = err_angle_filtered;
+        g_outer_i_sum = 0.0f;
+        g_last_err_angle = err_angle_filtered;
+        ma_reset(&g_d_ma, 0.0f);
+        inner_yaw_rate_pi.error_sum = 0.0f;
+        inner_yaw_rate_pi.last_error = 0.0f;
+        return;
+    }
+
+    /* 进入刹车/滑行: 全量复位所有滤波器 + 积分器 */
+    if (to == CTRL_BRAKE || to == CTRL_FREEWHEEL) {
+        g_outer_i_sum = 0.0f;
+        g_last_err_angle = 0.0f;
+        g_err_angle_slewed = 0.0f;
+        g_pid_output_filtered = 0.0f;
+        ma_reset(&g_d_ma, 0.0f);
+        lpf_reset(&g_lpf_outer, 0.0f);
+        lpf_reset(&g_lpf_gyro, 0.0f);
+        inner_yaw_rate_pi.error_sum = 0.0f;
+        inner_yaw_rate_pi.last_error = 0.0f;
+        return;
+    }
+}
+
+/* ================================================================
+ * ControlDispatch — 统一电机派发
+ *   替代原来分散在两处的电机写入逻辑
+ * ================================================================ */
+static void ControlDispatch(ControlStrategy_t ctrl, float spd_r, float spd_l)
+{
+    switch (ctrl) {
+    case CTRL_NORMAL:
+    case CTRL_OL_YAW:
+        Motor_Write_Speeds(spd_r, spd_l);
+        break;
+    case CTRL_BRAKE:
+        Motor_Write_Speeds(0.0f, 0.0f);
+        PWMA_Set(0);   /* 关负压风扇 */
+        break;
+    case CTRL_FREEWHEEL:
+    default:
+        Motor_Write_Speeds(0.0f, 0.0f);
+        PWMA_Set(0);
+        break;
+    }
+}
+
 /* 速度变量已迁移至 element.c, 通过 Element_GetProp 查表获取 */
 void Main_Control_Task(void *pvParameters)
 {
@@ -579,6 +668,8 @@ void Main_Control_Task(void *pvParameters)
     float slew_diff;       /* 外环斜率限制用 */
     float gx_body, gy_body, gz_body, gz_abs;  /* 重力向量倾角计算 */
     float g_horiz, tilt_total, inv_horiz;     /* 总倾角+分解 (大倾角稳定) */
+    const ElementProp_t *prop;              /* 当前元素属性 (每 tick 查一次) */
+    ControlStrategy_t    ctrl;              /* 当前有效控制策略 */
 
     (void)pvParameters;
 
@@ -609,34 +700,7 @@ void Main_Control_Task(void *pvParameters)
         /* --- 电机数据处理 (仅在有信号时) --- */
         if (ulNotifiedValue & SIGNAL_MOTOR_DATA_READY) {
             if (g_stream_active) {
-                //taskENTER_CRITICAL();
-                // tmp.f = left_speed_target;
-                // g_left_speed_target = tmp;
-                // tmp.f = -right_speed_target;
-                // g_right_speed_target = tmp;
-                IMU_Get_Angle(&roll, &pitch, &yaw);
-                yaw = IMU_Get_Yaw_Unwrapped();
-
-                /* ---- 四元数重力向量倾角 (总倾角+按比例分解, 大倾角稳定) ---- */
-                IMU_GetGravityVector(&gx_body, &gy_body, &gz_body);
-
-                /* 水平分量幅值: g_horiz²+gz²=1 (四元数归一化保证) */
-                g_horiz = (float)sqrt(gx_body * gx_body + gy_body * gy_body);
-                gz_abs  = (gz_body > 0.0f) ? gz_body : -gz_body;
-
-                /* 总倾角 = atan2(水平, 垂直) — 大倾角时 g_horiz→1, 无小分母 */
-                tilt_total = (float)atan2(g_horiz, gz_abs) * 57.29578f;
-
-                /* 按比例分解为前后/左右分量, 保留符号区分方向 */
-                if (g_horiz > 0.001f) {
-                    inv_horiz = 1.0f / g_horiz;
-                    g_ectx.tilt_fb = tilt_total * gx_body * inv_horiz;
-                    g_ectx.tilt_lr = tilt_total * gy_body * inv_horiz;
-                } else {
-                    g_ectx.tilt_fb = 0.0f;
-                    g_ectx.tilt_lr = 0.0f;
-                }
-
+                
                 MOTOR_CS_RESET();
                 for (i = 0; i < 12; i++) {
                     spi_buffer[i] = MOTOR_SPI_TxRx(0xFFu);
@@ -711,6 +775,69 @@ void Main_Control_Task(void *pvParameters)
                     g_err_angle_slewed = Err_Angle;
                 }
                 err_angle_filtered = lpf_update(&g_lpf_outer, g_err_angle_slewed);
+
+                /* ===== 元素状态机更新 (先于控制决策, 保证本帧状态最新) ===== */
+                {
+                    unsigned char j;
+                    for (j = 0; j < 4; j++) {
+                        g_ectx.adc[j] = adc_normalized[j];
+                    }
+                    g_ectx.ax  = IMU_Filter_Data->sensor.dat.ax;
+                    g_ectx.ay  = IMU_Filter_Data->sensor.dat.ay;
+                    g_ectx.az  = IMU_Filter_Data->sensor.dat.az;
+                    g_ectx.yaw = yaw;
+
+                    IMU_Get_Angle(&roll, &pitch, &yaw);
+                    yaw = IMU_Get_Yaw_Unwrapped();
+
+                    /* ---- 四元数重力向量倾角 (总倾角+按比例分解, 大倾角稳定) ---- */
+                    IMU_GetGravityVector(&gx_body, &gy_body, &gz_body);
+
+                    /* 水平分量幅值: g_horiz²+gz²=1 (四元数归一化保证) */
+                    g_horiz = (float)sqrt(gx_body * gx_body + gy_body * gy_body);
+                    gz_abs  = (gz_body > 0.0f) ? gz_body : -gz_body;
+
+                    /* 总倾角 = atan2(水平, 垂直) — 大倾角时 g_horiz→1, 无小分母 */
+                    tilt_total = (float)atan2(g_horiz, gz_abs) * 57.29578f;
+
+                    /* 按比例分解为前后/左右分量, 保留符号区分方向 */
+                    if (g_horiz > 0.001f) {
+                        inv_horiz = 1.0f / g_horiz;
+                        g_ectx.tilt_fb = tilt_total * gx_body * inv_horiz;
+                        g_ectx.tilt_lr = tilt_total * gy_body * inv_horiz;
+                    } else {
+                        g_ectx.tilt_fb = 0.0f;
+                        g_ectx.tilt_lr = 0.0f;
+                    }
+                    current_element = Element_Update(&g_ectx);
+                }
+
+                /* 每 tick 一次查表 (替代原多处分散的 Element_GetProp 调用) */
+                prop = Element_GetProp(current_element);
+                ctrl = Element_GetEffectiveCtrl(current_element);
+
+                /* 元素切换 → 更新 LED (仅自动模式, 手动模式保持呼吸灯) */
+                if (!manual_control_flag && current_element != prev_element) {
+                    LED_GetElementColor(current_element, &led_r, &led_g, &led_b);
+                    if (current_element == ELEMENT_SAFETY_STOP) {
+                        LED_RequestBreathing();
+                    } else {
+                        LED_RequestSteady(led_r, led_g, led_b);
+                    }
+                    prev_element = current_element;
+                }
+
+                /* 控制策略切换 → 清理 PID 状态 (替代原散落的复位代码) */
+                if (ctrl != prev_ctrl) {
+                    OnCtrlTransition(prev_ctrl, ctrl);
+                    prev_ctrl = ctrl;
+                }
+
+                /* 速度查表 (基于最新状态机输出) */
+                if (prop != NULL && prop->speed_ptr != NULL) {
+                    common_speed = *(prop->speed_ptr);
+                }
+
                 pid_output = FuzzyPID_Step(&pid_struct, err_angle_filtered);
                 /* 外环积分项: 积分分离
                  *   |error| > sep_hi → 清零 (抗积分饱和)
@@ -750,28 +877,16 @@ void Main_Control_Task(void *pvParameters)
                 g_tar_yaw_raw = pid_output
                               + g_outer_i_term
                               - g_Kd_diff * g_filtered_d_term;
-                /* g_pid_output_filtered = 最终目标角速度, 送入内环 */
-                g_pid_output_filtered = g_tar_yaw_raw;
+//角速度环路劫持
+                /* 统一目标角速度选择 (替代原 OL_YAW 劫持) */
+                g_pid_output_filtered = SelectTargetYaw(ctrl, prop, g_tar_yaw_raw);
 
-                /* --- 开环过元素: PASS 状态下覆盖角速度目标 (通过有效控制策略查询) --- */
-                {
-                    const ElementProp_t *prop;
-                    prop = Element_GetProp(current_element);
-                    if (prop != NULL && Element_GetEffectiveCtrl(current_element) == CTRL_OL_YAW) {
-                        g_pid_output_filtered = (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr);
-                    }
-                }
-
+                /* 内环 PI + 速度合成 (唯一一次, 基于最新状态机输出) */
                 differential_speed = PI_Step(&inner_yaw_rate_pi, g_pid_output_filtered, actual_yaw_rate);
                 speed_target_l.f = common_speed - differential_speed;
                 speed_target_r.f = -(common_speed + differential_speed);
                 speed_target_r_nagtive = -speed_target_r.f;
-                //最右横向为1，最左横向为3，左中为2，右中为0
-                // MOTOR_CS_RESET();
-                // motor_write_reg(REG_A_SPEED_TARGET, g_right_speed_target);
-                // motor_write_reg(REG_B_SPEED_TARGET, g_left_speed_target);
-                // MOTOR_CS_SET();
-								
+
                 /* 处理 Debug 系统延迟的 PID 参数写入 / 手动模式超时保护 / 驾驶指令 */
                 if(manual_control_flag){
                     /* 3s 无指令自动刹车 */
@@ -823,61 +938,6 @@ void Main_Control_Task(void *pvParameters)
                     }
                     
                 }else{
-                    /* 填充传感器数据 → 元素状态机一步更新 */
-                    {
-                        unsigned char j;
-                        for (j = 0; j < 4; j++) {
-                            g_ectx.adc[j] = adc_normalized[j];
-                        }
-                        g_ectx.ax  = IMU_Filter_Data->sensor.dat.ax;
-                        g_ectx.ay  = IMU_Filter_Data->sensor.dat.ay;
-                        g_ectx.az  = IMU_Filter_Data->sensor.dat.az;
-                        g_ectx.yaw = yaw;
-                        current_element = Element_Update(&g_ectx);
-                    }
-
-                    /* 元素切换时更新 LED 状态 */
-                    if (current_element != prev_element) {
-                        LED_GetElementColor(current_element, &led_r, &led_g, &led_b);
-                        if (current_element == ELEMENT_SAFETY_STOP) {
-                            LED_RequestBreathing();              /* 安全停车 → 呼吸灯 */
-                        } else {
-                            LED_RequestSteady(led_r, led_g, led_b); /* 其他元素 → 稳态对应色 */
-                        }
-                        prev_element = current_element;
-                    }
-
-                    {
-                        const ElementProp_t *prop;
-                        prop = Element_GetProp(current_element);
-                        if (prop != NULL && prop->speed_ptr != NULL) {
-                            common_speed = *(prop->speed_ptr);
-                        }
-                    }
-                    switch(current_element){
-                        case ELEMENT_SAFETY_STOP:
-                            /* 紧急刹车, 留在自动模式等待电感恢复 */
-                            tmp.f = 0.0f;
-                            Motor_Write_Speeds(0.0f, 0.0f);
-                            g_reg_write_pending = 0;
-                            g_drive_direction = DRIVE_STOP;
-                            PWMA_Set(0);
-                            g_auto_transition = 0;
-                            g_ss_magnitude = 0.0f;
-                            g_err_angle_slewed = 0.0f;
-                            lpf_reset(&g_lpf_outer, 0.0f);
-                            g_pid_output_filtered = 0.0f;
-                            g_last_err_angle = 0.0f;
-                            ma_reset(&g_d_ma, 0.0f);
-                            lpf_reset(&g_lpf_gyro, 0.0f);    /* 重置陀螺仪LPF */
-                            g_outer_i_sum = 0.0f;  /* 重置外环积分 */
-                            inner_yaw_rate_pi.last_error = 0.0f; /* 重置内环D项 */
-                            common_speed = 0.0f;
-                            break;
-                        default:
-                          //  common_speed = 30.0f;
-													break;
-                    }
                     /* --- 自动模式: 处理延迟 PID 参数写入 --- */
                     if (g_reg_write_pending) {
                         MOTOR_CS_RESET();
@@ -890,36 +950,16 @@ void Main_Control_Task(void *pvParameters)
                     if (g_auto_transition == 1) {
                         if ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)) {
                             g_auto_transition = 2;
-                            lpf_reset(&g_lpf_gyro, 0.0f);             /* 重置陀螺仪LPF */
+                            lpf_reset(&g_lpf_gyro, 0.0f);
                             inner_yaw_rate_pi.error_sum = 0.0f;
-                            inner_yaw_rate_pi.last_error = 0.0f;       /* 重置内环D项 */
-                            g_outer_i_sum = 0.0f;  /* 重置外环积分 */
+                            inner_yaw_rate_pi.last_error = 0.0f;
+                            g_outer_i_sum = 0.0f;
                         }
                     }
 
-                    /* 仅在过渡完成后写入电机速度目标 (统一控制策略派发) */
+                    /* 统一电机派发 (状态机 + PID 已在上面统一计算) */
                     if (g_auto_transition == 2) {
-                        ControlStrategy_t ctrl;
-
-                        ctrl = Element_GetEffectiveCtrl(current_element);
-
-                        /* 始终更新 debug 变量, 上位机可观察 PID 输出 */
-                        speed_target_l.f = common_speed - differential_speed;
-                        speed_target_r.f = -(common_speed + differential_speed);
-                        speed_target_r_nagtive = -speed_target_r.f;
-
-                        switch (ctrl) {
-                        case CTRL_NORMAL:
-                        case CTRL_OL_YAW:
-                            Motor_Write_Speeds(speed_target_r.f, speed_target_l.f);
-                            break;
-                        case CTRL_BRAKE:
-                        case CTRL_FREEWHEEL:
-                        default:
-                            Motor_Write_Speeds(0.0f, 0.0f);
-                            PWMA_Set(0);       /* 关负压风扇 (推车调试时每帧覆盖) */
-                            break;
-                        }
+                        ControlDispatch(ctrl, speed_target_r.f, speed_target_l.f);
                     }
 
                 }
