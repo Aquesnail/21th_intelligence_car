@@ -640,9 +640,9 @@ static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
 {
     if (!Track_CheckExpected(ctx, ELEMENT_BARREL)) return 0;
 
-    // if (ctx->vote_barrel.len == 0) {
-    //     return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) > barrel_entry_tilt) ? 1 : 0;
-    // }
+    if (ctx->vote_barrel.len == 0) {
+        return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) > barrel_entry_tilt) ? 1 : 0;
+    }
     return VoteWin_Reached(&ctx->vote_barrel, ctx->vote_barrel.entry_thresh);
 }
 
