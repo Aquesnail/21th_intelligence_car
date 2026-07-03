@@ -52,8 +52,17 @@ typedef struct {
     float   outer_i_limit;
     float   outer_i_sep_hi;
     float   outer_i_sep_lo;
+    float   err_A_K;  //所有adc 标定值为1000左右
+    float   err_B_K;
+    float   err_C_K;
+    float   err_D_K;
     PIParams_t inner;
 } ControlParams_t;
+
+static copy_params(ControlParams_t *dest, const ControlParams_t *src)
+{
+    memcpy(dest, src, sizeof(ControlParams_t));
+}
 
 /* 控制管线运行时状态 (每帧变化) */
 typedef struct {
@@ -332,6 +341,7 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
  * 控制管道参数 + 状态 (Phase 3: 集中管理, 替代散落变量)
  * ================================================================ */
 static ControlParams_t g_params;  /* 运行时 memset 初始化 */
+static ControlParams_t g_params_cross; /* 运行时 memset 初始化 */
 static ControlState_t  g_state;   /* 运行时 memset 初始化 */
 
 /* ================================================================
@@ -467,10 +477,7 @@ float left_speed_target = 0.0f;
 float right_speed_target = 0.0f;
 uint8_t manual_control_flag = 1;
 
-float Err_A_K=2.0f;  //所有adc 标定值为2200左右
-float Err_B_K=6.0f;
-float Err_C_K=3.0f;
-float Err_D_K=3.0f;
+
 uint16_t adc_dead_zone = 5;
 float adc_err_zone = 0.5f;
 float Err_Angle=0.0f;
@@ -798,9 +805,9 @@ void Main_Control_Task(void *pvParameters)
                 if(Err_2 < adc_err_zone && Err_2 > -adc_err_zone) Err_2 = 0.0f;
                 if(Err_3 < adc_err_zone && Err_3 > -adc_err_zone) Err_3 = 0.0f;
                 if(Err_4 < adc_err_zone && Err_4 > -adc_err_zone) Err_4 = 0.0f;
-
-                numerator = (Err_A_K*(Err_1)+(Err_B_K*(Err_2)));
-                denominator = (Err_C_K*(Err_3))+(Err_D_K*(Err_4));
+//这里还要填入一个状态机用于在某些元素下屏蔽某一路adc的值（err_k设置为零），暂时还没有填入函数，但是也要把参数分开
+                numerator = (g_params.err_A_K*(Err_1)+(g_params.err_B_K*(Err_2)));
+                denominator = (g_params.err_C_K*(Err_3))+(g_params.err_D_K*(Err_4));
                 if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
                     Err_Angle = 0.0f;
                 } else {
@@ -1070,6 +1077,7 @@ void Main_Control_Task_Init(void)
     memset(adc_normalized,       0, sizeof(adc_normalized));
     memset(&pid_struct,          0, sizeof(pid_struct));
     memset(&g_params,            0, sizeof(g_params));
+    memset(&g_params_cross,      0, sizeof(g_params_cross));
     memset(&g_state,             0, sizeof(g_state));
     memset(&speed_target_l,      0, sizeof(speed_target_l));
     memset(&speed_target_r,      0, sizeof(speed_target_r));
@@ -1120,10 +1128,10 @@ void Main_Control_Task_Init(void)
 
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
     Debug_Register("CH_Induct",  DBG_UINT8 | STATIC_TYPE , &change_inductor);
-    Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &Err_A_K);
-    Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &Err_B_K);
-    Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &Err_C_K);
-    Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &Err_D_K);
+    Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &g_params.err_A_K);
+    Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &g_params.err_B_K);
+    Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &g_params.err_C_K);
+    Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &g_params.err_D_K);
     Debug_Register("ADC_DeadZone", DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
     Debug_Register("ADC_ErrZone", DBG_FLOAT | STATIC_TYPE, &adc_err_zone);
    // Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);

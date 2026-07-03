@@ -501,8 +501,8 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_barrel.exit_thresh  = 7;
 
     /* 十字竖直电感和默认: 进入 >5020000, 退出 <20000 (滞回) */
-    cross_entry_sum  = 5020000.0f;
-    cross_exit_sum   = 20000.0f;
+    cross_entry_sum  = 1000.0f;
+    cross_exit_sum   = 600.0f;
     vote_win_cross.entry_thresh = 7;
     vote_win_cross.exit_thresh  = 7;
 
@@ -1195,3 +1195,9 @@ float SelectTargetErr(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementC
     return ctx->err_raw;
 
 }
+
+float SelectTargetAdc(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx)
+{
+    
+}
+
