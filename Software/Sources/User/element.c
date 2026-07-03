@@ -128,6 +128,8 @@ static unsigned short g_ra_timeout_frames = 500;  /* 直角超时帧数 (默认5
 static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
 static unsigned long g_offtrack_start_tick  = 0;  /* 信号丢失起始 tick */
 static unsigned char  g_offtrack_active      = 0; /* 当前是否正在计时 */
+static unsigned long  g_ontrack_timeout_tick = 0; /* 上赛道超时 (s) */
+static unsigned char  g_timeout_stop_active  = 0; /* 超时停车已触发, 禁止 ADC 恢复退出 */
 
 /* ================================================================
  * 速度变量 (供元素属性表 speed_ptr 指向 + Debug_Register 在线调参)
@@ -353,9 +355,11 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->right_angle_side = 0;
         ctx->err_raw          = 0.0f;
         ctx->err_filtered     = 0.0f;
+        ctx->total_ticks_start = 0;
+        g_timeout_stop_active = 0;
 
     }
-
+    Debug_Register("TTimeOut",DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_tick);
     /* 环岛进入 ADC 阈值 */
     Debug_Register("RingEn0", DBG_FLOAT | STATIC_TYPE, &RingEntrance[0]);
     Debug_Register("RingEn1", DBG_FLOAT | STATIC_TYPE, &RingEntrance[1]);
@@ -913,6 +917,7 @@ static unsigned char Check_RATimeout(ElementCtx_t *ctx)
  * 转移表 (按优先级排列, 同 from 内先匹配先触发)
  * ================================================================ */
 static const Transition_t g_transitions[] = {
+
     /* 无条件即时转移 */
     { ELEMENT_RING_LEFT_ENTRANCE,  ELEMENT_RING_LEFT_PASS,  0, NULL, Enter_RingPass },
     { ELEMENT_RING_RIGHT_ENTRANCE, ELEMENT_RING_RIGHT_PASS, 0, NULL, Enter_RingPass },
@@ -1013,9 +1018,14 @@ element_t Element_Update(ElementCtx_t *ctx)
     float err_abs;
     float tilt_lr_abs;
 
+    
     /* ---- 0. 安全检测层 (最高优先级) ---- */
     all_adc_low = (ctx->adc[0] < 10.0f && ctx->adc[1] < 10.0f
                 && ctx->adc[2] < 10.0f && ctx->adc[3] < 10.0f) ? 1 : 0;
+    /* ---- 1. 倾角绝对值 (四元数前后倾角, 供投票和停车使用) ---- */
+    tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
+     /* 上爬→水平投票: WALL_CLIMB → HORIZONTAL, |TiltR| > 阈值 */
+    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
 
     if (all_adc_low && ctx->current != ELEMENT_SAFETY_STOP) {
         if (g_offtrack_active == 0) {
@@ -1034,11 +1044,23 @@ element_t Element_Update(ElementCtx_t *ctx)
     } else {
         g_offtrack_active = 0;
     }
+    now_tick = xTaskGetTickCount();
+    if (ctx->current != ELEMENT_SAFETY_STOP && g_debug_push_mode!=1) {
+        elapsed_ms = now_tick - ctx->total_ticks_start;
+        if (g_ontrack_timeout_tick>0 && elapsed_ms/1000 >= g_ontrack_timeout_tick && tilt_fb_abs < 10.0f && tilt_lr_abs < 10.0f) {
+            ctx->current = ELEMENT_SAFETY_STOP;
+            g_timeout_stop_active = 1;
+            Debug_Log(Element_GetProp(ELEMENT_SAFETY_STOP)->name);
+            g_offtrack_active = 0;
+            return ctx->current;
+        }
+    }
 
-    /* SAFETY_STOP 退出: 任一 ADC 恢复 → 切手动模式 */
+    /* SAFETY_STOP 退出: 任一 ADC 恢复 → 切手动模式 (超时停车除外) */
     if (ctx->current == ELEMENT_SAFETY_STOP) {
-        if (ctx->adc[0] > 10.0f || ctx->adc[1] > 10.0f
-            || ctx->adc[2] > 10.0f || ctx->adc[3] > 10.0f) {
+        if (!g_timeout_stop_active
+            && (ctx->adc[0] > 10.0f || ctx->adc[1] > 10.0f
+                || ctx->adc[2] > 10.0f || ctx->adc[3] > 10.0f)) {
             ctx->current = ELEMENT_STRAIGHT;
             manual_control_flag = 1;
             LED_RequestBreathing();
@@ -1057,7 +1079,6 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* ---- 0.6 通用帧计数 (各元素超时检测共用) ---- */
     ctx->elem_frame_cnt++;
-
     /* 环岛链帧计数 (ENTRANCE/PASS/IN_RING 超时兜底) */
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
         || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
@@ -1067,8 +1088,7 @@ element_t Element_Update(ElementCtx_t *ctx)
         ctx->ring_frame_cnt++;
     }
 
-    /* ---- 1. 倾角绝对值 (四元数前后倾角, 供投票使用) ---- */
-    tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
+    
 
     /* ---- 2. 投票生成 (所有元素类型的投票在此统一计算) ---- */
 
@@ -1094,8 +1114,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
     VoteWin_Push(&ctx->vote_wall, wall_vote);
 
-    /* 上爬→水平投票: WALL_CLIMB → HORIZONTAL, |TiltR| > 阈值 */
-    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+   
     if (ctx->current == ELEMENT_WALL_CLIMB) {
         wall_climb_vote = (tilt_lr_abs > wall_climb_exit_tiltr) ? 1 : 0;
     } else {
@@ -1194,10 +1213,5 @@ float SelectTargetErr(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementC
     }
     return ctx->err_raw;
 
-}
-
-float SelectTargetAdc(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx)
-{
-    
 }
 

@@ -75,10 +75,55 @@ typedef struct {
     PIParams_t        inner;
 } ControlParams_t;
 
-static copy_params(ControlParams_t *dest, const ControlParams_t *src)
+/* 控制管线运行时状态 (每帧变化) */
+typedef struct {
+    float   err_slewed;
+    float   err_filtered;
+    Lpf_t   lpf_outer;
+    float   last_err;
+    MovingAvg_t d_ma;
+    float   filtered_d_term;
+    float   i_sum;
+    float   i_term;
+    Lpf_t   lpf_gyro;
+    float   gyro_filtered;
+    float   tar_yaw_raw;
+    float   target_yaw;
+    float   pid_output;
+    PIState_t inner;
+} ControlState_t;
+
+/* ================================================================
+ * 控制管道参数 + 状态 (Phase 3: 集中管理, 替代散落变量)
+ * ================================================================ */
+/* 元素专用控制参数 (cross 走 g_params_cross, 其余回落 g_params) */
+static ControlParams_t g_params;         /* 默认参数 */
+static ControlParams_t g_params_cross;   /* 十字专用 (屏蔽竖直电感) */
+static ControlState_t  g_state;          /* 运行时 memset 初始化 */
+static const ControlParams_t *g_active_params_prev = NULL; /* 上一帧参数集, 用于检测切换 */
+
+
+static void copy_params(ControlParams_t *dest, const ControlParams_t *src)
 {
     memcpy(dest, src, sizeof(ControlParams_t));
 }
+
+/* 用指定值 seed 整个管线 — 退出冻结/退出开环时调用, 保证连续性 */
+static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float seed_val)
+{
+    (void)p;
+    s->err_slewed      = seed_val;
+    s->last_err        = seed_val;
+    s->i_sum           = 0.0f;
+    s->i_term          = 0.0f;
+    s->filtered_d_term = 0.0f;
+    lpf_reset(&s->lpf_outer, seed_val);
+    ma_reset(&s->d_ma, 0.0f);
+    s->inner.error_sum  = 0.0f;
+    s->inner.last_error = 0.0f;
+}
+
+
 /* ================================================================
  * GetActiveParams — 根据元素返回对应参数集指针
  *   返回值变化时会触发 CtrlState_Seed 平滑过渡
@@ -104,23 +149,7 @@ static void ApplyParamsIfChanged(const ControlParams_t *p)
     }
 }
 
-/* 控制管线运行时状态 (每帧变化) */
-typedef struct {
-    float   err_slewed;
-    float   err_filtered;
-    Lpf_t   lpf_outer;
-    float   last_err;
-    MovingAvg_t d_ma;
-    float   filtered_d_term;
-    float   i_sum;
-    float   i_term;
-    Lpf_t   lpf_gyro;
-    float   gyro_filtered;
-    float   tar_yaw_raw;
-    float   target_yaw;
-    float   pid_output;
-    PIState_t inner;
-} ControlState_t;
+
 /* ================================================================
  * 速度目标值宏 (临时占位, 后续调整)
  * ================================================================ */
@@ -378,14 +407,6 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     val = fan_D;
     memcpy(pData, &val, sizeof(uint16_t));
 }
-/* ================================================================
- * 控制管道参数 + 状态 (Phase 3: 集中管理, 替代散落变量)
- * ================================================================ */
-/* 元素专用控制参数 (cross 走 g_params_cross, 其余回落 g_params) */
-static ControlParams_t g_params;         /* 默认参数 */
-static ControlParams_t g_params_cross;   /* 十字专用 (屏蔽竖直电感) */
-static ControlState_t  g_state;          /* 运行时 memset 初始化 */
-static const ControlParams_t *g_active_params_prev = NULL; /* 上一帧参数集, 用于检测切换 */
 
 /* ================================================================
  * 控制管道 API
@@ -411,20 +432,7 @@ static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
     s->inner.last_error = 0.0f;
 }
 
-/* 用指定值 seed 整个管线 — 退出冻结/退出开环时调用, 保证连续性 */
-static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float seed_val)
-{
-    (void)p;
-    s->err_slewed      = seed_val;
-    s->last_err        = seed_val;
-    s->i_sum           = 0.0f;
-    s->i_term          = 0.0f;
-    s->filtered_d_term = 0.0f;
-    lpf_reset(&s->lpf_outer, seed_val);
-    ma_reset(&s->d_ma, 0.0f);
-    s->inner.error_sum  = 0.0f;
-    s->inner.last_error = 0.0f;
-}
+
 
 /* 冻结/保持模式 — 进入开环或冻结时调用, 清零积分+微分 */
 static void CtrlState_Hold(ControlState_t *s)
@@ -847,9 +855,6 @@ void Main_Control_Task(void *pvParameters)
     float Err_4;
     float differential_speed;
     float actual_yaw_rate_raw;  /* 陀螺仪原始角速度 (滤波前) */
-    float err_diff;        /* 外环微分用 */
-    float raw_d_term;      /* 外环微分用 */
-    float slew_diff;       /* 外环斜率限制用 */
     float gx_body, gy_body, gz_body, gz_abs;  /* 重力向量倾角计算 */
     float g_horiz, tilt_total, inv_horiz;     /* 总倾角+分解 (大倾角稳定) */
     const ElementProp_t *prop;              /* 当前元素属性 (每 tick 查一次) */
@@ -1124,6 +1129,7 @@ void Main_Control_Task(void *pvParameters)
                             g_state.inner.error_sum = 0.0f;
                             g_state.inner.last_error = 0.0f;
                             g_state.i_sum = 0.0f;
+                            g_ectx.total_ticks_start = xTaskGetTickCount();
                         }
                     }
 
@@ -1178,10 +1184,9 @@ void Main_Control_Task_Init(void)
     memset(&g_params,            0, sizeof(g_params));
     memset(&g_params_cross,      0, sizeof(g_params_cross));
 
-    /* ʮ��ר�ò���: �ȸ���Ĭ�ϲ���, �ٸ��� err_K (������ֱ���) */
+   
     memcpy(&g_params_cross, &g_params, sizeof(ControlParams_t));
-    g_params_cross.adc.err_B_K = 0.0f;  /* ������ֱ������ */
-    g_params_cross.adc.err_D_K = 0.0f;  /* ������ֱ��к� */
+
     memset(&g_state,             0, sizeof(g_state));
     memset(&speed_target_l,      0, sizeof(speed_target_l));
     memset(&speed_target_r,      0, sizeof(speed_target_r));
@@ -1222,6 +1227,11 @@ void Main_Control_Task_Init(void)
     g_params.outer.outer_i_limit   = 3.6f;
     g_params.outer.outer_i_sep_hi  = 10000.0f;
     g_params.outer.outer_i_sep_lo  = 30.0f;
+
+    g_params.adc.err_A_K = 2.0f;
+    g_params.adc.err_B_K = 6.0f;
+    g_params.adc.err_C_K = 3.0f;
+    g_params.adc.err_D_K = 3.0f;
 
     /* 初始化低通滤波器, 截止频率可在此修改 */
     lpf_init_fc(&g_lpf_left,              400.0f, 0.002f);
@@ -1340,6 +1350,11 @@ void Main_Control_Task_Init(void)
     pid_struct.kp_singletons[FUZZY_PS] = 1.100000023841858f;
     pid_struct.kp_singletons[FUZZY_PM] = 1.2000000476837158f;
     pid_struct.kp_singletons[FUZZY_PB] = 2.0999999046325684f;
+
+    copy_params(&g_params_cross, &g_params);
+
+    g_params_cross.adc.err_B_K = 0.0f;
+    g_params_cross.adc.err_D_K = 0.0f;  
     //vTaskDelay(pdMS_TO_TICKS(10));
     
     /* 创建 Main_Control_Task (低优先级, 2ms 周期) */

@@ -28,6 +28,7 @@ typedef enum ElementType {
     ELEMENT_RING_LEFT_EXIT,
     ELEMENT_RING_RIGHT_EXIT,
     
+  //  ELEMENT_TIMER,                  /* 定时器元素: 每次开始起跑时清零，以秒为单位计时，计时到了若发现倾角正常则自动停车*/
 } element_t;
 
 #define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 14 个活跃元素 (含 WALL 3 子状态) */
@@ -112,6 +113,7 @@ typedef struct {
     /* ---- 通用元素帧计数 (在 element Enter 时归零, Element_Update 开头累加) ---- */
     unsigned short elem_frame_cnt;
 
+    unsigned long  total_ticks_start;  /* 总计时器起始 tick (xTaskGetTickCount) */
     /* ---- 元素表 ---- */
     unsigned char track_idx;
     unsigned char track_table_enabled;  /* 上位机可调 */
@@ -120,6 +122,7 @@ typedef struct {
     unsigned char  offtrack_active;
     unsigned long  offtrack_start_tick;
 
+    
     /* ---- 当前/前一状态 ---- */
     element_t current;
     element_t prev;
