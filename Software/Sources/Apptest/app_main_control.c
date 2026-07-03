@@ -37,12 +37,26 @@ typedef struct {
     float last_error;
 } PIState_t;
 
-/* 外环 + 内环 全部可调参数 (上位机在线调参) */
+/* ================================================================
+ * 控制参数分组 (按状态机劫持点切分)
+ *   AdcErrParams:    劫持点0 之前 — ADC 误差权重 (各元素可屏蔽不同电感)
+ *   OuterLoopParams: 劫持点1→劫持点3 — 外环全流程
+ *   ControlParams:   完整参数集 = outer + adc + inner, 每个元素配一套
+ * ================================================================ */
+
+/* 劫持点0: ADC 误差计算参数 */
+typedef struct {
+    float   err_A_K;
+    float   err_B_K;
+    float   err_C_K;
+    float   err_D_K;
+} AdcErrParams_t;
+
+/* 劫持点1→劫持点3: 外环控制参数 (不含 Kd_diff, 它在 RunOuterLoop 内作为局部变量) */
 typedef struct {
     float   outer_slew_max;
     float   outer_lpf_fc;
     float   gyro_lpf_fc;
-    float   Kd_diff;
     float   Kd_diff_high;
     float   Kd_diff_low;
     float   Kd_diff_thresh;
@@ -52,16 +66,42 @@ typedef struct {
     float   outer_i_limit;
     float   outer_i_sep_hi;
     float   outer_i_sep_lo;
-    float   err_A_K;  //所有adc 标定值为1000左右
-    float   err_B_K;
-    float   err_C_K;
-    float   err_D_K;
-    PIParams_t inner;
+} OuterLoopParams_t;
+
+/* 完整控制参数集 (一个元素配一套, 上位机在线调参) */
+typedef struct {
+    OuterLoopParams_t outer;
+    AdcErrParams_t    adc;
+    PIParams_t        inner;
 } ControlParams_t;
 
 static copy_params(ControlParams_t *dest, const ControlParams_t *src)
 {
     memcpy(dest, src, sizeof(ControlParams_t));
+}
+/* ================================================================
+ * GetActiveParams — 根据元素返回对应参数集指针
+ *   返回值变化时会触发 CtrlState_Seed 平滑过渡
+ * ================================================================ */
+static const ControlParams_t* GetActiveParams(element_t e)
+{
+    switch (e) {
+    case ELEMENT_CROSS:
+        return &g_params_cross;
+    default:
+        return &g_params;
+    }
+}
+
+/* ================================================================
+ * ApplyParamsIfChanged — 参数集切换时 seed 管线, 防止突变抖动
+ * ================================================================ */
+static void ApplyParamsIfChanged(const ControlParams_t *p)
+{
+    if (p != g_active_params_prev) {
+        CtrlState_Seed(&g_state, p, g_state.err_filtered);
+        g_active_params_prev = p;
+    }
 }
 
 /* 控制管线运行时状态 (每帧变化) */
@@ -78,6 +118,7 @@ typedef struct {
     float   gyro_filtered;
     float   tar_yaw_raw;
     float   target_yaw;
+    float   pid_output;
     PIState_t inner;
 } ControlState_t;
 /* ================================================================
@@ -340,9 +381,11 @@ static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 /* ================================================================
  * 控制管道参数 + 状态 (Phase 3: 集中管理, 替代散落变量)
  * ================================================================ */
-static ControlParams_t g_params;  /* 运行时 memset 初始化 */
-static ControlParams_t g_params_cross; /* 运行时 memset 初始化 */
-static ControlState_t  g_state;   /* 运行时 memset 初始化 */
+/* 元素专用控制参数 (cross 走 g_params_cross, 其余回落 g_params) */
+static ControlParams_t g_params;         /* 默认参数 */
+static ControlParams_t g_params_cross;   /* 十字专用 (屏蔽竖直电感) */
+static ControlState_t  g_state;          /* 运行时 memset 初始化 */
+static const ControlParams_t *g_active_params_prev = NULL; /* 上一帧参数集, 用于检测切换 */
 
 /* ================================================================
  * 控制管道 API
@@ -398,7 +441,7 @@ static void OuterLpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     float val;
     (void)len;
     (void)peri_addr;
-    val = g_params.outer_lpf_fc;
+    val = g_params.outer.outer_lpf_fc;
     memcpy(pData, &val, sizeof(float));
 }
 
@@ -411,7 +454,7 @@ static void OuterLpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     memcpy(&new_fc, pData, sizeof(float));
     if (new_fc < 1.0f)  new_fc = 1.0f;
     if (new_fc > 400.0f) new_fc = 400.0f;
-    g_params.outer_lpf_fc = new_fc;
+    g_params.outer.outer_lpf_fc = new_fc;
     alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
     g_state.lpf_outer.alpha = alpha;
     g_state.lpf_outer.freq = new_fc;
@@ -423,7 +466,7 @@ static void D_MA_Win_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     uint16_t val;
     (void)len;
     (void)peri_addr;
-    val = (uint16_t)g_params.d_ma_window;
+    val = (uint16_t)g_params.outer.d_ma_window;
     memcpy(pData, &val, sizeof(uint16_t));
 }
 
@@ -434,8 +477,8 @@ static void D_MA_Win_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     (void)peri_addr;
     memcpy(&new_val, pData, sizeof(uint16_t));
     if (new_val > MA_MAX_WINDOW) new_val = MA_MAX_WINDOW;
-    g_params.d_ma_window = (uint8_t)new_val;
-    ma_set_window(&g_state.d_ma, g_params.d_ma_window);
+    g_params.outer.d_ma_window = (uint8_t)new_val;
+    ma_set_window(&g_state.d_ma, g_params.outer.d_ma_window);
 }
 static DebugPeriDesc_t g_pid_a_kp_desc   = {REG_A_PID_SPEED_KP,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_ki_desc   = {REG_A_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
@@ -527,7 +570,6 @@ static float common_speed=50.0f;
 static motor_data_t speed_target_l; // 运行时 memset 初始化
 static motor_data_t speed_target_r; // 运行时 memset 初始化
 static float speed_target_r_nagtive=0.0f;
-static float numerator, denominator;
 static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
 static element_t prev_element    = ELEMENT_STRAIGHT;  /* 上一次元素, 用于检测切换 */
@@ -695,6 +737,101 @@ static void ControlDispatch(ControlStrategy_t ctrl, float spd_r, float spd_l)
     }
 }
 
+/* ================================================================
+ * CalcAdcError — ADC 误差计算 (劫持点0 → 劫持点1 之间)
+ *   各元素通过切换 AdcErrParams 屏蔽不同电感通道
+ * ================================================================ */
+static float CalcAdcError(const AdcErrParams_t *p,
+                          float Err_1, float Err_2,
+                          float Err_3, float Err_4)
+{
+    float numerator;
+    float denominator;
+
+    numerator   = p->err_A_K * Err_1 + p->err_B_K * Err_2;
+    denominator = p->err_C_K * Err_3 + p->err_D_K * Err_4;
+
+    if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
+        return 0.0f;
+    }
+    return numerator / denominator * 100.0f;
+}
+
+/* ================================================================
+ * RunOuterLoop — 外环全流程 (劫持点1 → 劫持点3)
+ *   输入: 劫持后 Err_Angle + 原始陀螺角速度
+ *   输出: tar_yaw_raw (待劫持的内环目标角速度)
+ *   内含: slew限制+LPF+模糊PID+积分分离+陀螺滤波+不完全微分+自适应Kd
+ * ================================================================ */
+static float RunOuterLoop(const OuterLoopParams_t *p, ControlState_t *s,
+                          FuzzyPID *pid, float err_angle, float gyro_raw)
+{
+    float Kd_diff;
+    float slew_diff;
+    float err_diff;
+    float raw_d_term;
+    /* 1. 斜率限制 → 2. 低通滤波 */
+    slew_diff = err_angle - s->err_slewed;
+    if (slew_diff > p->outer_slew_max) {
+        s->err_slewed += p->outer_slew_max;
+    } else if (slew_diff < -p->outer_slew_max) {
+        s->err_slewed -= p->outer_slew_max;
+    } else {
+        s->err_slewed = err_angle;
+    }
+    s->err_filtered = lpf_update(&s->lpf_outer, s->err_slewed);
+
+    /* 3. 模糊 PID */
+    s->pid_output = FuzzyPID_Step(pid, s->err_filtered);
+
+    /* 4. 外环积分 (积分分离) */
+    if (abs_f(s->err_filtered) > p->outer_i_sep_hi) {
+        s->i_sum = 0.0f;
+    } else if (abs_f(s->err_filtered) < p->outer_i_sep_lo) {
+        s->i_sum = 0.0f;
+    } else {
+        s->i_sum += p->outer_Ki * (-s->err_filtered);
+        if (s->i_sum > p->outer_i_limit)  s->i_sum = p->outer_i_limit;
+        if (s->i_sum < -p->outer_i_limit) s->i_sum = -p->outer_i_limit;
+    }
+    s->i_term = s->i_sum;
+
+    /* 5. 陀螺仪低通滤波 */
+    s->gyro_filtered = lpf_update(&s->lpf_gyro, gyro_raw);
+
+    /* 6. 不完全微分 (MA + 死区) */
+    err_diff = s->err_filtered - s->last_err;
+    if (err_diff > -p->diff_deadband && err_diff < p->diff_deadband) {
+        err_diff = 0.0f;
+    }
+    raw_d_term = err_diff / 0.002f;
+    s->filtered_d_term = ma_update(&s->d_ma, raw_d_term);
+    s->last_err = s->err_filtered;
+
+    /* 7. 自适应微分系数选择 (Kd_diff 原为 params 字段, 实为运行时局部变量) */
+    if (abs_f(s->err_filtered) > p->Kd_diff_thresh) {
+        Kd_diff = p->Kd_diff_high;
+    } else {
+        Kd_diff = p->Kd_diff_low;
+    }
+
+    /* 8. 外环合成: tar_yaw = P输出 + I项 - Kd * 滤波微分 */
+    return s->pid_output
+         + s->i_term
+         - Kd_diff * s->filtered_d_term;
+}
+
+/* ================================================================
+ * RunInnerLoop — 内环 PI (劫持点3 之后)
+ *   输入: 劫持后 target_yaw + 滤波后实际角速度
+ *   输出: 左右轮差速
+ * ================================================================ */
+static float RunInnerLoop(const PIParams_t *p, PIState_t *s,
+                          float target_yaw, float actual_yaw)
+{
+    return PI_Step(p, s, target_yaw, actual_yaw);
+}
+
 /* 速度变量已迁移至 element.c, 通过 Element_GetProp 查表获取 */
 void Main_Control_Task(void *pvParameters)
 {
@@ -709,7 +846,6 @@ void Main_Control_Task(void *pvParameters)
     float Err_3;
     float Err_4;
     float differential_speed;
-    float actual_yaw_rate;
     float actual_yaw_rate_raw;  /* 陀螺仪原始角速度 (滤波前) */
     float err_diff;        /* 外环微分用 */
     float raw_d_term;      /* 外环微分用 */
@@ -805,13 +941,10 @@ void Main_Control_Task(void *pvParameters)
                 if(Err_2 < adc_err_zone && Err_2 > -adc_err_zone) Err_2 = 0.0f;
                 if(Err_3 < adc_err_zone && Err_3 > -adc_err_zone) Err_3 = 0.0f;
                 if(Err_4 < adc_err_zone && Err_4 > -adc_err_zone) Err_4 = 0.0f;
-//这里还要填入一个状态机用于在某些元素下屏蔽某一路adc的值（err_k设置为零），暂时还没有填入函数，但是也要把参数分开
-                numerator = (g_params.err_A_K*(Err_1)+(g_params.err_B_K*(Err_2)));
-                denominator = (g_params.err_C_K*(Err_3))+(g_params.err_D_K*(Err_4));
-                if (denominator < 1.0e-6f && denominator > -1.0e-6f) {
-                    Err_Angle = 0.0f;
-                } else {
-                    Err_Angle = numerator / denominator * 100.0f;
+                /* ===== Block 0: ADC \xce�\xb2�\xbc�\xcb� (\xb0�\xd4�\xcb�\xd1�\xb2�) ===== */
+                {
+                    const ControlParams_t *p = GetActiveParams(current_element);
+                    Err_Angle = CalcAdcError(&p->adc, Err_1, Err_2, Err_3, Err_4);
                 }
                 /* 填充元素状态机的 err 观测值 (先于 Element_Update + 冻结) */
                 g_ectx.err_raw      = Err_Angle;
@@ -859,20 +992,12 @@ void Main_Control_Task(void *pvParameters)
 /************    状态机插入 ****************** */
 
 
-                /* 外环带宽限制作用于电感原始数据 Err_Angle: 1.斜率限制 → 2.低通滤波 */
-                slew_diff = Err_Angle - g_state.err_slewed;
-                if (slew_diff > g_params.outer_slew_max) {
-                    g_state.err_slewed += g_params.outer_slew_max;
-                } else if (slew_diff < -g_params.outer_slew_max) {
-                    g_state.err_slewed -= g_params.outer_slew_max;
-                } else {
-                    g_state.err_slewed = Err_Angle;
+                /* ===== Block 1: params lookup + ApplyParamsIfChanged ===== */
+                {
+                    const ControlParams_t *p = GetActiveParams(current_element);
+                    ApplyParamsIfChanged(p);
                 }
-                g_state.err_filtered = lpf_update(&g_state.lpf_outer, g_state.err_slewed);
-
-               
-
-                /* 每 tick 一次查表 (替代原多处分散的 Element_GetProp 调用) */
+/* 每 tick 一次查表 (替代原多处分散的 Element_GetProp 调用) */
                 prop = Element_GetProp(current_element);
                 ctrl = Element_GetEffectiveCtrl(current_element);
 
@@ -903,44 +1028,13 @@ void Main_Control_Task(void *pvParameters)
                     common_speed = *(prop->speed_ptr);
                 }
 
-                pid_output = FuzzyPID_Step(&pid_struct, g_state.err_filtered);
-                /* 外环积分项: 积分分离
-                 *   |error| > sep_hi → 清零 (抗积分饱和)
-                 *   |error| < sep_lo → 清零 (防噪声积累)
-                 *   仅 sep_lo <= |error| <= sep_hi 时积分 */
-                if (abs_f(g_state.err_filtered) > g_params.outer_i_sep_hi) {
-                    g_state.i_sum = 0.0f;
-                } else if (abs_f(g_state.err_filtered) < g_params.outer_i_sep_lo) {
-                    g_state.i_sum = 0.0f;
-                } else {
-                    g_state.i_sum += g_params.outer_Ki * (-g_state.err_filtered);
-                    if (g_state.i_sum > g_params.outer_i_limit)  g_state.i_sum = g_params.outer_i_limit;
-                    if (g_state.i_sum < -g_params.outer_i_limit) g_state.i_sum = -g_params.outer_i_limit;
+                /* ===== Block 2: �⻷ȫ���� �� tar_yaw_raw ===== */
+                {
+                    const ControlParams_t *p = GetActiveParams(current_element);
+                    actual_yaw_rate_raw = IMU_Get_Gyro_Z();
+                    g_state.tar_yaw_raw = RunOuterLoop(&p->outer, &g_state, &pid_struct,
+                                                        Err_Angle, actual_yaw_rate_raw);
                 }
-                g_state.i_term = g_state.i_sum;
-                /* 读取陀螺仪原始角速度, 经低通滤波后供内环 PID 使用 */
-                actual_yaw_rate_raw = IMU_Get_Gyro_Z();
-                actual_yaw_rate = lpf_update(&g_state.lpf_gyro, actual_yaw_rate_raw);
-                g_state.gyro_filtered = actual_yaw_rate;
-                /* 方案二+三: 不完全微分(MA)+死区, 对滤波后 Err_Angle 取微分 */
-                err_diff = g_state.err_filtered - g_state.last_err;
-                if (err_diff > -g_params.diff_deadband && err_diff < g_params.diff_deadband) {
-                    err_diff = 0.0f;  /* 方案三: 微分死区 */
-                }
-                raw_d_term = err_diff / 0.002f;
-                g_state.filtered_d_term = ma_update(&g_state.d_ma, raw_d_term);
-                g_state.last_err = g_state.err_filtered;  /* 保存滤波后 Err_Angle, 供下一周期微分 */
-                /* 根据滤波后误差大小选择不完全微分系数 */
-                if (abs_f(g_state.err_filtered) > g_params.Kd_diff_thresh) {
-                    g_params.Kd_diff = g_params.Kd_diff_high;
-                } else {
-                    g_params.Kd_diff = g_params.Kd_diff_low;
-                }
-                /* 外环组合:
-                 *   tar_yaw = P输出 + I项 - Kd*滤波后微分 */
-                g_state.tar_yaw_raw = pid_output
-                              + g_state.i_term
-                              - g_params.Kd_diff * g_state.filtered_d_term;
 //角速度环路劫持
                 /* 统一目标角速度选择 (替代原 OL_YAW 劫持) */
 /***************    状态机插入 ****************** */
@@ -953,7 +1047,12 @@ void Main_Control_Task(void *pvParameters)
 
 
                 /* 内环 PI + 速度合成 (唯一一次, 基于最新状态机输出) */
-                differential_speed = PI_Step(&g_params.inner, &g_state.inner, g_state.target_yaw, actual_yaw_rate);
+                                /* ===== Block 3: �ڻ� PI �� ���� ===== */
+                {
+                    const ControlParams_t *p = GetActiveParams(current_element);
+                    differential_speed = RunInnerLoop(&p->inner, &g_state.inner,
+                                                       g_state.target_yaw, g_state.gyro_filtered);
+                }
                 speed_target_l.f = common_speed - differential_speed;
                 speed_target_r.f = -(common_speed + differential_speed);
                 speed_target_r_nagtive = -speed_target_r.f;
@@ -1078,6 +1177,11 @@ void Main_Control_Task_Init(void)
     memset(&pid_struct,          0, sizeof(pid_struct));
     memset(&g_params,            0, sizeof(g_params));
     memset(&g_params_cross,      0, sizeof(g_params_cross));
+
+    /* ʮ��ר�ò���: �ȸ���Ĭ�ϲ���, �ٸ��� err_K (������ֱ���) */
+    memcpy(&g_params_cross, &g_params, sizeof(ControlParams_t));
+    g_params_cross.adc.err_B_K = 0.0f;  /* ������ֱ������ */
+    g_params_cross.adc.err_D_K = 0.0f;  /* ������ֱ��к� */
     memset(&g_state,             0, sizeof(g_state));
     memset(&speed_target_l,      0, sizeof(speed_target_l));
     memset(&speed_target_r,      0, sizeof(speed_target_r));
@@ -1108,30 +1212,34 @@ void Main_Control_Task_Init(void)
     g_stream_active = 0;
 
     /* 设置默认参数 (memset 归零后覆盖) */
-    g_params.outer_slew_max  = 100.0f;
-    g_params.outer_lpf_fc    = 100.0f;
-    g_params.gyro_lpf_fc     = 100.0f;
-    g_params.Kd_diff_thresh  = 100.0f;
-    g_params.diff_deadband   = 0.5f;
-    g_params.d_ma_window     = 80;
-    g_params.outer_Ki        = 0.23f;
-    g_params.outer_i_limit   = 3.6f;
-    g_params.outer_i_sep_hi  = 10000.0f;
-    g_params.outer_i_sep_lo  = 30.0f;
+    g_params.outer.outer_slew_max  = 100.0f;
+    g_params.outer.outer_lpf_fc    = 100.0f;
+    g_params.outer.gyro_lpf_fc     = 100.0f;
+    g_params.outer.Kd_diff_thresh  = 100.0f;
+    g_params.outer.diff_deadband   = 0.5f;
+    g_params.outer.d_ma_window     = 80;
+    g_params.outer.outer_Ki        = 0.23f;
+    g_params.outer.outer_i_limit   = 3.6f;
+    g_params.outer.outer_i_sep_hi  = 10000.0f;
+    g_params.outer.outer_i_sep_lo  = 30.0f;
 
     /* 初始化低通滤波器, 截止频率可在此修改 */
     lpf_init_fc(&g_lpf_left,              400.0f, 0.002f);
     lpf_init_fc(&g_lpf_right,             400.0f, 0.002f);
-    lpf_init_fc(&g_state.lpf_outer, g_params.outer_lpf_fc, 0.002f);
-    lpf_init_fc(&g_state.lpf_gyro,  g_params.gyro_lpf_fc,  0.002f);
-    ma_init(&g_state.d_ma, g_params.d_ma_window);
+    lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
+    lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
+    ma_init(&g_state.d_ma, g_params.outer.d_ma_window);
 
     /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
     Debug_Register("CH_Induct",  DBG_UINT8 | STATIC_TYPE , &change_inductor);
-    Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &g_params.err_A_K);
-    Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &g_params.err_B_K);
-    Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &g_params.err_C_K);
-    Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &g_params.err_D_K);
+    Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_A_K);
+    Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_B_K);
+    Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_C_K);
+    Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_D_K);
+    Debug_Register("Cr_ErrKA",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_A_K);
+    Debug_Register("Cr_ErrKB",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_B_K);
+    Debug_Register("Cr_ErrKC",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_C_K);
+    Debug_Register("Cr_ErrKD",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_D_K);
     Debug_Register("ADC_DeadZone", DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
     Debug_Register("ADC_ErrZone", DBG_FLOAT | STATIC_TYPE, &adc_err_zone);
    // Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
@@ -1157,24 +1265,23 @@ void Main_Control_Task_Init(void)
     Debug_Register("YawHiLi",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.max_sep);
     Debug_Register("YawLoLi",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.min_sep);
     /* 外环模糊 P 输出 = 目标角速度, 内环实际角速度 (高频, 观察跟随效果) */
-    Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &pid_output);
-    Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_params.outer_slew_max);
+    Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
+    Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_slew_max);
     Debug_Register("OutLPFFc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
     Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
-    Debug_Register("Kd_Diff",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff);
-    Debug_Register("KdDifHi",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_high);
-    Debug_Register("KdDifLo",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_low);
-    Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_thresh);
-    Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_params.diff_deadband);
+    Debug_Register("KdDifHi",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.Kd_diff_high);
+    Debug_Register("KdDifLo",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.Kd_diff_low);
+    Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.Kd_diff_thresh);
+    Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_params.outer.diff_deadband);
    // Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.filtered_d_term);
     Debug_Register("TarYawR",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
     Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
-    Debug_Register("GyroLPFFc", DBG_FLOAT | STATIC_TYPE, &g_params.gyro_lpf_fc);
+    Debug_Register("GyroLPFFc", DBG_FLOAT | STATIC_TYPE, &g_params.outer.gyro_lpf_fc);
     /* 外环积分项参数 (静态, 上位机在线调参) */
-    Debug_Register("Out_Ki",    DBG_FLOAT | STATIC_TYPE, &g_params.outer_Ki);
-    Debug_Register("OutILim",   DBG_FLOAT | STATIC_TYPE, &g_params.outer_i_limit);
-    Debug_Register("OutIHi",    DBG_FLOAT | STATIC_TYPE, &g_params.outer_i_sep_hi);
-    Debug_Register("OutILo",    DBG_FLOAT | STATIC_TYPE, &g_params.outer_i_sep_lo);
+    Debug_Register("Out_Ki",    DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_Ki);
+    Debug_Register("OutILim",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_i_limit);
+    Debug_Register("OutIHi",    DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
+    Debug_Register("OutILo",    DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
     Debug_Register("OutITrm",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
 
     Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &common_speed);
