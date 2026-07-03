@@ -23,6 +23,10 @@ typedef enum ElementType {
     ELEMENT_RIGHT_ANGLE_LEFT,     /* 左直角转弯: 传感器极性反转屏蔽 */
     ELEMENT_RIGHT_ANGLE_RIGHT,    /* 右直角转弯: 传感器极性反转屏蔽 */
 
+    ELEMENT_BARREL_CLIMB,          /* 滚筒子状态: 上爬 */
+    ELEMENT_BARREL_VERTICAL_PEAK,  /* 滚筒子状态: 下行阶段的垂直角度峰值 */
+    ELEMENT_BARREL_DESCEND,        /* 滚筒子状态: 下行阶段 */
+
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
     /* 以下保留，暂未使用 */
     ELEMENT_RING_LEFT_EXIT,
@@ -31,7 +35,7 @@ typedef enum ElementType {
   //  ELEMENT_TIMER,                  /* 定时器元素: 每次开始起跑时清零，以秒为单位计时，计时到了若发现倾角正常则自动停车*/
 } element_t;
 
-#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 14 个活跃元素 (含 WALL 3 子状态) */
+#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 19 个活跃元素 (含 WALL 3 子状态 + BARREL 3 子状态) */
 
 /* ================================================================
  * 控制策略枚举
@@ -112,6 +116,9 @@ typedef struct {
 
     /* ---- 通用元素帧计数 (在 element Enter 时归零, Element_Update 开头累加) ---- */
     unsigned short elem_frame_cnt;
+
+    /* ---- 通用元素消隐帧计数 ---- */
+    unsigned short elem_blanking_cnt;
 
     unsigned long  total_ticks_start;  /* 总计时器起始 tick (xTaskGetTickCount) */
     /* ---- 元素表 ---- */

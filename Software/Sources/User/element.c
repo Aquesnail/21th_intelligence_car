@@ -74,6 +74,7 @@ static float   wall_entry_tiltb;              /* STRAIGHT→WALL 进入 TiltB �
 static float   wall_climb_exit_tiltr;         /* CLIMB→HORIZONTAL |TiltR| 阈值 (默认 70) */
 static float   wall_horiz_exit_tiltr;         /* HORIZONTAL→DESCEND |TiltR| 阈值 (默认 70) */
 static float   wall_descend_exit_tiltb;       /* DESCEND→STRAIGHT 退出 TiltB 阈值 (默认 60) */
+static uint16_t wall_descent_blanking_frames = 50; /* HORIZON -> DESCEND 消隐帧数 (默认20帧=40ms) */
 static unsigned short g_ring_timeout_frames   = 3000; /* 环岛总超时 (帧, =6s, 覆盖ENTRANCE+PASS+IN_RING) */
 static unsigned short g_wall_timeout_frames   = 2000; /* 上墙总超时 (帧, =4s) */
 static unsigned short g_barrel_timeout_frames = 2000; /* 滚筒总超时 (帧, =4s) */
@@ -97,6 +98,7 @@ static VoteWindow_t vote_win_wall_descend;
 static unsigned char xdata barrel_vote_buf[BARREL_WIN_MAX];
 static float   barrel_entry_tilt;
 static float   barrel_exit_tilt;
+static float   barrel_peak_tilt = 75.0f;
 static VoteWindow_t vote_win_barrel;
 
 /* ================================================================
@@ -180,7 +182,13 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
     { ELEMENT_RIGHT_ANGLE_LEFT,  "RT_ANG_L", &g_speed_cruising, 128, 0, 255, CTRL_ERR_FREEZE, NULL, 0 },
     /* [14] ELEMENT_RIGHT_ANGLE_RIGHT */
     { ELEMENT_RIGHT_ANGLE_RIGHT, "RT_ANG_R", &g_speed_cruising, 255, 128, 0, CTRL_ERR_FREEZE, NULL, 0 },
-    /* [15] ELEMENT_SAFETY_STOP */
+    /* [15] ELEMENT_BARREL_CLIMB */
+    { ELEMENT_BARREL_CLIMB, "BAR_CLIMB", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 },
+    /* [16] ELEMENT_BARREL_VERTICAL_PEAK */
+    { ELEMENT_BARREL_VERTICAL_PEAK, "BAR_PEAK", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 },
+    /* [17] ELEMENT_BARREL_DESCEND */
+    { ELEMENT_BARREL_DESCEND, "BAR_DESC", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 },
+    /* [18] ELEMENT_SAFETY_STOP */
     { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 255, 0, 0, CTRL_BRAKE, NULL, 0 },
 };
 
@@ -407,6 +415,7 @@ void Element_Init(ElementCtx_t *ctx)
     /* 滚筒倾角阈值 */
     Debug_Register("Bar_EnTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_entry_tilt);
     Debug_Register("Bar_ExTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
+    Debug_Register("Bar_PeakTilt", DBG_FLOAT | STATIC_TYPE, &barrel_peak_tilt);
     /* 滚筒超时 (帧数) */
     Debug_Register("Bar_Timeout", DBG_UINT16 | STATIC_TYPE, &g_barrel_timeout_frames);
 
@@ -496,9 +505,10 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_wall_descend.entry_thresh = 7;
     vote_win_wall_descend.exit_thresh  = 7;
 
-    /* 滚筒倾角默认: 进入 >25°, 退出 <15° (滞回) */
+    /* 滚筒倾角默认: 进入 < -25°(低头), 退出 0~15°(抬头近水平), 峰值 >75° */
     barrel_entry_tilt  = 25.0f;
     barrel_exit_tilt   = 15.0f;
+    barrel_peak_tilt   = 75.0f;
     vote_win_barrel.entry_thresh = 7;
     vote_win_barrel.exit_thresh  = 7;
 
@@ -631,7 +641,10 @@ static unsigned char Check_WallHorizToDescend(ElementCtx_t *ctx)
 /* ---- 下行→STRAIGHT: TiltB > 阈值 (四元数前后倾角) ---- */
 static unsigned char Check_WallDescendExit(ElementCtx_t *ctx)
 {
-    if (ctx->vote_wall_descend.len == 0) { 
+    if (ctx->elem_blanking_cnt < wall_descent_blanking_frames) {
+        return 0;
+    }
+    if (ctx->vote_wall_descend.len == 0) {
         return (ctx->tilt_fb > wall_descend_exit_tiltb) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_wall_descend, ctx->vote_wall_descend.entry_thresh);
@@ -643,16 +656,16 @@ static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
     if (!Track_CheckExpected(ctx, ELEMENT_BARREL)) return 0;
 
     if (ctx->vote_barrel.len == 0) {
-        return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) > barrel_entry_tilt) ? 1 : 0;
+        return (ctx->tilt_fb < -barrel_entry_tilt) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_barrel, ctx->vote_barrel.entry_thresh);
 }
 
-/* ---- 滚筒退出 ---- */
+/* ---- 滚筒退出 (DESCEND→STRAIGHT: 抬头且倾角接近水平) ---- */
 static unsigned char Check_BarrelExit(ElementCtx_t *ctx)
 {
     if (ctx->vote_barrel.len == 0) {
-        return ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) < barrel_exit_tilt) ? 1 : 0;
+        return (ctx->tilt_fb < barrel_exit_tilt && ctx->tilt_fb > 0) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_barrel, ctx->vote_barrel.exit_thresh);
 }
@@ -662,7 +675,7 @@ static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
 {
     float cross_adc_sum;
 
-    if (!Track_CheckExpected(ctx, ELEMENT_CROSS)) return 0;
+   // if (!Track_CheckExpected(ctx, ELEMENT_CROSS)) return 0;
 
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
@@ -766,6 +779,12 @@ static void Enter_CrossExit(ElementCtx_t *ctx)
     Enter_ExitToStraight(ctx);
 }
 
+/* ---- 十字倾角超限退出: 清空投票窗, 不推进元素表 (绕过赛道顺序约束) ---- */
+static void Enter_CrossTiltExit(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_cross);
+}
+
 /* ---- 进入上墙: 复位帧计数, 清空全部上墙投票窗 ---- */
 static void Enter_Wall(ElementCtx_t *ctx)
 {
@@ -805,6 +824,26 @@ static void Enter_WallTimeout(ElementCtx_t *ctx)
     VoteWin_Reset(&ctx->vote_wall_descend);
     Enter_ExitToStraight(ctx);
 }
+/* ---- 滚筒上升：清除投票窗 ---- */
+static void Enter_BarrelClimb(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_barrel);
+}
+
+/* ---- 滚筒下降：检测峰值 ---- */
+static unsigned char Check_BarrelVerticalPeak(ElementCtx_t *ctx)
+{
+    /* Implementation for detecting vertical peak */
+    if(ctx->tilt_fb > barrel_peak_tilt) {
+        return 1; // Detected vertical peak
+    }
+    return 0;
+}
+
+static void Enter_BarrelDescend(ElementCtx_t *ctx)
+{
+    VoteWin_Reset(&ctx->vote_barrel);
+}
 
 /* ---- 滚筒超时: 检查帧计数 ---- */
 static unsigned char Check_BarrelTimeout(ElementCtx_t *ctx)
@@ -823,6 +862,14 @@ static void Enter_BarrelTimeout(ElementCtx_t *ctx)
 static unsigned char Check_CrossTimeout(ElementCtx_t *ctx)
 {
     return (ctx->elem_frame_cnt >= g_cross_timeout_frames) ? 1 : 0;
+}
+
+/* ---- 十字倾角超限：检查倾角是否超出限制 ---- */
+static unsigned char Check_CrossTilt(ElementCtx_t *ctx)
+{
+    float tilt_fb_abs = (ctx->tilt_fb > 0.0f) ? ctx->tilt_fb : -ctx->tilt_fb;
+    float tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    return (tilt_fb_abs >= angle_level || tilt_lr_abs >= angle_level) ? 1 : 0;
 }
 
 /* ---- 十字超时: 清空投票窗, 推进元素表 ---- */
@@ -860,6 +907,7 @@ static void Enter_WallHoriz(ElementCtx_t *ctx)
 static void Enter_WallDescend(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_wall_descend);
+    ctx->elem_blanking_cnt = 0;
 }
 
 /* ---- 直角转弯进入: 记录冻结 err, 清空投票窗 ---- */
@@ -896,12 +944,12 @@ static unsigned char Check_RightAngleRightEntry(ElementCtx_t *ctx)
 /* ---- 直角转弯退出条件: |raw_err| < exit_thresh ---- */
 static unsigned char Check_RightAngleExit(ElementCtx_t *ctx)
 {
-    float err_raw_abs;
-    err_raw_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
+    // float err_raw_abs;
+    // err_raw_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
 
-    if (ctx->vote_right_angle.len == 0) {
-        return (err_raw_abs < g_ra_exit_thresh) ? 1 : 0;
-    }
+    // if (ctx->vote_right_angle.len == 0) {
+    //     return (err_raw_abs < g_ra_exit_thresh) ? 1 : 0;
+    // }退化为单边了，注释掉得了
     return VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.exit_thresh);
 }
 
@@ -948,12 +996,22 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_WALL_HORIZONTAL, ELEMENT_STRAIGHT, 1, Check_WallTimeout,    Enter_WallTimeout },
     { ELEMENT_WALL_DESCEND,  ELEMENT_STRAIGHT, 1, Check_WallTimeout,    Enter_WallTimeout },
 
-    /* 退出各元素 → STRAIGHT */
-    { ELEMENT_BARREL, ELEMENT_STRAIGHT, 0, Check_BarrelExit, Enter_BarrelExit },
-    { ELEMENT_BARREL, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout },
-    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossExit,  Enter_CrossExit },
-    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 1, Check_CrossTimeout,  Enter_CrossTimeout },
+    { ELEMENT_BARREL,   ELEMENT_BARREL_CLIMB,0,NULL,Enter_BarrelClimb},
+    { ELEMENT_BARREL_CLIMB, ELEMENT_BARREL_DESCEND, 0, Check_BarrelVerticalPeak, Enter_BarrelDescend },
+   // { ELEMENT_BARREL_VERTICAL_PEAK, ELEMENT_BARREL_DESCEND, 0, Check_BarrelVerticalPeakToDescend, Enter_BarrelDescend },
+    { ELEMENT_BARREL_DESCEND, ELEMENT_STRAIGHT, 0, Check_BarrelExit, Enter_BarrelExit },
 
+
+
+    { ELEMENT_BARREL_CLIMB, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout},
+    { ELEMENT_BARREL_DESCEND, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout},
+
+    /* 退出各元素 → STRAIGHT */
+  //  { ELEMENT_BARREL, ELEMENT_STRAIGHT, 0, Check_BarrelExit, Enter_BarrelExit },
+   // { ELEMENT_BARREL, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout },
+    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 2, Check_CrossExit,  Enter_CrossExit },
+    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 1, Check_CrossTimeout,  Enter_CrossTimeout },
+    { ELEMENT_CROSS,  ELEMENT_STRAIGHT, 0, Check_CrossTilt,  Enter_CrossTiltExit },
     /* 直角转弯退出 */
     { ELEMENT_RIGHT_ANGLE_LEFT,  ELEMENT_STRAIGHT, 0, Check_RightAngleExit, Enter_RightAngleExit },
     { ELEMENT_RIGHT_ANGLE_LEFT,  ELEMENT_STRAIGHT, 1, Check_RATimeout,      Enter_RightAngleExit },
@@ -1046,7 +1104,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     if (ctx->current != ELEMENT_SAFETY_STOP && g_debug_push_mode != 1 && manual_control_flag == 0) {
         elapsed_ms = (now_tick - ctx->total_ticks_start) * portTICK_PERIOD_MS;
         if (g_ontrack_timeout_tick > 0 && elapsed_ms / 1000 >= g_ontrack_timeout_tick
-            && tilt_fb_abs < 15.0f && tilt_lr_abs < 15.0f) {
+            && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) {
             /* 上赛道超时: 切入 SAFETY_STOP, 由退出逻辑自动复位到手动模式 */
             System_Reset();
             return ctx->current;
@@ -1074,6 +1132,7 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* ---- 0.6 通用帧计数 (各元素超时检测共用) ---- */
     ctx->elem_frame_cnt++;
+    ctx->elem_blanking_cnt++; //各子元素内部消隐共用
     /* 环岛链帧计数 (ENTRANCE/PASS/IN_RING 超时兜底) */
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
         || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
@@ -1125,9 +1184,13 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
     VoteWin_Push(&ctx->vote_wall_horiz, wall_horiz_vote);
 
-    /* 下行→STRAIGHT投票: WALL_DESCEND → STRAIGHT, TiltB > 阈值 */
+    /* 下行→STRAIGHT投票: WALL_DESCEND → STRAIGHT, TiltB > 阈值, 消隐期内强制投0 */
     if (ctx->current == ELEMENT_WALL_DESCEND) {
-        wall_descend_vote = (ctx->tilt_fb > wall_descend_exit_tiltb) ? 1 : 0;
+        if (ctx->elem_blanking_cnt < wall_descent_blanking_frames) {
+            wall_descend_vote = 0;
+        } else {
+            wall_descend_vote = (ctx->tilt_fb > wall_descend_exit_tiltb) ? 1 : 0;
+        }
     } else {
         wall_descend_vote = 0;
     }
@@ -1135,9 +1198,9 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* 滚筒投票 */
     if (ctx->current == ELEMENT_STRAIGHT) {
-        barrel_vote = (tilt_fb_abs > barrel_entry_tilt) ? 1 : 0;
-    } else if (ctx->current == ELEMENT_BARREL) {
-        barrel_vote = (tilt_fb_abs < barrel_exit_tilt) ? 1 : 0;
+        barrel_vote = (ctx->tilt_fb < -barrel_entry_tilt) ? 1 : 0;
+    } else if (ctx->current == ELEMENT_BARREL_DESCEND) {
+        barrel_vote = (ctx->tilt_fb < barrel_exit_tilt && ctx->tilt_fb > 0) ? 1 : 0;
     } else {
         barrel_vote = 0;
     }
@@ -1146,7 +1209,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     /* 十字投票 */
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
     if (ctx->current == ELEMENT_STRAIGHT) {
-        cross_vote = (cross_adc_sum > cross_entry_sum) ? 1 : 0;
+        cross_vote = (cross_adc_sum > cross_entry_sum && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) ? 1 : 0;
     } else if (ctx->current == ELEMENT_CROSS) {
         cross_vote = (cross_adc_sum < cross_exit_sum) ? 1 : 0;
     } else {
@@ -1158,10 +1221,11 @@ element_t Element_Update(ElementCtx_t *ctx)
     if (ctx->current == ELEMENT_STRAIGHT) {
         err_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
         ra_vote = (err_abs > g_ra_entry_thresh) ? 1 : 0;
-    } else if (ctx->current == ELEMENT_RIGHT_ANGLE_LEFT
-            || ctx->current == ELEMENT_RIGHT_ANGLE_RIGHT) {
-        err_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
-        ra_vote = (err_abs < g_ra_exit_thresh) ? 1 : 0;
+    } else if (ctx->current == ELEMENT_RIGHT_ANGLE_LEFT){
+        ra_vote = (ctx->err_raw > -g_ra_exit_thresh && ctx->err_raw < 0) ? 1 : 0;
+    }
+    else if ( ctx->current == ELEMENT_RIGHT_ANGLE_RIGHT) {
+        ra_vote = (ctx->err_raw < g_ra_exit_thresh && ctx->err_raw > 0) ? 1 : 0;
     } else {
         ra_vote = 0;
     }
