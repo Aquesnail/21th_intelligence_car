@@ -880,7 +880,7 @@ static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
 {
     if (!VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.entry_thresh))
         return 0;
-    return (ctx->err_filtered < -g_ra_entry_thresh) ? 1 : 0;
+    return (ctx->err_raw < -g_ra_entry_thresh) ? 1 : 0;
 }
 
 /* ---- 直角转弯进入条件 (右): 无赛道表约束 + 投票达标 + err 为正 ---- */
@@ -888,7 +888,7 @@ static unsigned char Check_RightAngleRightEntry(ElementCtx_t *ctx)
 {
     if (!VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.entry_thresh))
         return 0;
-    return (ctx->err_filtered > g_ra_entry_thresh) ? 1 : 0;
+    return (ctx->err_raw > g_ra_entry_thresh) ? 1 : 0;
 }
 
 /* ---- 直角转弯退出条件: |raw_err| < exit_thresh ---- */
