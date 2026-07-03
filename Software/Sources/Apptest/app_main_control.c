@@ -599,6 +599,9 @@ static float g_ss_magnitude = 0.0f;
 static float g_ss_step      = 2.0f;
 #define SS_STEP_DOWN 10.0f
 
+
+
+/* 统一速度写入包装: 传入逻辑速度, 内部用 WR_SIGN 适配下位机方向 */
 /* ================================================================
  * 速度方向适配宏 (下位机方向约定变更时只需改这 4 个宏)
  *   WR_SIGN: 写入下位机的最终符号
@@ -608,8 +611,6 @@ static float g_ss_step      = 2.0f;
 #define SPD_WR_SIGN_L  (-1)   /* 左电机 (REG_B) 写入符号 */
 #define SPD_RD_SIGN_R  (-1)   /* 右电机 读取/显示符号 */
 #define SPD_RD_SIGN_L  (1)    /* 左电机 读取/显示符号 */
-
-/* 统一速度写入包装: 传入逻辑速度, 内部用 WR_SIGN 适配下位机方向 */
 static void Motor_Write_Speeds(float spd_r, float spd_l)
 {
     motor_data_t dr, dl;
@@ -634,6 +635,23 @@ static float SoftStart_Ramp(float cur, float tgt, float step_up, float step_down
     }
 }
 
+void System_Reset(void){   
+    /* 复位所有状态机/控制管线/滤波器 */
+    CtrlState_Reset(&g_state, &g_params);
+    Element_ResetOfftrackTimer(NULL);
+    Element_ResetTrackIndex(NULL);
+    g_ectx.current = ELEMENT_STRAIGHT;
+    g_ectx.exit_lockout_cnt = 0;
+    g_ectx.offtrack_active = 0;
+    g_ectx.total_ticks_start = xTaskGetTickCount();
+    manual_control_flag = 1;
+    PWMA_Set(0);
+    LED_RequestBreathing();              /* 切手动 → 呼吸灯 */
+    g_auto_transition = 0;
+    g_ss_magnitude = 0.0f;  /* 重置缓启动 */
+}
+
+
 void Change_Maunal(){
 	if(manual_control_flag){
         /* 切换到自动模式: 启动风扇, 3s 后再激活电机 */
@@ -651,6 +669,7 @@ void Change_Maunal(){
         g_ectx.current = ELEMENT_STRAIGHT;
         g_ectx.exit_lockout_cnt = 0;
         g_ectx.offtrack_active = 0;
+        g_ectx.total_ticks_start = xTaskGetTickCount();  /* 超时计时器从按钮按下开始 */
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
@@ -715,7 +734,7 @@ static void OnCtrlTransition(ControlStrategy_t from, ControlStrategy_t to)
     }
 
     /* 进入刹车/滑行: 全量复位 */
-    if (to == CTRL_BRAKE || to == CTRL_FREEWHEEL) {
+    if (to == CTRL_BRAKE ) {
         CtrlState_Reset(&g_state, &g_params);
         return;
     }
@@ -1315,7 +1334,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[2]);
     Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[3]);
 
-    Debug_Register("stat",DBG_UINT8,&current_element);
+    Debug_Register("stat",DBG_UINT16,&g_ectx.current);
+    Debug_Register("KdDifLT",   DBG_FLOAT, &g_params.outer.Kd_diff_low);
 
     /* 四元数重力向量倾角 */
     Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);

@@ -128,8 +128,7 @@ static unsigned short g_ra_timeout_frames = 500;  /* 直角超时帧数 (默认5
 static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
 static unsigned long g_offtrack_start_tick  = 0;  /* 信号丢失起始 tick */
 static unsigned char  g_offtrack_active      = 0; /* 当前是否正在计时 */
-static unsigned long  g_ontrack_timeout_tick = 0; /* 上赛道超时 (s) */
-static unsigned char  g_timeout_stop_active  = 0; /* 超时停车已触发, 禁止 ADC 恢复退出 */
+static uint32_t g_ontrack_timeout_tick = 0; /* 上赛道超时 (s) */
 
 /* ================================================================
  * 速度变量 (供元素属性表 speed_ptr 指向 + Debug_Register 在线调参)
@@ -355,8 +354,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->right_angle_side = 0;
         ctx->err_raw          = 0.0f;
         ctx->err_filtered     = 0.0f;
-        ctx->total_ticks_start = 0;
-        g_timeout_stop_active = 0;
+        ctx->total_ticks_start = xTaskGetTickCount();
 
     }
     Debug_Register("TTimeOut",DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_tick);
@@ -386,7 +384,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("RingExLock", DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
     Debug_Register("Ring_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ring_timeout_frames);
     Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
-    Debug_Register("DbgElem",    DBG_UINT8 | STATIC_TYPE, &g_single_element_debug);
+    Debug_Register("DbgElem",    DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
     Debug_Register("PushMode",   DBG_UINT8 | STATIC_TYPE, &g_debug_push_mode);
 
     Debug_Register("Wall_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
@@ -990,7 +988,7 @@ static void Element_EvaluateTransitions(ElementCtx_t *ctx)
         }
     }
 }
-
+extern void System_Reset(void);
 /* ================================================================
  * Element_Update — 统一入口
  *   每帧调用一次 (2ms 周期)
@@ -1026,13 +1024,13 @@ element_t Element_Update(ElementCtx_t *ctx)
     tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
      /* 上爬→水平投票: WALL_CLIMB → HORIZONTAL, |TiltR| > 阈值 */
     tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
-
+    now_tick = xTaskGetTickCount();
     if (all_adc_low && ctx->current != ELEMENT_SAFETY_STOP) {
         if (g_offtrack_active == 0) {
             g_offtrack_active = 1;
             g_offtrack_start_tick = xTaskGetTickCount();
         } else {
-            now_tick = xTaskGetTickCount();
+            
             elapsed_ms = (now_tick - g_offtrack_start_tick) * portTICK_PERIOD_MS;
             if (elapsed_ms >= (unsigned long)g_offtrack_timeout_ms) {
                 ctx->current = ELEMENT_SAFETY_STOP;
@@ -1044,26 +1042,23 @@ element_t Element_Update(ElementCtx_t *ctx)
     } else {
         g_offtrack_active = 0;
     }
-    now_tick = xTaskGetTickCount();
-    if (ctx->current != ELEMENT_SAFETY_STOP && g_debug_push_mode!=1) {
-        elapsed_ms = now_tick - ctx->total_ticks_start;
-        if (g_ontrack_timeout_tick>0 && elapsed_ms/1000 >= g_ontrack_timeout_tick && tilt_fb_abs < 10.0f && tilt_lr_abs < 10.0f) {
-            ctx->current = ELEMENT_SAFETY_STOP;
-            g_timeout_stop_active = 1;
-            Debug_Log(Element_GetProp(ELEMENT_SAFETY_STOP)->name);
-            g_offtrack_active = 0;
+    //now_tick = xTaskGetTickCount();
+    if (ctx->current != ELEMENT_SAFETY_STOP && g_debug_push_mode != 1 && manual_control_flag == 0) {
+        elapsed_ms = (now_tick - ctx->total_ticks_start) * portTICK_PERIOD_MS;
+        if (g_ontrack_timeout_tick > 0 && elapsed_ms / 1000 >= g_ontrack_timeout_tick
+            && tilt_fb_abs < 15.0f && tilt_lr_abs < 15.0f) {
+            /* 上赛道超时: 切入 SAFETY_STOP, 由退出逻辑自动复位到手动模式 */
+            System_Reset();
             return ctx->current;
         }
     }
 
-    /* SAFETY_STOP 退出: 任一 ADC 恢复 → 切手动模式 (超时停车除外) */
+    /* SAFETY_STOP 退出: 任一 ADC 恢复 → 切手动模式 */
     if (ctx->current == ELEMENT_SAFETY_STOP) {
-        if (!g_timeout_stop_active
-            && (ctx->adc[0] > 10.0f || ctx->adc[1] > 10.0f
-                || ctx->adc[2] > 10.0f || ctx->adc[3] > 10.0f)) {
-            ctx->current = ELEMENT_STRAIGHT;
-            manual_control_flag = 1;
-            LED_RequestBreathing();
+        if (ctx->adc[0] > 10.0f || ctx->adc[1] > 10.0f
+            || ctx->adc[2] > 10.0f || ctx->adc[3] > 10.0f) {
+            System_Reset();
+            return ctx->current;
             g_offtrack_active = 0;
             Element_ResetTrackIndex(ctx);
             Debug_Log(Element_GetProp(ELEMENT_STRAIGHT)->name);
@@ -1185,14 +1180,14 @@ element_t Element_Update(ElementCtx_t *ctx)
  *   替代原来在 PID 输出之后手动覆盖 target_yaw 的"劫持"模式
  *   CTRL_NORMAL:  使用外环 PID 输出
  *   CTRL_OL_YAW:  使用属性表中的开环角速度 (符号 × 幅值)
- *   CTRL_BRAKE / CTRL_FREEWHEEL: 返回 0
+ *   CTRL_BRAKE: 返回 0 (CTRL_FREEWHEEL 走 default, 保留外环输出以便调试观察)
  * ================================================================ */
 float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx)
 {
     if (ctrl == CTRL_OL_YAW && prop != NULL && prop->ol_yawrate_ptr != NULL) {
         return (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr) + ctx->yawrate;
     }
-    if (ctrl == CTRL_BRAKE || ctrl == CTRL_FREEWHEEL) {
+    if (ctrl == CTRL_BRAKE) {
         return 0.0f;
     }
     return ctx->yawrate;
