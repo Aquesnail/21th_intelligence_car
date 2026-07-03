@@ -863,7 +863,7 @@ static void Enter_WallDescend(ElementCtx_t *ctx)
 /* ---- 直角转弯进入: 记录冻结 err, 清空投票窗 ---- */
 static void Enter_RightAngle(ElementCtx_t *ctx)
 {
-    ctx->frozen_err       = ctx->err_filtered;
+    ctx->frozen_err       = ctx->err_raw;
     ctx->right_angle_side = (ctx->current == ELEMENT_RIGHT_ANGLE_LEFT) ? 0 : 1;
     ctx->elem_frame_cnt   = 0;
     VoteWin_Reset(&ctx->vote_right_angle);
@@ -1142,7 +1142,7 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* 直角转弯投票: STRAIGHT 下 |err_filtered| > entry_thresh 则投票进入 */
     if (ctx->current == ELEMENT_STRAIGHT) {
-        err_abs = (ctx->err_filtered > 0.0f) ? ctx->err_filtered : -ctx->err_filtered;
+        err_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
         ra_vote = (err_abs > g_ra_entry_thresh) ? 1 : 0;
     } else if (ctx->current == ELEMENT_RIGHT_ANGLE_LEFT
             || ctx->current == ELEMENT_RIGHT_ANGLE_RIGHT) {
@@ -1157,4 +1157,41 @@ element_t Element_Update(ElementCtx_t *ctx)
     Element_EvaluateTransitions(ctx);
 
     return ctx->current;
+}
+
+
+
+/* ================================================================
+ * SelectTargetYaw — 统一目标角速度选择器
+ *   替代原来在 PID 输出之后手动覆盖 target_yaw 的"劫持"模式
+ *   CTRL_NORMAL:  使用外环 PID 输出
+ *   CTRL_OL_YAW:  使用属性表中的开环角速度 (符号 × 幅值)
+ *   CTRL_BRAKE / CTRL_FREEWHEEL: 返回 0
+ * ================================================================ */
+float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx)
+{
+    if (ctrl == CTRL_OL_YAW && prop != NULL && prop->ol_yawrate_ptr != NULL) {
+        return (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr) + ctx->yawrate;
+    }
+    if (ctrl == CTRL_BRAKE || ctrl == CTRL_FREEWHEEL) {
+        return 0.0f;
+    }
+    return ctx->yawrate;
+}
+
+
+/* ================================================================
+ * SelectTargetErr — 统一目标误差值选择器
+ *   替代原来在 差比和差 输出之后手动覆盖 Err 的"劫持"模式
+ *   CTRL_NORMAL:  使用原本Err
+ *   CTRL_ERR_FREEZE:  使用冻结 Err (直角转弯)
+ * ================================================================ */
+
+float SelectTargetErr(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx)
+{
+    if (ctrl == CTRL_ERR_FREEZE && prop != NULL && ctx != NULL) {
+        return (ctx->frozen_err);
+    }
+    return ctx->err_raw;
+
 }

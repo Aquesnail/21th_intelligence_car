@@ -83,6 +83,7 @@ typedef struct {
     float yaw;
     float err_raw;                /* 原始 Err_Angle (未滤波), 供退出检测用 */
     float err_filtered;           /* 滤波后 Err_Angle, 供进入检测用 */
+    float yawrate;               /* 角速度 (deg/s) */
 
     /* ---- 计算中间量 ---- */
     float tilt_fb;                /* 前后倾角(度), 四元数重力向量版 */
@@ -142,5 +143,6 @@ const ElementProp_t* Element_GetProp(element_t e);
 ControlStrategy_t Element_GetEffectiveCtrl(element_t e);
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx);
 void Element_ResetTrackIndex(ElementCtx_t *ctx);
-
+float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx);
+float SelectTargetErr(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx);
 #endif /* ELEMENT_H */

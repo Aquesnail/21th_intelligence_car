@@ -623,24 +623,6 @@ static float abs_f(float t){
     }
 }
 /* err_angle_filtered 已移入 g_state.err_filtered */
-/* ================================================================
- * SelectTargetYaw — 统一目标角速度选择器
- *   替代原来在 PID 输出之后手动覆盖 target_yaw 的"劫持"模式
- *   CTRL_NORMAL:  使用外环 PID 输出
- *   CTRL_OL_YAW:  使用属性表中的开环角速度 (符号 × 幅值)
- *   CTRL_BRAKE / CTRL_FREEWHEEL: 返回 0
- * ================================================================ */
-static float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop,
-                              float tar_yaw_raw)
-{
-    if (ctrl == CTRL_OL_YAW && prop != NULL && prop->ol_yawrate_ptr != NULL) {
-        return (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr);
-    }
-    if (ctrl == CTRL_BRAKE || ctrl == CTRL_FREEWHEEL) {
-        return 0.0f;
-    }
-    return tar_yaw_raw;
-}
 
 /* ================================================================
  * OnCtrlTransition — 控制策略切换时的状态清理
@@ -826,25 +808,8 @@ void Main_Control_Task(void *pvParameters)
                 }
                 /* 填充元素状态机的 err 观测值 (先于 Element_Update + 冻结) */
                 g_ectx.err_raw      = Err_Angle;
-                g_ectx.err_filtered = g_state.err_filtered;
-
-                /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
-                if (ctrl == CTRL_ERR_FREEZE) {
-                    Err_Angle = g_ectx.frozen_err;
-                }
-
-                /* 外环带宽限制作用于电感原始数据 Err_Angle: 1.斜率限制 → 2.低通滤波 */
-                slew_diff = Err_Angle - g_state.err_slewed;
-                if (slew_diff > g_params.outer_slew_max) {
-                    g_state.err_slewed += g_params.outer_slew_max;
-                } else if (slew_diff < -g_params.outer_slew_max) {
-                    g_state.err_slewed -= g_params.outer_slew_max;
-                } else {
-                    g_state.err_slewed = Err_Angle;
-                }
-                g_state.err_filtered = lpf_update(&g_state.lpf_outer, g_state.err_slewed);
-
-                /* ===== 元素状态机更新 (先于控制决策, 保证本帧状态最新) ===== */
+                g_ectx.err_filtered = g_state.err_filtered; //这里必须更新原始值，不能劫持
+                 /* ===== 元素状态机更新 (先于控制决策, 保证本帧状态最新) ===== */
                 {
                     unsigned char j;
                     for (j = 0; j < 4; j++) {
@@ -879,6 +844,26 @@ void Main_Control_Task(void *pvParameters)
                     }
                     current_element = Element_Update(&g_ectx);
                 }
+                /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
+/************    状态机插入 ****************** */
+
+                Err_Angle = SelectTargetErr(ctrl, prop, &g_ectx);
+
+/************    状态机插入 ****************** */
+
+
+                /* 外环带宽限制作用于电感原始数据 Err_Angle: 1.斜率限制 → 2.低通滤波 */
+                slew_diff = Err_Angle - g_state.err_slewed;
+                if (slew_diff > g_params.outer_slew_max) {
+                    g_state.err_slewed += g_params.outer_slew_max;
+                } else if (slew_diff < -g_params.outer_slew_max) {
+                    g_state.err_slewed -= g_params.outer_slew_max;
+                } else {
+                    g_state.err_slewed = Err_Angle;
+                }
+                g_state.err_filtered = lpf_update(&g_state.lpf_outer, g_state.err_slewed);
+
+               
 
                 /* 每 tick 一次查表 (替代原多处分散的 Element_GetProp 调用) */
                 prop = Element_GetProp(current_element);
@@ -895,11 +880,16 @@ void Main_Control_Task(void *pvParameters)
                     prev_element = current_element;
                 }
 
+/************    状态机插入 ****************** */
+
                 /* 控制策略切换 → 清理 PID 状态 (替代原散落的复位代码) */
                 if (ctrl != prev_ctrl) {
                     OnCtrlTransition(prev_ctrl, ctrl);
                     prev_ctrl = ctrl;
                 }
+/************    状态机插入 ****************** */
+
+
 
                 /* 速度查表 (基于最新状态机输出) */
                 if (prop != NULL && prop->speed_ptr != NULL) {
@@ -946,7 +936,14 @@ void Main_Control_Task(void *pvParameters)
                               - g_params.Kd_diff * g_state.filtered_d_term;
 //角速度环路劫持
                 /* 统一目标角速度选择 (替代原 OL_YAW 劫持) */
-                g_state.target_yaw = SelectTargetYaw(ctrl, prop, g_state.tar_yaw_raw);
+/***************    状态机插入 ****************** */
+
+                g_ectx.yawrate = g_state.tar_yaw_raw;
+                g_state.target_yaw = SelectTargetYaw(ctrl, prop,&g_ectx);
+
+
+/***************   状态机插入 ****************** */
+
 
                 /* 内环 PI + 速度合成 (唯一一次, 基于最新状态机输出) */
                 differential_speed = PI_Step(&g_params.inner, &g_state.inner, g_state.target_yaw, actual_yaw_rate);
@@ -1129,7 +1126,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &Err_D_K);
     Debug_Register("ADC_DeadZone", DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
     Debug_Register("ADC_ErrZone", DBG_FLOAT | STATIC_TYPE, &adc_err_zone);
-    Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
+   // Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
     //Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
     Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
     // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
@@ -1161,7 +1158,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("KdDifLo",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_low);
     Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_params.Kd_diff_thresh);
     Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_params.diff_deadband);
-    Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.filtered_d_term);
+   // Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.filtered_d_term);
     Debug_Register("TarYawR",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
     Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
     Debug_Register("GyroLPFFc", DBG_FLOAT | STATIC_TYPE, &g_params.gyro_lpf_fc);
