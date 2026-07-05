@@ -68,11 +68,21 @@ typedef struct {
     float   outer_i_sep_lo;
 } OuterLoopParams_t;
 
+/* 速度输出后处理参数 (每个元素独立配置) */
+typedef struct {
+    float max_output;   /* 单轮最大输出限幅 (绝对值)               */
+    float min_output;   /* 单轮最小输出限幅 (死区, 低于此值置零)    */
+    float max_diff;     /* 最大差速限幅 (自动 ≤ common_speed 防反转) */
+    float min_diff;     /* 最小差速限幅 (死区, |diff| 低于此值置零)  */
+    float slew_rate;    /* 输出斜率限制 (每 tick 最大变化量)         */
+} SpeedOutputParams_t;
+
 /* 完整控制参数集 (一个元素配一套, 上位机在线调参) */
 typedef struct {
-    OuterLoopParams_t outer;
-    AdcErrParams_t    adc;
-    PIParams_t        inner;
+    OuterLoopParams_t   outer;
+    AdcErrParams_t      adc;
+    PIParams_t          inner;
+    SpeedOutputParams_t speed_out;  /* 速度输出后处理 */
 } ControlParams_t;
 
 /* 控制管线运行时状态 (每帧变化) */
@@ -91,6 +101,8 @@ typedef struct {
     float   target_yaw;
     float   pid_output;
     PIState_t inner;
+    float   last_spd_l;   /* 左轮上帧输出 (slew 限制用) */
+    float   last_spd_r;   /* 右轮上帧输出 (slew 限制用) */
 } ControlState_t;
 
 /* ================================================================
@@ -121,6 +133,8 @@ static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float se
     ma_reset(&s->d_ma, 0.0f);
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
+    s->last_spd_l       = speed_target_l.f;
+    s->last_spd_r       = speed_target_r.f;
 }
 
 
@@ -153,7 +167,6 @@ static void ApplyParamsIfChanged(const ControlParams_t *p)
 /* ================================================================
  * 速度目标值宏 (临时占位, 后续调整)
  * ================================================================ */
-
 
 /* ================================================================
  * TaskNotify 信号位定义
@@ -430,6 +443,8 @@ static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
     ma_reset(&s->d_ma, 0.0f);
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
+    s->last_spd_l       = 0.0f;
+    s->last_spd_r       = 0.0f;
 }
 
 
@@ -599,6 +614,68 @@ static float g_ss_magnitude = 0.0f;
 static float g_ss_step      = 2.0f;
 #define SS_STEP_DOWN 10.0f
 
+
+
+/* ================================================================
+ * ApplySpeedOutputParams — 速度输出后处理
+ *   输入: common_speed (查表速度), diff_speed (内环PI输出)
+ *   处理: 差速死区 → 差速限幅 → 速度合成 → 单轮限幅 → 斜率限制
+ *   输出: 写入全局 speed_target_l.f / speed_target_r.f
+ * ================================================================ */
+static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t *s,
+                                    float common_speed, float *diff_speed)
+{
+    float raw_l, raw_r;
+    float tgt_l, tgt_r;
+    float diff_l, diff_r;
+    float eff_max_diff;
+
+    /* ---- 1. 差速死区 ---- */
+    if (*diff_speed < p->min_diff && *diff_speed > -p->min_diff) {
+        *diff_speed = 0.0f;
+    }
+
+    /* ---- 2. 差速限幅 (自动 ≤ common_speed 防止反转) ---- */
+    eff_max_diff = p->max_diff;
+    if (eff_max_diff > common_speed) {
+        eff_max_diff = common_speed;
+    }
+    if (*diff_speed >  eff_max_diff) *diff_speed =  eff_max_diff;
+    if (*diff_speed < -eff_max_diff) *diff_speed = -eff_max_diff;
+
+    /* ---- 3. 速度合成 ---- */
+    raw_l = common_speed - *diff_speed;
+    raw_r = -(common_speed + *diff_speed);
+
+    /* ---- 4. 单轮输出限幅 ---- */
+    if (raw_l >  p->max_output) raw_l =  p->max_output;
+    if (raw_l < -p->max_output) raw_l = -p->max_output;
+    if (raw_r >  p->max_output) raw_r =  p->max_output;
+    if (raw_r < -p->max_output) raw_r = -p->max_output;
+
+    /* 单轮死区 */
+    if (raw_l < p->min_output && raw_l > -p->min_output) raw_l = 0.0f;
+    if (raw_r < p->min_output && raw_r > -p->min_output) raw_r = 0.0f;
+
+    /* ---- 5. 斜率限制 ---- */
+    tgt_l = raw_l;
+    tgt_r = raw_r;
+    diff_l = tgt_l - s->last_spd_l;
+    diff_r = tgt_r - s->last_spd_r;
+
+    if (diff_l >  p->slew_rate)      tgt_l = s->last_spd_l + p->slew_rate;
+    if (diff_l < -p->slew_rate)      tgt_l = s->last_spd_l - p->slew_rate;
+    if (diff_r >  p->slew_rate)      tgt_r = s->last_spd_r + p->slew_rate;
+    if (diff_r < -p->slew_rate)      tgt_r = s->last_spd_r - p->slew_rate;
+
+    /* 存储状态 */
+    s->last_spd_l = tgt_l;
+    s->last_spd_r = tgt_r;
+
+    /* 输出到全局速度目标 */
+    speed_target_l.f = tgt_l;
+    speed_target_r.f = tgt_r;
+}
 
 
 /* 统一速度写入包装: 传入逻辑速度, 内部用 WR_SIGN 适配下位机方向 */
@@ -1071,14 +1148,13 @@ void Main_Control_Task(void *pvParameters)
 
 
                 /* 内环 PI + 速度合成 (唯一一次, 基于最新状态机输出) */
-                                /* ===== Block 3: �ڻ� PI �� ���� ===== */
                 {
                     const ControlParams_t *p = GetActiveParams(current_element);
                     differential_speed = RunInnerLoop(&p->inner, &g_state.inner,
                                                        g_state.target_yaw, g_state.gyro_filtered);
+                    ApplySpeedOutputParams(&p->speed_out, &g_state,
+                                            common_speed, &differential_speed);
                 }
-                speed_target_l.f = common_speed - differential_speed;
-                speed_target_r.f = -(common_speed + differential_speed);
                 speed_target_r_nagtive = -speed_target_r.f;
 
                 /* 处理 Debug 系统延迟的 PID 参数写入 / 手动模式超时保护 / 驾驶指令 */
@@ -1211,31 +1287,59 @@ void Main_Control_Task_Init(void)
     memset(&speed_target_r,      0, sizeof(speed_target_r));
 
     // g_ec_ma_count_desc.peri_addr = (uint32_t)&(pid_struct.ec_count); /* EC移动平均已移除 */
-    /* 注册 ADC 调试变量 */
-    Debug_Register("adc0", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[0]);
-    Debug_Register("adc1", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[1]);
-    Debug_Register("adc2", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
-    Debug_Register("adc3", DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
-    Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE,&tmp_adc13);
-    Debug_Register("yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
+    /* ================================================================
+     * 1. 实时观测 (HIGH_FREQ) — 只看不改
+     * ================================================================ */
+    /* ADC */
+    Debug_Register("adc0",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[0]);
+    Debug_Register("adc1",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[1]);
+    Debug_Register("adc2",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
+    Debug_Register("adc3",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
+    Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adc13);
+    /* 姿态 */
+    Debug_Register("yaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
     Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_filtered);
-    /* 注册电机调试变量 */
-    // Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_target);
+    Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);
+    Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_lr);
+    /* 电机 */
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_r_nagtive));
     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_actual);
-    // Debug_Register("L_Err", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_error);
-    // Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_target);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
-    
-  
-    //  Debug_Register("FKp", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kp0);
-   // Debug_Register("FKd", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Kd0);
-  //  Debug_Register("FKi", DBG_FLOAT | HIGH_FREQ_TYPE, &pid_struct.Ki0);
-    // Debug_Register("Mech",  DBG_UINT32 | HIGH_FREQ_TYPE, &g_mech_state);
-    g_stream_active = 0;
 
-    /* 设置默认参数 (memset 归零后覆盖) */
+    /* ================================================================
+     * 2. ADC 误差权重 & 归一化 — 默认值 & Debug 注册
+     * ================================================================ */
+    /* 默认参数 (g_params.adc) */
+    g_params.adc.err_A_K = 2.0f;
+    g_params.adc.err_B_K = 6.0f;
+    g_params.adc.err_C_K = 3.0f;
+    g_params.adc.err_D_K = 3.0f;
+    Debug_Register("Err_K_A", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_A_K);
+    Debug_Register("Err_K_B", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_B_K);
+    Debug_Register("Err_K_C", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_C_K);
+    Debug_Register("Err_K_D", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_D_K);
+
+    /* 十字专用 (g_params_cross.adc, Init 末尾 copy 后个别清零) */
+    Debug_Register("Cr_ErrKA", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_A_K);
+    Debug_Register("Cr_ErrKB", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_B_K);
+    Debug_Register("Cr_ErrKC", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_C_K);
+    Debug_Register("Cr_ErrKD", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_D_K);
+
+    /* 死区 & 通道选择 */
+    Debug_Register("CH_Induct",   DBG_UINT8  | STATIC_TYPE, &change_inductor);
+    Debug_Register("ADC_DeadZone",DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
+    Debug_Register("ADC_ErrZone", DBG_FLOAT  | STATIC_TYPE, &adc_err_zone);
+
+    /* 归一化系数 */
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[0]);
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[1]);
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[2]);
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[3]);
+
+    /* ================================================================
+     * 3. 外环控制参数 (OuterLoop) — 默认值 & Debug 注册
+     * ================================================================ */
     g_params.outer.outer_slew_max  = 100.0f;
     g_params.outer.outer_lpf_fc    = 100.0f;
     g_params.outer.gyro_lpf_fc     = 100.0f;
@@ -1246,121 +1350,67 @@ void Main_Control_Task_Init(void)
     g_params.outer.outer_i_limit   = 3.6f;
     g_params.outer.outer_i_sep_hi  = 10000.0f;
     g_params.outer.outer_i_sep_lo  = 30.0f;
-
-    g_params.adc.err_A_K = 2.0f;
-    g_params.adc.err_B_K = 6.0f;
-    g_params.adc.err_C_K = 3.0f;
-    g_params.adc.err_D_K = 3.0f;
-
-    /* 初始化低通滤波器, 截止频率可在此修改 */
-    lpf_init_fc(&g_lpf_left,              400.0f, 0.002f);
-    lpf_init_fc(&g_lpf_right,             400.0f, 0.002f);
-    lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
-    lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
-    ma_init(&g_state.d_ma, g_params.outer.d_ma_window);
-
-    /* 注册 PID 参数 (外设静态变量, 上位机按需读写) */
-    Debug_Register("CH_Induct",  DBG_UINT8 | STATIC_TYPE , &change_inductor);
-    Debug_Register("Err_K_A",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_A_K);
-    Debug_Register("Err_K_B",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_B_K);
-    Debug_Register("Err_K_C",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_C_K);
-    Debug_Register("Err_K_D",   DBG_FLOAT | STATIC_TYPE , &g_params.adc.err_D_K);
-    Debug_Register("Cr_ErrKA",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_A_K);
-    Debug_Register("Cr_ErrKB",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_B_K);
-    Debug_Register("Cr_ErrKC",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_C_K);
-    Debug_Register("Cr_ErrKD",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_D_K);
-    Debug_Register("ADC_DeadZone", DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
-    Debug_Register("ADC_ErrZone", DBG_FLOAT | STATIC_TYPE, &adc_err_zone);
-   // Debug_Register("Err_Angle", DBG_FLOAT | HIGH_FREQ_TYPE , &Err_Angle);
-    //Debug_Register("Common_Spd", DBG_FLOAT | STATIC_TYPE, &common_speed);
-    Debug_Register("Manual", DBG_UINT8 | STATIC_TYPE, &manual_control_flag);
-    // Debug_Register("A_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kp_desc);
-    // Debug_Register("A_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ki_desc);
-    // Debug_Register("A_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_kd_desc);
-
-   // Debug_Register("pid_output_k", DBG_FLOAT | STATIC_TYPE, &pid_output_k);
-    Debug_Register("Fan_D", DBG_UINT16 | STATIC_TYPE | PERI_TYPE , &g_fan_d);
-    Debug_Register("Drive_Spd", DBG_FLOAT | STATIC_TYPE, &drive_speed);
-    Debug_Register("SS_Step",   DBG_FLOAT | STATIC_TYPE, &g_ss_step);
-    Debug_Register("FKp0",      DBG_FLOAT | STATIC_TYPE, &pid_struct.Kp0);
-    Debug_Register("Fe_max",    DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
-    // Debug_Register("Fsetpoint", DBG_FLOAT | STATIC_TYPE, &pid_struct.setpoint);
-
-    /* 内环 PI 控制器参数 (静态, 上位机在线调参) */
-    Debug_Register("Yaw_Kp",    DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kp);
-    Debug_Register("Yaw_Ki",    DBG_FLOAT | STATIC_TYPE, &g_params.inner.Ki);
-    Debug_Register("Yaw_Kd",    DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kd);
-    Debug_Register("YawLimit",  DBG_FLOAT | STATIC_TYPE, &g_params.inner.error_sum_max);
-    Debug_Register("YawHiLi",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.max_sep);
-    Debug_Register("YawLoLi",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.min_sep);
-    /* 外环模糊 P 输出 = 目标角速度, 内环实际角速度 (高频, 观察跟随效果) */
-    Debug_Register("TgtYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
-    Debug_Register("OutSlew",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_slew_max);
-    Debug_Register("OutLPFFc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
+    Debug_Register("OutSlew",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_slew_max);
+    Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
+    Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
+    Debug_Register("KdDifLo",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_low);
+    Debug_Register("KdDifTh",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_thresh);
+    Debug_Register("DiffDead",  DBG_FLOAT  | STATIC_TYPE, &g_params.outer.diff_deadband);
     Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
-    Debug_Register("KdDifHi",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.Kd_diff_high);
-    Debug_Register("KdDifLo",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.Kd_diff_low);
-    Debug_Register("KdDifTh",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.Kd_diff_thresh);
-    Debug_Register("DiffDead",  DBG_FLOAT | STATIC_TYPE, &g_params.outer.diff_deadband);
-   // Debug_Register("FTerm",     DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.filtered_d_term);
-    Debug_Register("TarYawR",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
-    Debug_Register("ActYaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
-    Debug_Register("GyroLPFFc", DBG_FLOAT | STATIC_TYPE, &g_params.outer.gyro_lpf_fc);
-    /* 外环积分项参数 (静态, 上位机在线调参) */
-    Debug_Register("Out_Ki",    DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_Ki);
-    Debug_Register("OutILim",   DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_i_limit);
-    Debug_Register("OutIHi",    DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
-    Debug_Register("OutILo",    DBG_FLOAT | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
-    Debug_Register("OutITrm",   DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
+    Debug_Register("Out_Ki",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_Ki);
+    Debug_Register("OutILim",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_limit);
+    Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
+    Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
+    Debug_Register("GyroLPFFc", DBG_FLOAT  | STATIC_TYPE, &g_params.outer.gyro_lpf_fc);
 
-    Debug_Register("ComSpd", DBG_FLOAT | STATIC_TYPE, &common_speed);
+    /* ================================================================
+     * 4. 外环观测 (HIGH_FREQ) — 只看不改
+     * ================================================================ */
+    Debug_Register("TgtYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
+    Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
+    Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
+    Debug_Register("OutITrm", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
 
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NB]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NM]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NS]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_ZO]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PS]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PM]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PB]);
-    
-    Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
-    // Debug_Register("B_Kp",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kp_desc);
-    // Debug_Register("B_Ki",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ki_desc);
-    // Debug_Register("B_Kd",   DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_kd_desc);
-     Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
-   // Debug_Register("FKi0", DBG_FLOAT | STATIC_TYPE, &pid_struct.Ki0);
-    Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[0]);
-    Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[1]);
-    Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[2]);
-    Debug_Register("NormK", DBG_FLOAT| STATIC_TYPE, &normalized_adc_k[3]);
-
-    Debug_Register("stat",DBG_UINT16,&g_ectx.current);
-    Debug_Register("KdDifLT",   DBG_FLOAT, &g_params.outer.Kd_diff_low);
-
-    /* 四元数重力向量倾角 */
-    Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);
-    Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_lr);
-
-    /* 速度变量已迁移至 element.c: Cruising, RingSpd, WallSpd, BarrelSpd, CrossSpd */
-
-    /* 开环过元素参数见 element.c: OL_Ang, OL_Yaw, PassTmOut, RingSide */
-    /* 初始化 SPI3, ADC */
-    SPI3_Init(SPI3_Callback);
-    ADC2_DMA_Init(adc_dma_buf);
-    ADC2_DMA_Start();
-
-    /* 内环 PI 控制器初始参数 (上位机可在线调参) */
+    /* ================================================================
+     * 5. 内环 PI — 默认值 & Debug 注册
+     * ================================================================ */
     g_params.inner.Kp = 5.5f;
     g_params.inner.Ki = 0.0f;
     g_params.inner.Kd = 0.10000000149011612f;
-    g_state.inner.error_sum = 0.0f;
-    g_state.inner.last_error = 0.0f;
     g_params.inner.error_sum_max = 0.0f;
     g_params.inner.max_sep = 100000.0f;
     g_params.inner.min_sep = 0.0f;
-    pid_struct.e_max = 150.0f; /* 根据实际误差范围调整 */
-    pid_struct.Kp0 = 0.06300000101327896f; /* 基础 Kp */
-    pid_struct.setpoint = 0.0f; /* 目标值 (循迹一般设为0) */
+    g_state.inner.error_sum  = 0.0f;
+    g_state.inner.last_error = 0.0f;
+    Debug_Register("Yaw_Kp",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kp);
+    Debug_Register("Yaw_Ki",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.Ki);
+    Debug_Register("Yaw_Kd",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kd);
+    Debug_Register("YawLimit", DBG_FLOAT | STATIC_TYPE, &g_params.inner.error_sum_max);
+    Debug_Register("YawHiLi",  DBG_FLOAT | STATIC_TYPE, &g_params.inner.max_sep);
+    Debug_Register("YawLoLi",  DBG_FLOAT | STATIC_TYPE, &g_params.inner.min_sep);
+
+    /* ================================================================
+     * 5b. 速度输出后处理 — 默认值 & Debug 注册
+     * ================================================================ */
+    g_params.speed_out.max_output = 100.0f;   /* 远大于正常速度, 仅防极端 */
+    g_params.speed_out.min_output = 0.0f;     /* 默认无死区 */
+    g_params.speed_out.max_diff   = 50.0f;    /* = common_speed, 防止反转 */
+    g_params.speed_out.min_diff   = 0.0f;     /* 默认无死区 */
+    g_params.speed_out.slew_rate  = 20.0f;    /* 每 tick ±20, 500Hz 下平滑 */
+    g_state.last_spd_l = 0.0f;
+    g_state.last_spd_r = 0.0f;
+    Debug_Register("SpdMax",  DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.max_output);
+    Debug_Register("SpdMin",  DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.min_output);
+    Debug_Register("DiffMax", DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.max_diff);
+    Debug_Register("DiffMin", DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.min_diff);
+    Debug_Register("SpdSlew", DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.slew_rate);
+
+    /* ================================================================
+     * 6. 模糊 PID — 默认值 & Debug 注册
+     * ================================================================ */
+    pid_struct.e_max    = 150.0f;
+    pid_struct.Kp0      = 0.06300000101327896f;
+    pid_struct.setpoint = 0.0f;
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.e_max);
     /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
     pid_struct.kp_singletons[FUZZY_NB] = 2.0999999046325684f;
@@ -1370,11 +1420,53 @@ void Main_Control_Task_Init(void)
     pid_struct.kp_singletons[FUZZY_PS] = 1.100000023841858f;
     pid_struct.kp_singletons[FUZZY_PM] = 1.2000000476837158f;
     pid_struct.kp_singletons[FUZZY_PB] = 2.0999999046325684f;
+    Debug_Register("FKp0",   DBG_FLOAT | STATIC_TYPE, &pid_struct.Kp0);
+    Debug_Register("Fe_max", DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NB]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_ZO]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PB]);
 
+    /* ================================================================
+     * 7. 电机外设 (PERI_TYPE) — 通过 SPI 读写电机寄存器
+     * ================================================================ */
+    Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
+    Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
+
+    /* ================================================================
+     * 8. 系统 / 杂项 — Debug 注册
+     * ================================================================ */
+    Debug_Register("ComSpd",    DBG_FLOAT  | STATIC_TYPE, &common_speed);
+    Debug_Register("Drive_Spd", DBG_FLOAT  | STATIC_TYPE, &drive_speed);
+    Debug_Register("Fan_D",     DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_fan_d);
+    Debug_Register("SS_Step",   DBG_FLOAT  | STATIC_TYPE, &g_ss_step);
+    Debug_Register("Manual",    DBG_UINT8  | STATIC_TYPE, &manual_control_flag);
+    Debug_Register("stat",      DBG_UINT16,                &g_ectx.current);
+
+    /* ================================================================
+     * 9. 滤波器 & 移动平均初始化 (依赖外环默认参数)
+     * ================================================================ */
+    lpf_init_fc(&g_lpf_left,              400.0f, 0.002f);
+    lpf_init_fc(&g_lpf_right,             400.0f, 0.002f);
+    lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
+    lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
+    ma_init(&g_state.d_ma, g_params.outer.d_ma_window);
+
+    /* ================================================================
+     * 10. 十字参数集 & 收尾
+     * ================================================================ */
+    g_stream_active = 0;
     copy_params(&g_params_cross, &g_params);
-
     g_params_cross.adc.err_B_K = 0.0f;
-    g_params_cross.adc.err_D_K = 0.0f;  
+    g_params_cross.adc.err_D_K = 0.0f;
+
+    /* 初始化 SPI3, ADC */
+    SPI3_Init(SPI3_Callback);
+    ADC2_DMA_Init(adc_dma_buf);
+    ADC2_DMA_Start();
     //vTaskDelay(pdMS_TO_TICKS(10));
     
     /* 创建 Main_Control_Task (低优先级, 2ms 周期) */

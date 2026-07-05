@@ -313,6 +313,9 @@ static unsigned char Check_RingExit(ElementCtx_t *ctx)
         if (yaw_delta > -g_ring_exit_yaw_thresh) return 0;
     }
 
+    if (ctx->vote_ring.len == 0) {
+        return (ctx->adc[2] > RingExit[2] || ctx->adc[0] > RingExit[0]) ? 1 : 0;
+    }
     return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.exit_thresh);
 }
 
@@ -425,7 +428,7 @@ static unsigned char Check_WallDescendExit(ElementCtx_t *ctx)
         return 0;
     }
     if (ctx->vote_wall_descend.len == 0) {
-        return (ctx->tilt_fb > wall_descend_exit_tiltb) ? 1 : 0;
+        return (ctx->tilt_fb <wall_descend_exit_tiltb) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_wall_descend, ctx->vote_wall_descend.entry_thresh);
 }
@@ -481,6 +484,8 @@ static void Enter_WallTimeout(ElementCtx_t *ctx)
 
 /* ---- 滚筒参数 ---- */
 static unsigned char xdata barrel_vote_buf[BARREL_WIN_MAX];
+static unsigned char xdata barrel_peak_vote_buf[BARREL_WIN_MAX];
+static VoteWindow_t vote_win_barrel_peak;
 static VoteWindow_t vote_win_barrel;
 static float   barrel_entry_tilt;
 static float   barrel_exit_tilt;
@@ -500,10 +505,10 @@ static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
 
 static unsigned char Check_BarrelVerticalPeak(ElementCtx_t *ctx)
 {
-    if (ctx->tilt_fb > barrel_peak_tilt) {
-        return 1;
+    if (ctx->vote_barrel_peak.len == 0) {
+        return (ctx->tilt_fb > barrel_peak_tilt) ? 1 : 0;
     }
-    return 0;
+    return VoteWin_Reached(&ctx->vote_barrel_peak, ctx->vote_barrel_peak.entry_thresh);
 }
 
 static unsigned char Check_BarrelExit(ElementCtx_t *ctx)
@@ -569,7 +574,9 @@ static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
 
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
-        return (cross_adc_sum > cross_entry_sum) ? 1 : 0;
+        return (cross_adc_sum > cross_entry_sum
+                && (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) < angle_level
+                && (ctx->tilt_lr > 0.0f ? ctx->tilt_lr : -ctx->tilt_lr) < angle_level) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_cross, ctx->vote_cross.entry_thresh);
 }
@@ -641,6 +648,16 @@ static unsigned short g_ra_timeout_frames = 500;  /* 直角超时帧数 (默认5
 /* ---- 直角转弯 Check ---- */
 static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
 {
+    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE 
+    || ctx->current == ELEMENT_RING_LEFT_PASS
+    || ctx->current == ELEMENT_IN_RING
+    || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+    || ctx->current == ELEMENT_RING_RIGHT_PASS) {
+        return 0;
+    }
+    if (ctx->vote_right_angle.len == 0) {
+        return (ctx->err_raw < -g_ra_entry_thresh) ? 1 : 0;
+    }
     if (!VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.entry_thresh))
         return 0;
     return (ctx->err_raw < -g_ra_entry_thresh) ? 1 : 0;
@@ -648,6 +665,16 @@ static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
 
 static unsigned char Check_RightAngleRightEntry(ElementCtx_t *ctx)
 {
+    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE 
+    || ctx->current == ELEMENT_RING_LEFT_PASS
+    || ctx->current == ELEMENT_IN_RING
+    || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+    || ctx->current == ELEMENT_RING_RIGHT_PASS) {
+        return 0;
+    }
+    if (ctx->vote_right_angle.len == 0) {
+        return (ctx->err_raw > g_ra_entry_thresh) ? 1 : 0;
+    }
     if (!VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.entry_thresh))
         return 0;
     return (ctx->err_raw > g_ra_entry_thresh) ? 1 : 0;
@@ -655,6 +682,13 @@ static unsigned char Check_RightAngleRightEntry(ElementCtx_t *ctx)
 
 static unsigned char Check_RightAngleExit(ElementCtx_t *ctx)
 {
+    if (ctx->vote_right_angle.len == 0) {
+        if (ctx->right_angle_side == 0) {
+            return (ctx->err_raw > -g_ra_exit_thresh && ctx->err_raw < 0) ? 1 : 0;
+        } else {
+            return (ctx->err_raw < g_ra_exit_thresh && ctx->err_raw > 0) ? 1 : 0;
+        }
+    }
     return VoteWin_Reached(&ctx->vote_right_angle, ctx->vote_right_angle.exit_thresh);
 }
 
@@ -802,141 +836,181 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->total_ticks_start = xTaskGetTickCount();
 
     }
-    Debug_Register("TTimeOut",DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_tick);
-    /* 环岛进入 ADC 阈值 */
+    /* ================================================================
+     * 1. 共享 / 赛道表 / 安全停车 — Debug 注册
+     * ================================================================ */
+    Debug_Register("TTimeOut", DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_tick);
+    Debug_Register("OffTkMs",  DBG_FLOAT  | STATIC_TYPE, &g_offtrack_timeout_ms);
+    Debug_Register("TblEnable",DBG_UINT8  | STATIC_TYPE, &g_track_table_enabled);
+    Debug_Register("DbgElem",  DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
+    Debug_Register("PushMode", DBG_UINT8  | STATIC_TYPE, &g_debug_push_mode);
+
+    /* ================================================================
+     * 2. 速度变量 — Debug 注册
+     * ================================================================ */
+    Debug_Register("Cruising",  DBG_FLOAT | STATIC_TYPE, &g_speed_cruising);
+    Debug_Register("RingSpd",   DBG_FLOAT | STATIC_TYPE, &g_speed_ring);
+    Debug_Register("WallSpd",   DBG_FLOAT | STATIC_TYPE, &g_speed_wall);
+    Debug_Register("WClimbSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_wall_climb);
+    Debug_Register("WHorizSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_wall_horiz);
+    Debug_Register("WDescSpd",  DBG_FLOAT | STATIC_TYPE, &g_speed_wall_descend);
+    Debug_Register("BarrelSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_barrel);
+    Debug_Register("CrossSpd",  DBG_FLOAT | STATIC_TYPE, &g_speed_cross);
+
+    /* ================================================================
+     * 3. 环岛 RING — 默认值 & Debug 注册
+     * ================================================================ */
+    /* 进入 ADC 阈值 */
+    RingEntrance[0] = 1200.0f;
+    RingEntrance[1] = 0.0f;
+    RingEntrance[2] = 1200.0f;
+    RingEntrance[3] = 0.0f;
     Debug_Register("RingEn0", DBG_FLOAT | STATIC_TYPE, &RingEntrance[0]);
     Debug_Register("RingEn1", DBG_FLOAT | STATIC_TYPE, &RingEntrance[1]);
     Debug_Register("RingEn2", DBG_FLOAT | STATIC_TYPE, &RingEntrance[2]);
     Debug_Register("RingEn3", DBG_FLOAT | STATIC_TYPE, &RingEntrance[3]);
 
-    /* 环岛退出 ADC 阈值 */
+    /* 退出 ADC 阈值 */
+    RingExit[0] = 1000.0f;
+    RingExit[1] = 1000.0f;
+    RingExit[2] = 1000.0f;
+    RingExit[3] = 1000.0f;
     Debug_Register("RingEx0", DBG_FLOAT | STATIC_TYPE, &RingExit[0]);
     Debug_Register("RingEx1", DBG_FLOAT | STATIC_TYPE, &RingExit[1]);
     Debug_Register("RingEx2", DBG_FLOAT | STATIC_TYPE, &RingExit[2]);
     Debug_Register("RingEx3", DBG_FLOAT | STATIC_TYPE, &RingExit[3]);
 
-    /* 环岛角度阈值 */
+    /* 投票窗 & 角度阈值 */
     Debug_Register("Ring_AngThr", DBG_FLOAT | STATIC_TYPE, &angle_level);
+    vote_win_ring.len          = 10;
+    vote_win_ring.entry_thresh = 3;
+    Debug_Register("Ring_WinLen", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.len);
+    Debug_Register("Ring_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.entry_thresh);
+    Debug_Register("Ring_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.exit_thresh);
 
-    /* 环岛投票窗参数 (上位机可调) */
-    Debug_Register("Ring_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_ring.len);
-    Debug_Register("Ring_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_ring.entry_thresh);
+    /* 开环 / 时序参数 */
+    Debug_Register("OL_Yaw",      DBG_FLOAT  | STATIC_TYPE, &g_ol_ring_yawrate);
+    Debug_Register("PassTmOut",   DBG_UINT16 | STATIC_TYPE, &g_pass_timeout_frames);
+    Debug_Register("RingExYaw",   DBG_FLOAT  | STATIC_TYPE, &g_ring_exit_yaw_thresh);
+    Debug_Register("RingExLock",  DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
+    Debug_Register("Ring_Timeout",DBG_UINT16 | STATIC_TYPE, &g_ring_timeout_frames);
+    Debug_Register("Ring_OLAng", DBG_FLOAT  | STATIC_TYPE, &g_ol_ring_angle);
 
-    /* 开环PASS超时帧数 (上位机可调, 1帧=2ms) */
-    Debug_Register("OL_Yaw",     DBG_FLOAT | STATIC_TYPE, &g_ol_ring_yawrate);
-    Debug_Register("PassTmOut",  DBG_UINT16 | STATIC_TYPE, &g_pass_timeout_frames);
-    Debug_Register("RingExYaw",  DBG_FLOAT | STATIC_TYPE, &g_ring_exit_yaw_thresh);
-    Debug_Register("RingExLock", DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
-    Debug_Register("Ring_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ring_timeout_frames);
-    Debug_Register("TblEnable",  DBG_UINT8 | STATIC_TYPE, &g_track_table_enabled);
-    Debug_Register("DbgElem",    DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
-    Debug_Register("PushMode",   DBG_UINT8 | STATIC_TYPE, &g_debug_push_mode);
-
-    Debug_Register("Wall_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
+    /* ================================================================
+     * 4. 上墙 WALL — 默认值 & Debug 注册
+     * ================================================================ */
+    /* 入口: TiltB < -60 → WALL */
+    wall_entry_tiltb = -60.0f;
+    vote_win_wall.len          = 10;
+    vote_win_wall.entry_thresh = 7;
+    vote_win_wall.exit_thresh  = 7;
     Debug_Register("Wall_EntTiltB", DBG_FLOAT | STATIC_TYPE, &wall_entry_tiltb);
+    Debug_Register("Wall_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
+    Debug_Register("Wall_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.entry_thresh);
+    Debug_Register("Wall_ExtThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.exit_thresh);
+
+    /* CLIMB→HORIZONTAL: |TiltR| > 70 */
+    wall_climb_exit_tiltr = 70.0f;
+    vote_win_wall_climb.len          = 10;
+    vote_win_wall_climb.entry_thresh = 7;
+    vote_win_wall_climb.exit_thresh  = 7;
     Debug_Register("Wall_ClimbTR", DBG_FLOAT | STATIC_TYPE, &wall_climb_exit_tiltr);
+    Debug_Register("WCl_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_climb.len);
+    Debug_Register("WCl_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_climb.entry_thresh);
+
+    /* HORIZONTAL→DESCEND: |TiltR| < 70 */
+    wall_horiz_exit_tiltr = 70.0f;
+    vote_win_wall_horiz.len          = 10;
+    vote_win_wall_horiz.entry_thresh = 7;
+    vote_win_wall_horiz.exit_thresh  = 7;
     Debug_Register("Wall_HorizTR", DBG_FLOAT | STATIC_TYPE, &wall_horiz_exit_tiltr);
-    Debug_Register("Wall_DescTiltB",DBG_FLOAT | STATIC_TYPE, &wall_descend_exit_tiltb);
+    Debug_Register("WHr_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_horiz.len);
+    Debug_Register("WHr_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_horiz.entry_thresh);
+
+    /* DESCEND→STRAIGHT: TiltB > 60, 消隐期内强制投 0 */
+    wall_descend_exit_tiltb = 60.0f;
+    vote_win_wall_descend.len          = 10;
+    vote_win_wall_descend.entry_thresh = 7;
+    vote_win_wall_descend.exit_thresh  = 7;
+    Debug_Register("Wall_DescTiltB", DBG_FLOAT  | STATIC_TYPE, &wall_descend_exit_tiltb);
+    Debug_Register("Wall_DesBlk",    DBG_UINT16 | STATIC_TYPE, &wall_descent_blanking_frames);
+    Debug_Register("WDs_WinLen",   DBG_UINT8  | STATIC_TYPE, &vote_win_wall_descend.len);
+    Debug_Register("WDs_EntThr",   DBG_UINT8  | STATIC_TYPE, &vote_win_wall_descend.entry_thresh);
+
+    /* 超时 */
     Debug_Register("Wall_Timeout", DBG_UINT16 | STATIC_TYPE, &g_wall_timeout_frames);
 
-    Debug_Register("Bar_EnTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_entry_tilt);
-    Debug_Register("Bar_ExTilt",  DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
+    /* ================================================================
+     * 5. 滚筒 BARREL — 默认值 & Debug 注册
+     * ================================================================ */
+    /* 进入 < -25°(低头), 退出 0~15°(抬头近水平) */
+    barrel_entry_tilt = -25.0f;
+    barrel_exit_tilt  = 15.0f;
+    vote_win_barrel.len          = 10;
+    vote_win_barrel.entry_thresh = 7;
+    vote_win_barrel.exit_thresh  = 7;
+    Debug_Register("Bar_EnTilt", DBG_FLOAT | STATIC_TYPE, &barrel_entry_tilt);
+    Debug_Register("Bar_ExTilt", DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
+    Debug_Register("Bar_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.len);
+    Debug_Register("Bar_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.entry_thresh);
+    Debug_Register("Bar_ExtThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.exit_thresh);
+
+    /* 峰值 > 75° (投票窗滤波) */
+    barrel_peak_tilt = 75.0f;
+    vote_win_barrel_peak.len          = 10;
+    vote_win_barrel_peak.entry_thresh = 7;
+    vote_win_barrel_peak.exit_thresh  = 7;
     Debug_Register("Bar_PeakTilt", DBG_FLOAT | STATIC_TYPE, &barrel_peak_tilt);
+    Debug_Register("Bar_PkWnLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.len);
+    Debug_Register("Bar_PkWnEnTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.entry_thresh);
+    Debug_Register("Bar_PkWnExTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.exit_thresh);
+
+    /* 超时 */
     Debug_Register("Bar_Timeout", DBG_UINT16 | STATIC_TYPE, &g_barrel_timeout_frames);
 
-    Debug_Register("Cross_EnSum", DBG_FLOAT | STATIC_TYPE, &cross_entry_sum);
-    Debug_Register("Cross_ExSum", DBG_FLOAT | STATIC_TYPE, &cross_exit_sum);
+    /* ================================================================
+     * 6. 十字 CROSS — 默认值 & Debug 注册
+     * ================================================================ */
+    /* 进入 >1000, 退出 <600 (滞回) */
+    cross_entry_sum = 1000.0f;
+    cross_exit_sum  = 600.0f;
+    vote_win_cross.len          = 10;
+    vote_win_cross.entry_thresh = 7;
+    vote_win_cross.exit_thresh  = 7;
+    Debug_Register("Cross_EnSum",   DBG_FLOAT  | STATIC_TYPE, &cross_entry_sum);
+    Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
+    Debug_Register("Cross_EntThr",  DBG_UINT8  | STATIC_TYPE, &vote_win_cross.entry_thresh);
+    Debug_Register("Cross_ExtThr",  DBG_UINT8  | STATIC_TYPE, &vote_win_cross.exit_thresh);
+    Debug_Register("Cross_WinLen", DBG_UINT8  | STATIC_TYPE, &vote_win_cross.len);
     Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
-    Debug_Register("Cross_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.entry_thresh);
-    Debug_Register("Cross_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_cross.exit_thresh);
 
+    /* ================================================================
+     * 7. 直角转弯 RIGHT_ANGLE — 默认值 & Debug 注册
+     * ================================================================ */
+    /* len=0: 旁路模式, |err|>100 进入, |err|<30 退出 */
+    vote_win_ra.len          = 0;
+    vote_win_ra.entry_thresh = 3;
+    vote_win_ra.exit_thresh  = 3;
     Debug_Register("RA_EnThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_entry_thresh);
     Debug_Register("RA_ExThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_exit_thresh);
-    Debug_Register("RA_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ra_timeout_frames);
     Debug_Register("RA_WinLen",  DBG_UINT8  | STATIC_TYPE, &vote_win_ra.len);
     Debug_Register("RA_WinEnTh", DBG_UINT8  | STATIC_TYPE, &vote_win_ra.entry_thresh);
     Debug_Register("RA_WinExTh", DBG_UINT8  | STATIC_TYPE, &vote_win_ra.exit_thresh);
+    Debug_Register("RA_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ra_timeout_frames);
 
-    Debug_Register("OffTkMs",   DBG_FLOAT | STATIC_TYPE, &g_offtrack_timeout_ms);
-
-    Debug_Register("Cruising", DBG_FLOAT | STATIC_TYPE, &g_speed_cruising);
-    Debug_Register("RingSpd",  DBG_FLOAT | STATIC_TYPE, &g_speed_ring);
-    Debug_Register("WallSpd",  DBG_FLOAT | STATIC_TYPE, &g_speed_wall);
-    Debug_Register("WClimbSpd",DBG_FLOAT | STATIC_TYPE, &g_speed_wall_climb);
-    Debug_Register("WHorizSpd",DBG_FLOAT | STATIC_TYPE, &g_speed_wall_horiz);
-    Debug_Register("WDescSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_wall_descend);
-    Debug_Register("BarrelSpd",DBG_FLOAT | STATIC_TYPE, &g_speed_barrel);
-    Debug_Register("CrossSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_cross);
-
-    /* 默认阈值 */
-    RingEntrance[0] = 1200.0f;
-    RingEntrance[1] = 0.0f;
-    RingEntrance[2] = 1200.0f;
-    RingEntrance[3] = 0.0f;
-
-    RingExit[0] = 1000.0f;
-    RingExit[1] = 1000.0f;
-    RingExit[2] = 1000.0f;
-    RingExit[3] = 1000.0f;
-
-    /* 初始化投票窗: 绑定缓冲区 */
+    /* ================================================================
+     * 8. 投票窗缓冲区绑定 & 上下文赋值
+     * ================================================================ */
     VoteWin_Init(&vote_win_ring,         ring_vote_buf,          100);
     VoteWin_Init(&vote_win_wall,         wall_vote_buf,          WALL_WIN_MAX);
     VoteWin_Init(&vote_win_wall_climb,   wall_climb_vote_buf,    WALL_CLIMB_WIN_MAX);
     VoteWin_Init(&vote_win_wall_horiz,   wall_horiz_vote_buf,    WALL_HORIZ_WIN_MAX);
     VoteWin_Init(&vote_win_wall_descend, wall_descend_vote_buf,  WALL_DESCEND_WIN_MAX);
     VoteWin_Init(&vote_win_barrel,       barrel_vote_buf,        BARREL_WIN_MAX);
+    VoteWin_Init(&vote_win_barrel_peak,  barrel_peak_vote_buf,   BARREL_WIN_MAX);
     VoteWin_Init(&vote_win_cross,        cross_vote_buf,         CROSS_WIN_MAX);
-    VoteWin_Init(&vote_win_ra,           ra_vote_buf,             RA_WIN_MAX);
+    VoteWin_Init(&vote_win_ra,           ra_vote_buf,            RA_WIN_MAX);
 
-    /* 覆盖各元素特定默认值 */
-    /* 环岛: 窗长 10, 进入阈值 3 */
-    vote_win_ring.len          = 10;
-    vote_win_ring.entry_thresh = 3;
-
-    /* 上墙入口: TiltB < -60 进入 */
-    wall_entry_tiltb  = -60.0f;
-    vote_win_wall.entry_thresh = 7;
-    vote_win_wall.exit_thresh  = 7;
-    vote_win_wall.len          = 10;
-
-    /* 上爬→水平: |TiltR| > 70 */
-    wall_climb_exit_tiltr  = 70.0f;
-    vote_win_wall_climb.len          = 10;
-    vote_win_wall_climb.entry_thresh = 7;
-    vote_win_wall_climb.exit_thresh  = 7;
-
-    /* 水平→下行: |TiltR| < 70 */
-    wall_horiz_exit_tiltr  = 70.0f;
-    vote_win_wall_horiz.len          = 10;
-    vote_win_wall_horiz.entry_thresh = 7;
-    vote_win_wall_horiz.exit_thresh  = 7;
-
-    /* 下行→STRAIGHT: TiltB > 60 */
-    wall_descend_exit_tiltb = 60.0f;
-    vote_win_wall_descend.len          = 10;
-    vote_win_wall_descend.entry_thresh = 7;
-    vote_win_wall_descend.exit_thresh  = 7;
-
-    /* 滚筒倾角默认: 进入 < -25°(低头), 退出 0~15°(抬头近水平), 峰值 >75° */
-    barrel_entry_tilt  = -25.0f;
-    barrel_exit_tilt   = 15.0f;
-    barrel_peak_tilt   = 75.0f;
-    vote_win_barrel.entry_thresh = 7;
-    vote_win_barrel.exit_thresh  = 7;
-
-    /* 十字竖直电感和默认: 进入 >1000, 退出 <600 (滞回) */
-    cross_entry_sum  = 1000.0f;
-    cross_exit_sum   = 600.0f;
-    vote_win_cross.entry_thresh = 7;
-    vote_win_cross.exit_thresh  = 7;
-
-    /* 直角转弯默认: |err_filtered|>100 进入, |err_raw|<30 退出, 窗长5帧 */
-    vote_win_ra.len          = 5;
-    vote_win_ra.entry_thresh = 3;
-    vote_win_ra.exit_thresh  = 3;
-
-    /* 绑定投票窗到上下文 */
     if (ctx != NULL) {
         ctx->vote_ring         = vote_win_ring;
         ctx->vote_wall         = vote_win_wall;
@@ -944,6 +1018,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->vote_wall_horiz   = vote_win_wall_horiz;
         ctx->vote_wall_descend = vote_win_wall_descend;
         ctx->vote_barrel       = vote_win_barrel;
+        ctx->vote_barrel_peak  = vote_win_barrel_peak;
         ctx->vote_cross        = vote_win_cross;
         ctx->vote_right_angle  = vote_win_ra;
     }
@@ -987,6 +1062,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned char wall_horiz_vote;
     unsigned char wall_descend_vote;
     unsigned char barrel_vote;
+    unsigned char barrel_peak_vote;
     unsigned char cross_vote;
     unsigned char ra_vote;
     float err_abs;
@@ -1102,7 +1178,7 @@ element_t Element_Update(ElementCtx_t *ctx)
         if (ctx->elem_blanking_cnt < wall_descent_blanking_frames) {
             wall_descend_vote = 0;
         } else {
-            wall_descend_vote = (ctx->tilt_fb > wall_descend_exit_tiltb) ? 1 : 0;
+            wall_descend_vote = (ctx->tilt_fb < wall_descend_exit_tiltb) ? 1 : 0;
         }
     } else {
         wall_descend_vote = 0;
@@ -1118,6 +1194,13 @@ element_t Element_Update(ElementCtx_t *ctx)
         barrel_vote = 0;
     }
     VoteWin_Push(&ctx->vote_barrel, barrel_vote);
+
+    if (ctx->current == ELEMENT_BARREL_CLIMB) {
+        barrel_peak_vote = (ctx->tilt_fb > barrel_peak_tilt) ? 1 : 0;
+    } else {
+        barrel_peak_vote = 0;
+    }
+    VoteWin_Push(&ctx->vote_barrel_peak, barrel_peak_vote);
 
     /* 十字投票 */
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];

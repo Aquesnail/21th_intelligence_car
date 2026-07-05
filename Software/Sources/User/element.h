@@ -101,6 +101,7 @@ typedef struct {
     VoteWindow_t vote_wall_horiz;
     VoteWindow_t vote_wall_descend;
     VoteWindow_t vote_barrel;
+    VoteWindow_t vote_barrel_peak;  /* 滚筒角度峰值投票窗 */
     VoteWindow_t vote_cross;
     VoteWindow_t vote_right_angle;  /* 直角转弯投票窗 */
 
