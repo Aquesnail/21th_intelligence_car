@@ -113,6 +113,8 @@ static ControlParams_t g_params;         /* 默认参数 */
 static ControlParams_t g_params_cross;   /* 十字专用 (屏蔽竖直电感) */
 static ControlState_t  g_state;          /* 运行时 memset 初始化 */
 static const ControlParams_t *g_active_params_prev = NULL; /* 上一帧参数集, 用于检测切换 */
+static motor_data_t speed_target_l; /* 左轮速度目标 (被 ApplySpeedOutputParams / CtrlState_Seed 引用) */
+static motor_data_t speed_target_r; /* 右轮速度目标 */
 
 
 static void copy_params(ControlParams_t *dest, const ControlParams_t *src)
@@ -210,7 +212,7 @@ static uint8_t    g_manual_cmd_received  = 0;
 /* Stream 模式状态位 (0=已关闭, 1=已开启) */
 static volatile uint8_t g_stream_active = 0;
 
-/* 自动模式过渡状态: 0=空闲, 1=风扇已启动等待3s, 2=电机已激活 */
+/* 自动模式过渡状态: 0=空闲, 1=风扇已启动等待2s, 2=电机已激活 */
 static uint8_t      g_auto_transition = 0;
 static TickType_t   g_auto_fan_tick   = 0;
 
@@ -590,8 +592,6 @@ static float common_speed=50.0f;
 /* 外环带宽限制: 斜率限制 + 低通滤波 — 参数g_params + 状态g_state */
 
 /* PI 已移入 g_params.inner + g_state.inner */
-static motor_data_t speed_target_l; // 运行时 memset 初始化
-static motor_data_t speed_target_r; // 运行时 memset 初始化
 static float speed_target_r_nagtive=0.0f;
 static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
@@ -635,17 +635,17 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
         *diff_speed = 0.0f;
     }
 
-    /* ---- 2. 差速限幅 (自动 ≤ common_speed 防止反转) ---- */
+    /* ---- 2. 差速限幅 ---- */
     eff_max_diff = p->max_diff;
-    if (eff_max_diff > common_speed) {
-        eff_max_diff = common_speed;
-    }
+    // if (eff_max_diff > common_speed) {
+    //     eff_max_diff = common_speed;
+    // }
     if (*diff_speed >  eff_max_diff) *diff_speed =  eff_max_diff;
     if (*diff_speed < -eff_max_diff) *diff_speed = -eff_max_diff;
 
     /* ---- 3. 速度合成 ---- */
     raw_l = common_speed - *diff_speed;
-    raw_r = -(common_speed + *diff_speed);
+    raw_r = -(common_speed + *diff_speed); //后面都是对称的判断，所以这里取负号没有问题
 
     /* ---- 4. 单轮输出限幅 ---- */
     if (raw_l >  p->max_output) raw_l =  p->max_output;
@@ -731,7 +731,7 @@ void System_Reset(void){
 
 void Change_Maunal(){
 	if(manual_control_flag){
-        /* 切换到自动模式: 启动风扇, 3s 后再激活电机 */
+        /* 切换到自动模式: 启动风扇, 2s 后再激活电机 */
         manual_control_flag = 0;
         PWMA_Set(fan_D);
         LED_RequestSteady(255, 255, 255);   /* 切自动 → 稳态白光 */
@@ -746,7 +746,7 @@ void Change_Maunal(){
         g_ectx.current = ELEMENT_STRAIGHT;
         g_ectx.exit_lockout_cnt = 0;
         g_ectx.offtrack_active = 0;
-        g_ectx.total_ticks_start = xTaskGetTickCount();  /* 超时计时器从按钮按下开始 */
+        /* total_ticks_start 由电机激活时设定, 不在此处提前设置 */
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
@@ -827,6 +827,7 @@ static void ControlDispatch(ControlStrategy_t ctrl, float spd_r, float spd_l)
     case CTRL_NORMAL:
     case CTRL_OL_YAW:
     case CTRL_ERR_FREEZE:
+    case CTRL_RA_YAW:
         Motor_Write_Speeds(spd_r, spd_l);
         break;
     case CTRL_BRAKE:

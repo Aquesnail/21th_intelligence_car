@@ -36,44 +36,44 @@ float    g_ol_ring_yawrate = 3.0f;    /* 环岛开环目标角速度(绝对值, 
  * 元素属性表 (Flash 常驻, 按 ELEMENT_ACTIVE_COUNT 索引)
  * ================================================================ */
 static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
-    /* [0] ELEMENT_STRAIGHT */
-    { ELEMENT_STRAIGHT, "STRAIGHT", &g_speed_cruising, 255, 255, 255, CTRL_NORMAL, NULL, 0 },
+    /* [0] ELEMENT_STRAIGHT            R    G    B   颜色 */
+    { ELEMENT_STRAIGHT, "STRAIGHT", &g_speed_cruising,   0,   0,   0, CTRL_NORMAL, NULL, 0 }, /* 灭 (黑) */
     /* [1] ELEMENT_RING_LEFT_ENTRANCE */
-    { ELEMENT_RING_LEFT_ENTRANCE, "RING_L_ENT", &g_speed_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_RING_LEFT_ENTRANCE, "RING_L_ENT", &g_speed_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 蓝 */
     /* [2] ELEMENT_RING_RIGHT_ENTRANCE */
-    { ELEMENT_RING_RIGHT_ENTRANCE,"RING_R_ENT",&g_speed_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_RING_RIGHT_ENTRANCE,"RING_R_ENT",&g_speed_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 蓝 */
     /* [3] ELEMENT_WALL */
-    { ELEMENT_WALL, "WALL", &g_speed_wall, 255, 128, 0, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_WALL, "WALL", &g_speed_wall, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
     /* [4] ELEMENT_CROSS */
-    { ELEMENT_CROSS, "CROSS", &g_speed_cross, 0, 255, 0, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_CROSS, "CROSS", &g_speed_cross, 0, 255, 0, CTRL_NORMAL, NULL, 0 }, /* 绿 */
     /* [5] ELEMENT_BARREL */
-    { ELEMENT_BARREL, "BARREL", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_BARREL, "BARREL", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
     /* [6] ELEMENT_SKIP */
-    { ELEMENT_SKIP, "SKIP", NULL, 0, 0, 0, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_SKIP, "SKIP", NULL, 0, 0, 0, CTRL_NORMAL, NULL, 0 }, /* 灭 (黑) */
     /* [7] ELEMENT_RING_LEFT_PASS */
-    { ELEMENT_RING_LEFT_PASS, "RING_L_PASS", &g_speed_ring, 0, 255, 255, CTRL_OL_YAW, &g_ol_ring_yawrate,  1 },
+    { ELEMENT_RING_LEFT_PASS, "RING_L_PASS", &g_speed_ring, 0, 255, 255, CTRL_OL_YAW, &g_ol_ring_yawrate,  1 }, /* 青 */
     /* [8] ELEMENT_RING_RIGHT_PASS */
-    { ELEMENT_RING_RIGHT_PASS,"RING_R_PASS",&g_speed_ring, 0, 255, 255, CTRL_OL_YAW, &g_ol_ring_yawrate, -1 },
+    { ELEMENT_RING_RIGHT_PASS,"RING_R_PASS",&g_speed_ring, 0, 255, 255, CTRL_OL_YAW, &g_ol_ring_yawrate, -1 }, /* 青 */
     /* [9] ELEMENT_IN_RING */
-    { ELEMENT_IN_RING, "IN_RING", &g_speed_ring, 255, 255, 0, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_IN_RING, "IN_RING", &g_speed_ring, 255, 255, 0, CTRL_NORMAL, NULL, 0 }, /* 黄 */
     /* [10] ELEMENT_WALL_CLIMB */
-    { ELEMENT_WALL_CLIMB, "WALL_CLIMB", &g_speed_wall_climb, 255, 128, 0, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_WALL_CLIMB, "WALL_CLIMB", &g_speed_wall_climb, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
     /* [11] ELEMENT_WALL_HORIZONTAL */
-    { ELEMENT_WALL_HORIZONTAL, "WALL_HORIZ", &g_speed_wall_horiz, 255, 255, 0, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_WALL_HORIZONTAL, "WALL_HORIZ", &g_speed_wall_horiz, 255, 255, 0, CTRL_NORMAL, NULL, 0 }, /* 黄 */
     /* [12] ELEMENT_WALL_DESCEND */
-    { ELEMENT_WALL_DESCEND, "WALL_DESC", &g_speed_wall_descend, 0, 255, 255, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_WALL_DESCEND, "WALL_DESC", &g_speed_wall_descend, 0, 255, 255, CTRL_NORMAL, NULL, 0 }, /* 青 */
     /* [13] ELEMENT_RIGHT_ANGLE_LEFT */
-    { ELEMENT_RIGHT_ANGLE_LEFT,  "RT_ANG_L", &g_speed_cruising, 128, 0, 255, CTRL_ERR_FREEZE, NULL, 0 },
+    { ELEMENT_RIGHT_ANGLE_LEFT,  "RT_ANG_L", &g_speed_cruising, 128, 0, 255, CTRL_RA_YAW, NULL, 0 }, /* 紫 */
     /* [14] ELEMENT_RIGHT_ANGLE_RIGHT */
-    { ELEMENT_RIGHT_ANGLE_RIGHT, "RT_ANG_R", &g_speed_cruising, 255, 128, 0, CTRL_ERR_FREEZE, NULL, 0 },
+    { ELEMENT_RIGHT_ANGLE_RIGHT, "RT_ANG_R", &g_speed_cruising, 255, 128, 0, CTRL_RA_YAW, NULL, 0 }, /* 橙 */
     /* [15] ELEMENT_BARREL_CLIMB */
-    { ELEMENT_BARREL_CLIMB, "BAR_CLIMB", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_BARREL_CLIMB, "BAR_CLIMB", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
     /* [16] ELEMENT_BARREL_VERTICAL_PEAK */
-    { ELEMENT_BARREL_VERTICAL_PEAK, "BAR_PEAK", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_BARREL_VERTICAL_PEAK, "BAR_PEAK", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
     /* [17] ELEMENT_BARREL_DESCEND */
-    { ELEMENT_BARREL_DESCEND, "BAR_DESC", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 },
+    { ELEMENT_BARREL_DESCEND, "BAR_DESC", &g_speed_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
     /* [18] ELEMENT_SAFETY_STOP */
-    { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 255, 0, 0, CTRL_BRAKE, NULL, 0 },
+    { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 255, 0, 0, CTRL_BRAKE, NULL, 0 }, /* 红 */
 };
 
 /* ================================================================
@@ -82,7 +82,7 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
 static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
 static unsigned long g_offtrack_start_tick  = 0;  /* 信号丢失起始 tick */
 static unsigned char  g_offtrack_active      = 0; /* 当前是否正在计时 */
-static uint32_t g_ontrack_timeout_tick = 0; /* 上赛道超时 (s) */
+static uint32_t g_ontrack_timeout_tick = 0; /* 上赛道超时 (tick), 上位机下发 tick 数 */
 
 /* ================================================================
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
@@ -561,6 +561,8 @@ static void Enter_BarrelTimeout(ElementCtx_t *ctx)
 /* ---- 十字参数 ---- */
 static unsigned char xdata cross_vote_buf[CROSS_WIN_MAX];
 static VoteWindow_t vote_win_cross;
+static unsigned char xdata cross_tilt_vote_buf[CROSS_WIN_MAX];
+static VoteWindow_t vote_win_cross_tilt;
 static float   cross_entry_sum;
 static float   cross_exit_sum;
 static unsigned short g_cross_timeout_frames  = 1000; /* 十字总超时 (帧, =2s) */
@@ -597,7 +599,10 @@ static unsigned char Check_CrossTilt(ElementCtx_t *ctx)
     float tilt_lr_abs;
     tilt_fb_abs = (ctx->tilt_fb > 0.0f) ? ctx->tilt_fb : -ctx->tilt_fb;
     tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
-    return (tilt_fb_abs >= angle_level || tilt_lr_abs >= angle_level) ? 1 : 0;
+    if (ctx->vote_cross_tilt.len == 0) {
+        return (tilt_fb_abs >= angle_level || tilt_lr_abs >= angle_level) ? 1 : 0;
+    }
+    return VoteWin_Reached(&ctx->vote_cross_tilt, ctx->vote_cross_tilt.exit_thresh);
 }
 
 static unsigned char Check_CrossTimeout(ElementCtx_t *ctx)
@@ -610,22 +615,26 @@ static void Enter_Cross(ElementCtx_t *ctx)
 {
     ctx->elem_frame_cnt = 0;
     VoteWin_Reset(&ctx->vote_cross);
+    VoteWin_Reset(&ctx->vote_cross_tilt);
 }
 
 static void Enter_CrossExit(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_cross);
+    VoteWin_Reset(&ctx->vote_cross_tilt);
     Enter_ExitToStraight(ctx);
 }
 
 static void Enter_CrossTiltExit(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_cross);
+    VoteWin_Reset(&ctx->vote_cross_tilt);
 }
 
 static void Enter_CrossTimeout(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_cross);
+    VoteWin_Reset(&ctx->vote_cross_tilt);
     Enter_ExitToStraight(ctx);
 }
 
@@ -644,7 +653,23 @@ static VoteWindow_t vote_win_ra;
 static float   g_ra_entry_thresh    = 100.0f;   /* |err_filtered| > 此值 → 进入直角 */
 static float   g_ra_exit_thresh     = 30.0f;    /* |err_raw| < 此值 → 退出直角 (滞回) */
 static unsigned short g_ra_timeout_frames = 500;  /* 直角超时帧数 (默认500帧=1s) */
+static float   g_ra_yawrate_feedforward_k = 1.0f; /* 直角转弯前馈角速度系数 */
 
+#define WHEELBASE_MM  16.0f   /* 轮半径 (mm)*/
+#define TURN_RADIUS_MM  55.0f   /* 转弯半径(mm) */
+/* ---- 直角转弯前馈角速度计算 ----  */
+static float Calc_RAPreYawrate(ElementCtx_t *ctx, float speed)
+{
+    float yawrate;
+    float sign;
+    if (ctx->right_angle_side == 0) {
+        sign =  1.0f;   /* 左直角 → 正前馈 */
+    } else {
+        sign = -1.0f;   /* 右直角 → 负前馈 */
+    }
+    yawrate = sign * g_ra_yawrate_feedforward_k * speed * (WHEELBASE_MM / TURN_RADIUS_MM);
+    return yawrate;
+}
 /* ---- 直角转弯 Check ---- */
 static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
 {
@@ -769,9 +794,9 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_BARREL_DESCEND, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout },
 
     /* 十字 → STRAIGHT (prio 0=倾角超限, 1=超时, 2=正常退出) */
-    { ELEMENT_CROSS, ELEMENT_STRAIGHT, 2, Check_CrossExit,    Enter_CrossExit },
+    { ELEMENT_CROSS, ELEMENT_STRAIGHT, 0, Check_CrossExit,    Enter_CrossExit },
     { ELEMENT_CROSS, ELEMENT_STRAIGHT, 1, Check_CrossTimeout, Enter_CrossTimeout },
-    { ELEMENT_CROSS, ELEMENT_STRAIGHT, 0, Check_CrossTilt,    Enter_CrossTiltExit },
+    { ELEMENT_CROSS, ELEMENT_STRAIGHT, 2, Check_CrossTilt,    Enter_CrossTiltExit },
 
     /* 直角转弯退出 */
     { ELEMENT_RIGHT_ANGLE_LEFT,  ELEMENT_STRAIGHT, 0, Check_RightAngleExit, Enter_RightAngleExit },
@@ -972,6 +997,8 @@ void Element_Init(ElementCtx_t *ctx)
      * 6. 十字 CROSS — 默认值 & Debug 注册
      * ================================================================ */
     /* 进入 >1000, 退出 <600 (滞回) */
+
+    //经观察陀螺仪解算出的倾角数据波形良好，可以不加时间滤波
     cross_entry_sum = 1000.0f;
     cross_exit_sum  = 600.0f;
     vote_win_cross.len          = 10;
@@ -984,6 +1011,13 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("Cross_WinLen", DBG_UINT8  | STATIC_TYPE, &vote_win_cross.len);
     Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
 
+    /* 倾角退出投票窗 (防止颠簸误退) */
+    vote_win_cross_tilt.len          = 10;
+    vote_win_cross_tilt.entry_thresh = 7;
+    vote_win_cross_tilt.exit_thresh  = 7;
+    Debug_Register("Cross_TltWnLen", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.len);
+    Debug_Register("Cross_TltExtTh", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.exit_thresh);
+
     /* ================================================================
      * 7. 直角转弯 RIGHT_ANGLE — 默认值 & Debug 注册
      * ================================================================ */
@@ -991,6 +1025,8 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_ra.len          = 0;
     vote_win_ra.entry_thresh = 3;
     vote_win_ra.exit_thresh  = 3;
+    g_ra_yawrate_feedforward_k = 1.0f;
+    Debug_Register("RA_YawFwdK", DBG_FLOAT  | STATIC_TYPE, &g_ra_yawrate_feedforward_k);
     Debug_Register("RA_EnThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_entry_thresh);
     Debug_Register("RA_ExThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_exit_thresh);
     Debug_Register("RA_WinLen",  DBG_UINT8  | STATIC_TYPE, &vote_win_ra.len);
@@ -1009,6 +1045,7 @@ void Element_Init(ElementCtx_t *ctx)
     VoteWin_Init(&vote_win_barrel,       barrel_vote_buf,        BARREL_WIN_MAX);
     VoteWin_Init(&vote_win_barrel_peak,  barrel_peak_vote_buf,   BARREL_WIN_MAX);
     VoteWin_Init(&vote_win_cross,        cross_vote_buf,         CROSS_WIN_MAX);
+    VoteWin_Init(&vote_win_cross_tilt,   cross_tilt_vote_buf,    CROSS_WIN_MAX);
     VoteWin_Init(&vote_win_ra,           ra_vote_buf,            RA_WIN_MAX);
 
     if (ctx != NULL) {
@@ -1020,6 +1057,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->vote_barrel       = vote_win_barrel;
         ctx->vote_barrel_peak  = vote_win_barrel_peak;
         ctx->vote_cross        = vote_win_cross;
+        ctx->vote_cross_tilt   = vote_win_cross_tilt;
         ctx->vote_right_angle  = vote_win_ra;
     }
 
@@ -1064,6 +1102,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned char barrel_vote;
     unsigned char barrel_peak_vote;
     unsigned char cross_vote;
+    unsigned char cross_tilt_vote;
     unsigned char ra_vote;
     float err_abs;
     float tilt_lr_abs;
@@ -1094,8 +1133,8 @@ element_t Element_Update(ElementCtx_t *ctx)
         g_offtrack_active = 0;
     }
     if (ctx->current != ELEMENT_SAFETY_STOP && g_debug_push_mode != 1 && manual_control_flag == 0) {
-        elapsed_ms = (now_tick - ctx->total_ticks_start) * portTICK_PERIOD_MS;
-        if (g_ontrack_timeout_tick > 0 && elapsed_ms / 1000 >= g_ontrack_timeout_tick
+        if (g_ontrack_timeout_tick > 0
+            && (now_tick - ctx->total_ticks_start) >= g_ontrack_timeout_tick
             && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) {
             System_Reset();
             return ctx->current;
@@ -1213,6 +1252,14 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
     VoteWin_Push(&ctx->vote_cross, cross_vote);
 
+    /* 十字倾角退出投票: CROSS 下倾角超限则投票退出 */
+    if (ctx->current == ELEMENT_CROSS) {
+        cross_tilt_vote = (tilt_fb_abs >= angle_level || tilt_lr_abs >= angle_level) ? 1 : 0;
+    } else {
+        cross_tilt_vote = 0;
+    }
+    VoteWin_Push(&ctx->vote_cross_tilt, cross_tilt_vote);
+
     /* 直角转弯投票: STRAIGHT 下 |err_raw| > entry_thresh 则投票进入 */
     if (ctx->current == ELEMENT_STRAIGHT) {
         err_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
@@ -1241,6 +1288,9 @@ float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop, Element
 {
     if (ctrl == CTRL_OL_YAW && prop != NULL && prop->ol_yawrate_ptr != NULL) {
         return (float)(prop->ol_yaw_sign) * (*prop->ol_yawrate_ptr) + ctx->yawrate;
+    }
+    if (ctrl == CTRL_RA_YAW && prop != NULL && prop->speed_ptr != NULL) {
+        return Calc_RAPreYawrate(ctx, *prop->speed_ptr) + ctx->yawrate;
     }
     if (ctrl == CTRL_BRAKE) {
         return 0.0f;

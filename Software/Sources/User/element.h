@@ -46,6 +46,7 @@ typedef enum {
     CTRL_BRAKE,      /* 紧急刹车（SAFETY_STOP） → 写0 */
     CTRL_FREEWHEEL,  /* 自由滑行（推车调试） → 写0, 元素检测/LED照跑 */
     CTRL_ERR_FREEZE, /* 冻结 Err_Angle（直角转弯 → 屏蔽传感器极性反转） */
+    CTRL_RA_YAW, /* 前馈角速度（直角转弯） */
 } ControlStrategy_t;
 
 /* ================================================================
@@ -103,6 +104,7 @@ typedef struct {
     VoteWindow_t vote_barrel;
     VoteWindow_t vote_barrel_peak;  /* 滚筒角度峰值投票窗 */
     VoteWindow_t vote_cross;
+    VoteWindow_t vote_cross_tilt;   /* 十字倾角退出投票窗 */
     VoteWindow_t vote_right_angle;  /* 直角转弯投票窗 */
 
     /* ---- 环岛专用状态 ---- */
