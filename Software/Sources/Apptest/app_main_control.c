@@ -212,7 +212,7 @@ static uint8_t    g_manual_cmd_received  = 0;
 /* Stream 模式状态位 (0=已关闭, 1=已开启) */
 static volatile uint8_t g_stream_active = 0;
 
-/* 自动模式过渡状态: 0=空闲, 1=风扇已启动等待2s, 2=电机已激活 */
+/* 自动模式过渡状态: 0=空闲, 1=风扇已启动等待3s, 2=电机已激活 */
 static uint8_t      g_auto_transition = 0;
 static TickType_t   g_auto_fan_tick   = 0;
 
@@ -601,6 +601,7 @@ static ControlStrategy_t prev_ctrl = CTRL_NORMAL;     /* 上一次控制策略, 
 static ElementCtx_t g_ectx;  /* 元素状态机上下文 */
 
 static float tmp_adc13;
+static float tmp_adcsum;
 
 #define spd_limit 150.0f
 
@@ -1026,7 +1027,7 @@ void Main_Control_Task(void *pvParameters)
                     adc_normalized[3] = (adc_values[3] < adc_dead_zone) ? 0.0f : adc_values[3] * normalized_adc_k[3];
                 }
                 tmp_adc13 = adc_normalized[1]+adc_normalized[3];
-            
+                tmp_adcsum = adc_normalized[0]+adc_normalized[1]+adc_normalized[2]+adc_normalized[3];
                 if(change_inductor == 1){
                     Err_1 = (float)((adc_normalized[0]) - (adc_normalized[2]));//0,2对应横向电感
                     Err_2 = (float)((adc_normalized[1]) - (adc_normalized[3]));//1,3对应竖直电感
@@ -1297,6 +1298,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("adc2",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
     Debug_Register("adc3",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
     Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adc13);
+    Debug_Register("adcsum", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adcsum);
     /* 姿态 */
     Debug_Register("yaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
     Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_filtered);

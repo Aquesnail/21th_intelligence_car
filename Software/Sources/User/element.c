@@ -91,6 +91,8 @@ static uint32_t g_ontrack_timeout_tick = 0; /* 上赛道超时 (tick), 上位机
 #define TRACK_TABLE_LEN  8
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
+    ELEMENT_WALL,
+    ELEMENT_BARREL,
     ELEMENT_RING_LEFT_ENTRANCE,
    /* ELEMENT_CROSS, */
    /* ELEMENT_CROSS, */
@@ -275,7 +277,6 @@ static unsigned short g_ring_timeout_frames   = 3000; /* 环岛总超时 (帧, =
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
 {
     if (ctx->exit_lockout_cnt > 0) {
-        ctx->exit_lockout_cnt--;
         return 0;
     }
     if (ctx->vote_ring.len == 0) {
@@ -392,6 +393,7 @@ static unsigned short g_wall_timeout_frames   = 2000; /* 上墙总超时 (帧, =
 /* ---- 上墙 Check ---- */
 static unsigned char Check_WallEntry(ElementCtx_t *ctx)
 {
+    if (ctx->exit_lockout_cnt > 0) return 0;
     if (!Track_CheckExpected(ctx, ELEMENT_WALL)) return 0;
 
     if (ctx->vote_wall.len == 0) {
@@ -491,10 +493,12 @@ static float   barrel_entry_tilt;
 static float   barrel_exit_tilt;
 static float   barrel_peak_tilt = 75.0f;
 static unsigned short g_barrel_timeout_frames = 2000; /* 滚筒总超时 (帧, =4s) */
+static unsigned short g_barrel_exit_lockout_frames = 200; /* 出桶后锁存帧数 (默认200帧=400ms) */
 
 /* ---- 滚筒 Check ---- */
 static unsigned char Check_BarrelEntry(ElementCtx_t *ctx)
 {
+    if (ctx->exit_lockout_cnt > 0) return 0;
     if (!Track_CheckExpected(ctx, ELEMENT_BARREL)) return 0;
 
     if (ctx->vote_barrel.len == 0) {
@@ -544,6 +548,7 @@ static void Enter_BarrelDescend(ElementCtx_t *ctx)
 static void Enter_BarrelExit(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_barrel);
+    ctx->exit_lockout_cnt = g_barrel_exit_lockout_frames;
     Enter_ExitToStraight(ctx);
 }
 
@@ -565,18 +570,24 @@ static unsigned char xdata cross_tilt_vote_buf[CROSS_WIN_MAX];
 static VoteWindow_t vote_win_cross_tilt;
 static float   cross_entry_sum;
 static float   cross_exit_sum;
+static float   cross_all_sum;              /* adc[0]+adc[1]+adc[2]+adc[3] 总和阈值 */
 static unsigned short g_cross_timeout_frames  = 1000; /* 十字总超时 (帧, =2s) */
 
 /* ---- 十字 Check ---- */
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
 {
     float cross_adc_sum;
+    float cross_all;
+
+    if (ctx->exit_lockout_cnt > 0) return 0;
 
    // if (!Track_CheckExpected(ctx, ELEMENT_CROSS)) return 0;
 
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
+    cross_all     = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
         return (cross_adc_sum > cross_entry_sum
+                && cross_all > cross_all_sum
                 && (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) < angle_level
                 && (ctx->tilt_lr > 0.0f ? ctx->tilt_lr : -ctx->tilt_lr) < angle_level) ? 1 : 0;
     }
@@ -622,7 +633,7 @@ static void Enter_CrossExit(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_cross);
     VoteWin_Reset(&ctx->vote_cross_tilt);
-    Enter_ExitToStraight(ctx);
+    //Enter_ExitToStraight(ctx);
 }
 
 static void Enter_CrossTiltExit(ElementCtx_t *ctx)
@@ -673,7 +684,8 @@ static float Calc_RAPreYawrate(ElementCtx_t *ctx, float speed)
 /* ---- 直角转弯 Check ---- */
 static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
 {
-    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE 
+    if (ctx->exit_lockout_cnt > 0) return 0;
+    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE
     || ctx->current == ELEMENT_RING_LEFT_PASS
     || ctx->current == ELEMENT_IN_RING
     || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
@@ -690,7 +702,8 @@ static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
 
 static unsigned char Check_RightAngleRightEntry(ElementCtx_t *ctx)
 {
-    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE 
+    if (ctx->exit_lockout_cnt > 0) return 0;
+    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE
     || ctx->current == ELEMENT_RING_LEFT_PASS
     || ctx->current == ELEMENT_IN_RING
     || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
@@ -869,7 +882,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("TblEnable",DBG_UINT8  | STATIC_TYPE, &g_track_table_enabled);
     Debug_Register("DbgElem",  DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
     Debug_Register("PushMode", DBG_UINT8  | STATIC_TYPE, &g_debug_push_mode);
-
+    Debug_Register("Index",    DBG_UINT8 , &g_track_idx);
     /* ================================================================
      * 2. 速度变量 — Debug 注册
      * ================================================================ */
@@ -992,6 +1005,7 @@ void Element_Init(ElementCtx_t *ctx)
 
     /* 超时 */
     Debug_Register("Bar_Timeout", DBG_UINT16 | STATIC_TYPE, &g_barrel_timeout_frames);
+    Debug_Register("Bar_ExLock",  DBG_UINT16 | STATIC_TYPE, &g_barrel_exit_lockout_frames);
 
     /* ================================================================
      * 6. 十字 CROSS — 默认值 & Debug 注册
@@ -1001,11 +1015,13 @@ void Element_Init(ElementCtx_t *ctx)
     //经观察陀螺仪解算出的倾角数据波形良好，可以不加时间滤波
     cross_entry_sum = 1000.0f;
     cross_exit_sum  = 600.0f;
+    cross_all_sum   = 2000.0f;
     vote_win_cross.len          = 10;
     vote_win_cross.entry_thresh = 7;
     vote_win_cross.exit_thresh  = 7;
     Debug_Register("Cross_EnSum",   DBG_FLOAT  | STATIC_TYPE, &cross_entry_sum);
     Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
+    Debug_Register("Cross_AllSum",  DBG_FLOAT  | STATIC_TYPE, &cross_all_sum);
     Debug_Register("Cross_EntThr",  DBG_UINT8  | STATIC_TYPE, &vote_win_cross.entry_thresh);
     Debug_Register("Cross_ExtThr",  DBG_UINT8  | STATIC_TYPE, &vote_win_cross.exit_thresh);
     Debug_Register("Cross_WinLen", DBG_UINT8  | STATIC_TYPE, &vote_win_cross.len);
@@ -1093,6 +1109,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned long elapsed_ms;
     unsigned long now_tick;
     float cross_adc_sum;
+    float cross_all;
     float tilt_fb_abs;
     unsigned char ring_vote;
     unsigned char wall_vote;
@@ -1163,6 +1180,9 @@ element_t Element_Update(ElementCtx_t *ctx)
     /* ---- 0.6 通用帧计数 (各元素超时检测共用) ---- */
     ctx->elem_frame_cnt++;
     ctx->elem_blanking_cnt++;
+    if (ctx->exit_lockout_cnt > 0) {
+        ctx->exit_lockout_cnt--;
+    }
     /* 环岛链帧计数 (ENTRANCE/PASS/IN_RING 超时兜底) */
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
         || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
@@ -1243,8 +1263,10 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* 十字投票 */
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
+    cross_all     = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
     if (ctx->current == ELEMENT_STRAIGHT) {
-        cross_vote = (cross_adc_sum > cross_entry_sum && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) ? 1 : 0;
+        cross_vote = (cross_adc_sum > cross_entry_sum && cross_all > cross_all_sum
+                      && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) ? 1 : 0;
     } else if (ctx->current == ELEMENT_CROSS) {
         cross_vote = (cross_adc_sum < cross_exit_sum) ? 1 : 0;
     } else {
