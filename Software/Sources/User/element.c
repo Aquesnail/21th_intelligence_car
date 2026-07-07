@@ -3,6 +3,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "led_indicator.h"
+#include <math.h>
 extern unsigned char manual_control_flag;
 
 /* ================================================================
@@ -18,18 +19,18 @@ static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 四元数�
  * 速度变量 (供元素属性表 speed_ptr 指向 + Debug_Register 在线调参)
  *   必须在 g_element_props 之前声明
  * ================================================================ */
-static float g_speed_cruising     = 50.0f;
-static float g_speed_ring         = 50.0f;
+static float g_speed_cruising     = 60.0f;
+static float g_speed_ring         = 45.0f;
 static float g_speed_wall         = 45.0f;
 static float g_speed_wall_climb   = 45.0f;
 static float g_speed_wall_horiz   = 40.0f;
 static float g_speed_wall_descend = 50.0f;
-static float g_speed_barrel       = 45.0f;
-static float g_speed_cross        = 45.0f;
+static float g_speed_barrel       = 60.0f;
+static float g_speed_cross        = 60.0f;
 
 /* ---- 环岛开环参数 (被 g_element_props 引用, 必须前置) ---- */
-float    g_ol_ring_angle   = 45.0f;   /* 环岛开环目标角度(绝对值, 度) */
-float    g_ol_ring_yawrate = 3.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
+float    g_ol_ring_angle   = 0.0f;    /* 环岛开环目标角度(绝对值, 度) */
+float    g_ol_ring_yawrate = 8.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
 
 /* ================================================================
  * 元素属性表 (Flash 常驻, 按 ELEMENT_ACTIVE_COUNT 索引)
@@ -81,7 +82,7 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
 static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
 static unsigned long g_offtrack_start_tick  = 0;  /* 信号丢失起始 tick */
 static unsigned char  g_offtrack_active      = 0; /* 当前是否正在计时 */
-static uint32_t g_ontrack_timeout_tick = 0; /* 上赛道超时 (tick), 上位机下发 tick 数 */
+static uint32_t g_ontrack_timeout_frames = 10000; /* 上赛道超时 (帧), 上位机下发帧数 (500帧/s, 10000帧=20s) */
 
 /* ================================================================
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
@@ -99,7 +100,7 @@ static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
    /* ELEMENT_BARREL */
 };
 
-static unsigned char  g_track_table_enabled = 1;   /* 上位机可调: 1=启用, 0=旁路(单元素调试) */
+static unsigned char  g_track_table_enabled = 0;   /* 上位机可调: 1=启用, 0=旁路(单元素调试) */
 static unsigned char  g_track_idx = 0;             /* 指向下一个预期元素的索引 */
 static element_t g_single_element_debug = ELEMENT_STRAIGHT; /* 单元素调试: track_table_enabled=0时反复触发 */
 
@@ -267,10 +268,10 @@ static float RingExit[4];
 static unsigned char xdata ring_vote_buf[100];
 static VoteWindow_t vote_win_ring;
 
-static unsigned short g_pass_timeout_frames = 150;  /* 默认150帧=300ms */
+static unsigned short g_pass_timeout_frames = 300;  /* 默认300帧=600ms */
 static float    g_ring_exit_yaw_thresh  = 200.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
 static unsigned short g_ring_exit_lockout_frames = 1000;  /* 锁存时长(帧), 默认1000帧=2s */
-static unsigned short g_ring_timeout_frames   = 3000; /* 环岛总超时 (帧, =6s) */
+static unsigned short g_ring_timeout_frames   = 1000; /* 环岛总超时 (帧, =2s) */
 
 /* ---- 环岛 Check ---- */
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
@@ -385,9 +386,9 @@ static float   wall_horiz_exit_tiltr;         /* HORIZONTAL→DESCEND |TiltR| �
 static unsigned char xdata wall_descend_vote_buf[WALL_DESCEND_WIN_MAX];
 static VoteWindow_t vote_win_wall_descend;
 static float   wall_descend_exit_tiltb;       /* DESCEND→STRAIGHT 退出 TiltB 阈值 (默认 60) */
-static uint16_t wall_descent_blanking_frames = 50; /* HORIZONTAL→DESCEND 消隐帧数 (默认50帧=100ms) */
+static uint16_t wall_descent_blanking_frames = 200; /* HORIZONTAL→DESCEND 消隐帧数 (默认200帧=400ms) */
 
-static unsigned short g_wall_timeout_frames   = 2000; /* 上墙总超时 (帧, =4s) */
+static unsigned short g_wall_timeout_frames   = 60000; /* 上墙总超时 (帧, =120s) */
 
 /* ---- 上墙 Check ---- */
 static unsigned char Check_WallEntry(ElementCtx_t *ctx)
@@ -491,7 +492,7 @@ static VoteWindow_t vote_win_barrel;
 static float   barrel_entry_tilt;
 static float   barrel_exit_tilt;
 static float   barrel_peak_tilt = 75.0f;
-static unsigned short g_barrel_timeout_frames = 2000; /* 滚筒总超时 (帧, =4s) */
+static unsigned short g_barrel_timeout_frames = 60000; /* 滚筒总超时 (帧, =120s) */
 static unsigned short g_barrel_exit_lockout_frames = 200; /* 出桶后锁存帧数 (默认200帧=400ms) */
 
 /* ---- 滚筒 Check ---- */
@@ -570,7 +571,7 @@ static VoteWindow_t vote_win_cross_tilt;
 static float   cross_entry_sum;
 static float   cross_exit_sum;
 static float   cross_all_sum;              /* adc[0]+adc[1]+adc[2]+adc[3] 总和阈值 */
-static unsigned short g_cross_timeout_frames  = 1000; /* 十字总超时 (帧, =2s) */
+static unsigned short g_cross_timeout_frames  = 10000; /* 十字总超时 (帧, =20s) */
 
 /* ---- 十字 Check ---- */
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
@@ -662,8 +663,8 @@ static unsigned char xdata ra_vote_buf[RA_WIN_MAX];
 static VoteWindow_t vote_win_ra;
 static float   g_ra_entry_thresh    = 100.0f;   /* |err_filtered| > 此值 → 进入直角 */
 static float   g_ra_exit_thresh     = 30.0f;    /* |err_raw| < 此值 → 退出直角 (滞回) */
-static unsigned short g_ra_timeout_frames = 500;  /* 直角超时帧数 (默认500帧=1s) */
-static float   g_ra_yawrate_feedforward_k = 1.0f; /* 直角转弯前馈角速度系数 */
+static unsigned short g_ra_timeout_frames = 1000;  /* 直角超时帧数 (默认1000帧=2s) */
+static float   g_ra_yawrate_feedforward_k = 0.6000000238418579f; /* 直角转弯前馈角速度系数 */
 
 #define WHEELBASE_MM  16.0f   /* 轮半径 (mm)*/
 #define TURN_RADIUS_MM  55.0f   /* 转弯半径(mm) */
@@ -871,13 +872,13 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->right_angle_side = 0;
         ctx->err_raw          = 0.0f;
         ctx->err_filtered     = 0.0f;
-        ctx->total_ticks_start = xTaskGetTickCount();
+        ctx->total_frames = 0;
 
     }
     /* ================================================================
      * 1. 共享 / 赛道表 / 安全停车 — Debug 注册
      * ================================================================ */
-    Debug_Register("TTimeOut", DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_tick);
+    Debug_Register("TTimeOut", DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_frames);
     Debug_Register("OffTkMs",  DBG_FLOAT  | STATIC_TYPE, &g_offtrack_timeout_ms);
     Debug_Register("TblEnable",DBG_UINT8  | STATIC_TYPE, &g_track_table_enabled);
     Debug_Register("DbgElem",  DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
@@ -918,10 +919,8 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("RingEx2", DBG_FLOAT | STATIC_TYPE, &RingExit[2]);
     Debug_Register("RingEx3", DBG_FLOAT | STATIC_TYPE, &RingExit[3]);
 
-    /* 投票窗 & 角度阈值 */
+    /* 投票窗 & 角度阈值 (VoteWin_Init 默认值 + 尾部覆盖块确定最终值) */
     Debug_Register("Ring_AngThr", DBG_FLOAT | STATIC_TYPE, &angle_level);
-    vote_win_ring.len          = 10;
-    vote_win_ring.entry_thresh = 3;
     Debug_Register("Ring_WinLen", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.len);
     Debug_Register("Ring_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.entry_thresh);
     Debug_Register("Ring_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.exit_thresh);
@@ -983,7 +982,7 @@ void Element_Init(ElementCtx_t *ctx)
      * ================================================================ */
     /* 进入 < -25°(低头), 退出 0~15°(抬头近水平) */
     barrel_entry_tilt = -25.0f;
-    barrel_exit_tilt  = 15.0f;
+    barrel_exit_tilt  = 25.0f;
     vote_win_barrel.len          = 10;
     vote_win_barrel.entry_thresh = 7;
     vote_win_barrel.exit_thresh  = 7;
@@ -1013,12 +1012,9 @@ void Element_Init(ElementCtx_t *ctx)
     /* 进入 >1000, 退出 <600 (滞回) */
 
     //经观察陀螺仪解算出的倾角数据波形良好，可以不加时间滤波
-    cross_entry_sum = 1000.0f;
+    cross_entry_sum = 300.0f;
     cross_exit_sum  = 600.0f;
     cross_all_sum   = 2000.0f;
-    vote_win_cross.len          = 10;
-    vote_win_cross.entry_thresh = 7;
-    vote_win_cross.exit_thresh  = 7;
     Debug_Register("Cross_EnSum",   DBG_FLOAT  | STATIC_TYPE, &cross_entry_sum);
     Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
     Debug_Register("Cross_AllSum",  DBG_FLOAT  | STATIC_TYPE, &cross_all_sum);
@@ -1027,21 +1023,18 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("Cross_WinLen", DBG_UINT8  | STATIC_TYPE, &vote_win_cross.len);
     Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
 
-    /* 倾角退出投票窗 (防止颠簸误退) */
-    vote_win_cross_tilt.len          = 10;
-    vote_win_cross_tilt.entry_thresh = 7;
-    vote_win_cross_tilt.exit_thresh  = 7;
+    /* 倾角退出投票窗 (VoteWin_Init 默认值 + 尾部覆盖块确定最终值) */
     Debug_Register("Cross_TltWnLen", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.len);
     Debug_Register("Cross_TltExtTh", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.exit_thresh);
 
     /* ================================================================
      * 7. 直角转弯 RIGHT_ANGLE — 默认值 & Debug 注册
      * ================================================================ */
-    /* len=0: 旁路模式, |err|>100 进入, |err|<30 退出 */
-    vote_win_ra.len          = 0;
-    vote_win_ra.entry_thresh = 3;
-    vote_win_ra.exit_thresh  = 3;
-    g_ra_yawrate_feedforward_k = 1.0f;
+    /* len=10: 投票窗滤波模式 */
+    vote_win_ra.len          = 10;
+    vote_win_ra.entry_thresh = 7;
+    vote_win_ra.exit_thresh  = 7;
+    g_ra_yawrate_feedforward_k = 0.6000000238418579f;
     Debug_Register("RA_YawFwdK", DBG_FLOAT  | STATIC_TYPE, &g_ra_yawrate_feedforward_k);
     Debug_Register("RA_EnThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_entry_thresh);
     Debug_Register("RA_ExThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_exit_thresh);
@@ -1063,6 +1056,12 @@ void Element_Init(ElementCtx_t *ctx)
     VoteWin_Init(&vote_win_cross,        cross_vote_buf,         CROSS_WIN_MAX);
     VoteWin_Init(&vote_win_cross_tilt,   cross_tilt_vote_buf,    CROSS_WIN_MAX);
     VoteWin_Init(&vote_win_ra,           ra_vote_buf,            RA_WIN_MAX);
+
+    /* 覆盖 VoteWin_Init 默认值, 匹配 JSON 调参后的值 */
+    vote_win_ring.entry_thresh = 3;
+    vote_win_ring.exit_thresh  = 0;
+    vote_win_cross.len         = 0;
+    vote_win_cross_tilt.len    = 0;
 
     if (ctx != NULL) {
         ctx->vote_ring         = vote_win_ring;
@@ -1094,6 +1093,57 @@ void Element_ResetTrackIndex(ElementCtx_t *ctx)
     g_track_idx = 0;
 }
 
+
+/* ================================================================
+ * SECTION 9.5 — 传感器灌入 & 倾角计算 (每帧由主循环调用)
+ *   集中管理 ctx 传感器字段的写入, 避免散落在控制代码中
+ * ================================================================ */
+
+void Element_FeedSensors(ElementCtx_t *ctx,
+    const float adc[4], float ax, float ay, float az,
+    float yaw, float err_raw, float err_filtered)
+{
+    unsigned char j;
+
+    if (ctx == NULL) return;
+
+    for (j = 0; j < 4; j++) {
+        ctx->adc[j] = adc[j];
+    }
+    ctx->ax           = ax;
+    ctx->ay           = ay;
+    ctx->az           = az;
+    ctx->yaw          = yaw;
+    ctx->err_raw      = err_raw;
+    ctx->err_filtered = err_filtered;
+}
+
+void Element_CalcTilt(ElementCtx_t *ctx, float gx_body, float gy_body, float gz_body)
+{
+    float g_horiz;
+    float gz_abs;
+    float tilt_total;
+    float inv_horiz;
+
+    if (ctx == NULL) return;
+
+    /* 水平分量幅值: g_horiz²+gz²=1 (四元数归一化保证) */
+    g_horiz = (float)sqrt(gx_body * gx_body + gy_body * gy_body);
+    gz_abs  = (gz_body > 0.0f) ? gz_body : -gz_body;
+
+    /* 总倾角 = atan2(水平, 垂直) — 大倾角时 g_horiz→1, 无小分母 */
+    tilt_total = (float)atan2(g_horiz, gz_abs) * 57.29578f;
+
+    /* 按比例分解为前后/左右分量, 保留符号区分方向 */
+    if (g_horiz > 0.001f) {
+        inv_horiz = 1.0f / g_horiz;
+        ctx->tilt_fb = tilt_total * gx_body * inv_horiz;
+        ctx->tilt_lr = tilt_total * gy_body * inv_horiz;
+    } else {
+        ctx->tilt_fb = 0.0f;
+        ctx->tilt_lr = 0.0f;
+    }
+}
 
 /* ================================================================
  * SECTION 10 — Element_Update
@@ -1131,6 +1181,9 @@ element_t Element_Update(ElementCtx_t *ctx)
     /* ---- 1. 倾角绝对值 (供投票和停车使用) ---- */
     tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
     tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    if (ctx->current != ELEMENT_SAFETY_STOP) {
+        ctx->total_frames++;
+    }
     now_tick = xTaskGetTickCount();
     if (all_adc_low && ctx->current != ELEMENT_SAFETY_STOP) {
         if (g_offtrack_active == 0) {
@@ -1150,8 +1203,8 @@ element_t Element_Update(ElementCtx_t *ctx)
         g_offtrack_active = 0;
     }
     if (ctx->current != ELEMENT_SAFETY_STOP && ctx->push_mode != 1 && manual_control_flag == 0) {
-        if (g_ontrack_timeout_tick > 0
-            && (now_tick - ctx->total_ticks_start) >= g_ontrack_timeout_tick
+        if (g_ontrack_timeout_frames > 0
+            && ctx->total_frames >= g_ontrack_timeout_frames
             && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) {
             System_Reset();
             return ctx->current;

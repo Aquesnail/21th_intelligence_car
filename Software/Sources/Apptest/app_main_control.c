@@ -356,7 +356,7 @@ static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     if (count > 50) count = 50;
     *(char *)(peri_addr) = (char)count;
 }
-static float normalized_adc_k[4] = {1.0306345224380493f, 1.0166940689086914f, 0.9944114089012146f, 0.9619343280792236f}; // ADC 归一化系数数组
+static float normalized_adc_k[4] = {0.7725479602813721f, 0.6852779388427734f, 1.0893768072128296f, 0.9370946884155273f}; // ADC 归一化系数数组
 static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
 static uint8_t change_inductor = 1;
@@ -403,7 +403,7 @@ uint8_t ADC_NormalizeCommand(const char* cmd) {
     }
     return 0; // 未识别
 }
-static uint16_t fan_D = 350;
+static uint16_t fan_D = 375;
 static void Fan_D_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
     uint16_t new_val;
@@ -588,7 +588,7 @@ uint8_t Motor_HandleCommand(const char* cmd)
 
 static FuzzyPID pid_struct; // 运行时 memset 初始化
 static float pid_output=0.0f;
-static float common_speed=50.0f;
+static float common_speed=60.0f;
 /* 外环带宽限制: 斜率限制 + 低通滤波 — 参数g_params + 状态g_state */
 
 /* PI 已移入 g_params.inner + g_state.inner */
@@ -721,7 +721,7 @@ void System_Reset(void){
     g_ectx.current = ELEMENT_STRAIGHT;
     g_ectx.exit_lockout_cnt = 0;
     g_ectx.offtrack_active = 0;
-    g_ectx.total_ticks_start = xTaskGetTickCount();
+    g_ectx.total_frames = 0;
     manual_control_flag = 1;
     PWMA_Set(0);
     LED_RequestBreathing();              /* 切手动 → 呼吸灯 */
@@ -749,7 +749,7 @@ void Change_Maunal(){
         g_ectx.current = ELEMENT_STRAIGHT;
         g_ectx.exit_lockout_cnt = 0;
         g_ectx.offtrack_active = 0;
-        /* total_ticks_start 由电机激活时设定, 不在此处提前设置 */
+        /* total_frames 由电机激活时清零, 不在此处提前设置 */
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
@@ -955,8 +955,7 @@ void Main_Control_Task(void *pvParameters)
     float Err_4;
     float differential_speed;
     float actual_yaw_rate_raw;  /* 陀螺仪原始角速度 (滤波前) */
-    float gx_body, gy_body, gz_body, gz_abs;  /* 重力向量倾角计算 */
-    float g_horiz, tilt_total, inv_horiz;     /* 总倾角+分解 (大倾角稳定) */
+    float gx_body, gy_body, gz_body;  /* 重力向量, 传入 Element_CalcTilt */
     const ElementProp_t *prop;              /* 当前元素属性 (每 tick 查一次) */
     ControlStrategy_t    ctrl;              /* 当前有效控制策略 */
 
@@ -1051,44 +1050,20 @@ void Main_Control_Task(void *pvParameters)
                     const ControlParams_t *p = GetActiveParams(current_element);
                     Err_Angle = CalcAdcError(&p->adc, Err_1, Err_2, Err_3, Err_4);
                 }
-                /* 填充元素状态机的 err 观测值 (先于 Element_Update + 冻结) */
-                g_ectx.err_raw      = Err_Angle;
-                g_ectx.err_filtered = g_state.err_filtered; //这里必须更新原始值，不能劫持
-                 /* ===== 元素状态机更新 (先于控制决策, 保证本帧状态最新) ===== */
-                {
-                    unsigned char j;
-                    for (j = 0; j < 4; j++) {
-                        g_ectx.adc[j] = adc_normalized[j];
-                    }
-                    g_ectx.ax  = IMU_Filter_Data->sensor.dat.ax;
-                    g_ectx.ay  = IMU_Filter_Data->sensor.dat.ay;
-                    g_ectx.az  = IMU_Filter_Data->sensor.dat.az;
-                    g_ectx.yaw = yaw;
+                /* ===== 传感器灌入 + 倾角计算 + 状态机更新 ===== */
+                Element_FeedSensors(&g_ectx, adc_normalized,
+                    IMU_Filter_Data->sensor.dat.ax,
+                    IMU_Filter_Data->sensor.dat.ay,
+                    IMU_Filter_Data->sensor.dat.az,
+                    yaw, Err_Angle, g_state.err_filtered);
 
-                    IMU_Get_Angle(&roll, &pitch, &yaw);
-                    yaw = IMU_Get_Yaw_Unwrapped();
+                IMU_Get_Angle(&roll, &pitch, &yaw);
+                yaw = IMU_Get_Yaw_Unwrapped();
 
-                    /* ---- 四元数重力向量倾角 (总倾角+按比例分解, 大倾角稳定) ---- */
-                    IMU_GetGravityVector(&gx_body, &gy_body, &gz_body);
+                IMU_GetGravityVector(&gx_body, &gy_body, &gz_body);
+                Element_CalcTilt(&g_ectx, gx_body, gy_body, gz_body);
 
-                    /* 水平分量幅值: g_horiz²+gz²=1 (四元数归一化保证) */
-                    g_horiz = (float)sqrt(gx_body * gx_body + gy_body * gy_body);
-                    gz_abs  = (gz_body > 0.0f) ? gz_body : -gz_body;
-
-                    /* 总倾角 = atan2(水平, 垂直) — 大倾角时 g_horiz→1, 无小分母 */
-                    tilt_total = (float)atan2(g_horiz, gz_abs) * 57.29578f;
-
-                    /* 按比例分解为前后/左右分量, 保留符号区分方向 */
-                    if (g_horiz > 0.001f) {
-                        inv_horiz = 1.0f / g_horiz;
-                        g_ectx.tilt_fb = tilt_total * gx_body * inv_horiz;
-                        g_ectx.tilt_lr = tilt_total * gy_body * inv_horiz;
-                    } else {
-                        g_ectx.tilt_fb = 0.0f;
-                        g_ectx.tilt_lr = 0.0f;
-                    }
-                    current_element = Element_Update(&g_ectx);
-                }
+                current_element = Element_Update(&g_ectx);
                 /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
 /************    状态机插入 ****************** */
 
@@ -1229,7 +1204,7 @@ void Main_Control_Task(void *pvParameters)
                             g_state.inner.error_sum = 0.0f;
                             g_state.inner.last_error = 0.0f;
                             g_state.i_sum = 0.0f;
-                            g_ectx.total_ticks_start = xTaskGetTickCount();
+                            g_ectx.total_frames = 0;
                         }
                     }
 
@@ -1317,10 +1292,10 @@ void Main_Control_Task_Init(void)
      * 2. ADC 误差权重 & 归一化 — 默认值 & Debug 注册
      * ================================================================ */
     /* 默认参数 (g_params.adc) */
-    g_params.adc.err_A_K = 2.0f;
-    g_params.adc.err_B_K = 6.0f;
-    g_params.adc.err_C_K = 3.0f;
-    g_params.adc.err_D_K = 3.0f;
+    g_params.adc.err_A_K = 3.0f;
+    g_params.adc.err_B_K = 7.0f;
+    g_params.adc.err_C_K = 5.0f;
+    g_params.adc.err_D_K = 8.75f;
     Debug_Register("Err_K_A", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_A_K);
     Debug_Register("Err_K_B", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_B_K);
     Debug_Register("Err_K_C", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_C_K);
@@ -1350,10 +1325,12 @@ void Main_Control_Task_Init(void)
     g_params.outer.outer_lpf_fc    = 100.0f;
     g_params.outer.gyro_lpf_fc     = 100.0f;
     g_params.outer.Kd_diff_thresh  = 100.0f;
+    g_params.outer.Kd_diff_high  = 0.0f;
+    g_params.outer.Kd_diff_low   = 0.0f;
     g_params.outer.diff_deadband   = 0.5f;
     g_params.outer.d_ma_window     = 80;
-    g_params.outer.outer_Ki        = 0.23f;
-    g_params.outer.outer_i_limit   = 3.6f;
+    g_params.outer.outer_Ki        = 0.0f;
+    g_params.outer.outer_i_limit   = 0.0f;
     g_params.outer.outer_i_sep_hi  = 10000.0f;
     g_params.outer.outer_i_sep_lo  = 30.0f;
     Debug_Register("OutSlew",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_slew_max);
@@ -1380,7 +1357,7 @@ void Main_Control_Task_Init(void)
     /* ================================================================
      * 5. 内环 PI — 默认值 & Debug 注册
      * ================================================================ */
-    g_params.inner.Kp = 5.5f;
+    g_params.inner.Kp = 5.800000190734863f;
     g_params.inner.Ki = 0.0f;
     g_params.inner.Kd = 0.10000000149011612f;
     g_params.inner.error_sum_max = 0.0f;
@@ -1398,11 +1375,11 @@ void Main_Control_Task_Init(void)
     /* ================================================================
      * 5b. 速度输出后处理 — 默认值 & Debug 注册
      * ================================================================ */
-    g_params.speed_out.max_output = 100.0f;   /* 远大于正常速度, 仅防极端 */
-    g_params.speed_out.min_output = 0.0f;     /* 默认无死区 */
-    g_params.speed_out.max_diff   = 50.0f;    /* = common_speed, 防止反转 */
-    g_params.speed_out.min_diff   = 0.0f;     /* 默认无死区 */
-    g_params.speed_out.slew_rate  = 20.0f;    /* 每 tick ±20, 500Hz 下平滑 */
+    g_params.speed_out.max_output = 250.0f;
+    g_params.speed_out.min_output = 2.0f;
+    g_params.speed_out.max_diff   = 200.0f;
+    g_params.speed_out.min_diff   = 1.0f;
+    g_params.speed_out.slew_rate  = 40.0f;
     g_state.last_spd_l = 0.0f;
     g_state.last_spd_r = 0.0f;
     Debug_Register("SpdMax",  DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.max_output);
@@ -1414,18 +1391,18 @@ void Main_Control_Task_Init(void)
     /* ================================================================
      * 6. 模糊 PID — 默认值 & Debug 注册
      * ================================================================ */
-    pid_struct.e_max    = 150.0f;
-    pid_struct.Kp0      = 0.06300000101327896f;
+    pid_struct.e_max    = 50.0f;
+    pid_struct.Kp0      = 0.17000000178813934f;
     pid_struct.setpoint = 0.0f;
     FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.e_max);
     /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
-    pid_struct.kp_singletons[FUZZY_NB] = 2.0999999046325684f;
-    pid_struct.kp_singletons[FUZZY_NM] = 1.2000000476837158f;
-    pid_struct.kp_singletons[FUZZY_NS] = 1.100000023841858f;
-    pid_struct.kp_singletons[FUZZY_ZO] = 1.0f;
-    pid_struct.kp_singletons[FUZZY_PS] = 1.100000023841858f;
-    pid_struct.kp_singletons[FUZZY_PM] = 1.2000000476837158f;
-    pid_struct.kp_singletons[FUZZY_PB] = 2.0999999046325684f;
+    pid_struct.kp_singletons[FUZZY_NB] = 2.200000047683716f;
+    pid_struct.kp_singletons[FUZZY_NM] = 1.600000023841858f;
+    pid_struct.kp_singletons[FUZZY_NS] = 1.399999976158142f;
+    pid_struct.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
+    pid_struct.kp_singletons[FUZZY_PS] = 1.399999976158142f;
+    pid_struct.kp_singletons[FUZZY_PM] = 1.600000023841858f;
+    pid_struct.kp_singletons[FUZZY_PB] = 2.200000047683716f;
     Debug_Register("FKp0",   DBG_FLOAT | STATIC_TYPE, &pid_struct.Kp0);
     Debug_Register("Fe_max", DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NB]);

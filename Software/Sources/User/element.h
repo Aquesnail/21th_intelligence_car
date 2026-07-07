@@ -123,7 +123,7 @@ typedef struct {
     /* ---- 通用元素消隐帧计数 ---- */
     unsigned short elem_blanking_cnt;
 
-    unsigned long  total_ticks_start;  /* 总计时器起始 tick (xTaskGetTickCount) */
+    unsigned long  total_frames;     /* 上赛道帧计数, 每 2ms 自增 */
     /* ---- 元素表 ---- */
     unsigned char track_idx;
     unsigned char track_table_enabled;  /* 上位机可调 */
@@ -158,6 +158,10 @@ const ElementProp_t* Element_GetProp(element_t e);
 ControlStrategy_t Element_GetEffectiveCtrl(element_t e, ElementCtx_t *ctx);
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx);
 void Element_ResetTrackIndex(ElementCtx_t *ctx);
+void Element_FeedSensors(ElementCtx_t *ctx,
+    const float adc[4], float ax, float ay, float az,
+    float yaw, float err_raw, float err_filtered);
+void Element_CalcTilt(ElementCtx_t *ctx, float gx, float gy, float gz);
 float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx);
 float SelectTargetErr(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx);
 #endif /* ELEMENT_H */
