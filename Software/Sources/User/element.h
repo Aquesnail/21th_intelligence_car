@@ -133,6 +133,8 @@ typedef struct {
     unsigned long  offtrack_start_tick;
 
     
+    unsigned char  push_mode;         /* 推车调试模式: 1=关电机+关风扇 */
+
     /* ---- 当前/前一状态 ---- */
     element_t current;
     element_t prev;
@@ -153,7 +155,7 @@ void VoteWin_SetLen(VoteWindow_t *w, unsigned char len);
 void Element_Init(ElementCtx_t *ctx);
 element_t Element_Update(ElementCtx_t *ctx);
 const ElementProp_t* Element_GetProp(element_t e);
-ControlStrategy_t Element_GetEffectiveCtrl(element_t e);
+ControlStrategy_t Element_GetEffectiveCtrl(element_t e, ElementCtx_t *ctx);
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx);
 void Element_ResetTrackIndex(ElementCtx_t *ctx);
 float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop,ElementCtx_t *ctx);

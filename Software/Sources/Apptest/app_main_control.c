@@ -732,9 +732,11 @@ void System_Reset(void){
 
 void Change_Maunal(){
 	if(manual_control_flag){
-        /* 切换到自动模式: 启动风扇, 2s 后再激活电机 */
+        /* 切换到自动模式: 启动风扇(推车模式跳过), 2s 后再激活电机 */
         manual_control_flag = 0;
-        PWMA_Set(fan_D);
+        if (!g_ectx.push_mode) {
+            PWMA_Set(fan_D);
+        }
         LED_RequestSteady(255, 255, 255);   /* 切自动 → 稳态白光 */
         g_auto_transition = 1;
         g_auto_fan_tick = xTaskGetTickCount();
@@ -1102,7 +1104,7 @@ void Main_Control_Task(void *pvParameters)
                 }
 /* 每 tick 一次查表 (替代原多处分散的 Element_GetProp 调用) */
                 prop = Element_GetProp(current_element);
-                ctrl = Element_GetEffectiveCtrl(current_element);
+                ctrl = Element_GetEffectiveCtrl(current_element, &g_ectx);
 
                 /* 元素切换 → 更新 LED (仅自动模式, 手动模式保持呼吸灯) */
                 if (!manual_control_flag && current_element != prev_element) {
@@ -1218,9 +1220,10 @@ void Main_Control_Task(void *pvParameters)
                         g_reg_write_pending = 0;
                     }
 
-                    /* 风扇启动后等待 2s 再激活电机 */
+                    /* 风扇启动后等待 2s 再激活电机 (推车模式立即激活) */
                     if (g_auto_transition == 1) {
-                        if ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)) {
+                        if (g_ectx.push_mode
+                            || (xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)) {
                             g_auto_transition = 2;
                             lpf_reset(&g_state.lpf_gyro, 0.0f);
                             g_state.inner.error_sum = 0.0f;

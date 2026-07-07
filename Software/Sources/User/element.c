@@ -13,7 +13,6 @@ extern unsigned char manual_control_flag;
 static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
 
 /* ---- 推车调试 ---- */
-static unsigned char g_debug_push_mode = 0;   /* 推车调试: 1=关电机+关风扇, 元素检测/LED照跑 */
 
 /* ================================================================
  * 速度变量 (供元素属性表 speed_ptr 指向 + Debug_Register 在线调参)
@@ -235,7 +234,7 @@ const ElementProp_t* Element_GetProp(element_t e)
     return &g_element_props[e];
 }
 
-ControlStrategy_t Element_GetEffectiveCtrl(element_t e)
+ControlStrategy_t Element_GetEffectiveCtrl(element_t e, ElementCtx_t *ctx)
 {
     const ElementProp_t *prop;
     ControlStrategy_t ctrl;
@@ -244,7 +243,7 @@ ControlStrategy_t Element_GetEffectiveCtrl(element_t e)
     if (prop == NULL) return CTRL_NORMAL;
     ctrl = prop->ctrl;
 
-    if (g_debug_push_mode && ctrl != CTRL_BRAKE) {
+    if (ctx != NULL && ctx->push_mode && ctrl != CTRL_BRAKE) {
         return CTRL_FREEWHEEL;
     }
     return ctrl;
@@ -863,6 +862,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->track_table_enabled = 1;
         ctx->offtrack_active     = 0;
         ctx->offtrack_start_tick = 0;
+        ctx->push_mode           = 0;
         ctx->current = ELEMENT_STRAIGHT;
         ctx->prev    = ELEMENT_STRAIGHT;
         ctx->tilt_fb   = 0.0f;
@@ -881,7 +881,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("OffTkMs",  DBG_FLOAT  | STATIC_TYPE, &g_offtrack_timeout_ms);
     Debug_Register("TblEnable",DBG_UINT8  | STATIC_TYPE, &g_track_table_enabled);
     Debug_Register("DbgElem",  DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
-    Debug_Register("PushMode", DBG_UINT8  | STATIC_TYPE, &g_debug_push_mode);
+    Debug_Register("PushMode", DBG_UINT8  | STATIC_TYPE, &ctx->push_mode);
     Debug_Register("Index",    DBG_UINT8 , &g_track_idx);
     /* ================================================================
      * 2. 速度变量 — Debug 注册
@@ -1149,7 +1149,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     } else {
         g_offtrack_active = 0;
     }
-    if (ctx->current != ELEMENT_SAFETY_STOP && g_debug_push_mode != 1 && manual_control_flag == 0) {
+    if (ctx->current != ELEMENT_SAFETY_STOP && ctx->push_mode != 1 && manual_control_flag == 0) {
         if (g_ontrack_timeout_tick > 0
             && (now_tick - ctx->total_ticks_start) >= g_ontrack_timeout_tick
             && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) {
