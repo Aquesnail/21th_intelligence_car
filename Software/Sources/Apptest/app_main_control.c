@@ -15,6 +15,7 @@
 #include "element.h"
 #include "led_indicator.h"
 #include "pwm_user.h"
+#include <math.h>
 #pragma warning disable = 174
 
 /* ================================================================
@@ -550,6 +551,16 @@ uint16_t adc_dead_zone = 5;
 float adc_err_zone = 0.5f;
 float Err_Angle=0.0f;
 
+/* 方法1: atan2 矢量合成算法 — 测试变量 (4系数 + 4观测) */
+static float at2_KA = 3.0f;
+static float at2_KB = 7.0f;
+static float at2_KC = 5.0f;
+static float at2_KD = 8.75f;
+static float at2_theta = 0.0f;
+static float at2_Ex = 0.0f;
+static float at2_Ey = 0.0f;
+static float Err_Atan2 = 0.0f;
+
 /* 驾驶方向命令 (标志位方式, Main_Control 安全点执行) */
 #define DRIVE_STOP     0
 #define DRIVE_FORWARD  1
@@ -1050,6 +1061,36 @@ void Main_Control_Task(void *pvParameters)
                     const ControlParams_t *p = GetActiveParams(current_element);
                     Err_Angle = CalcAdcError(&p->adc, Err_1, Err_2, Err_3, Err_4);
                 }
+                /* ===== Block 0b: atan2 矢量合成算法 (纯测试观测, 不影响控制管线) ===== */
+                {
+                    float denom_vert;
+                    if (change_inductor == 1) {
+                        denom_vert = adc_normalized[1] + adc_normalized[3];
+                    } else {
+                        denom_vert = adc_normalized[0] + adc_normalized[2];
+                    }
+                    /* Ex = (KA * Err_1) / (KC * Err_3) — 横向差比和 */
+                    if (Err_3 > 0.001f) {
+                        at2_Ex = at2_KA * Err_1 / (at2_KC * Err_3);
+                    } else {
+                        at2_Ex = 0.0f;
+                    }
+                    /* Ey = (KB * Err_2) / (KD * denom_vert) — 竖直差比和 */
+                    if (denom_vert > 0.001f) {
+                        at2_Ey = at2_KB * Err_2 / (at2_KD * denom_vert);
+                    } else {
+                        at2_Ey = 0.0f;
+                    }
+                    /* θ = atan2(Ey, Ex) — 方位角, 处处连续无分支 */
+                    if (at2_Ex < 0.001f && at2_Ex > -0.001f &&
+                        at2_Ey < 0.001f && at2_Ey > -0.001f) {
+                        at2_theta = 0.0f;
+                    } else {
+                        at2_theta = atan2(at2_Ey, at2_Ex);
+                    }
+                    /* Err_Atan2 = θ × 100 (固定增益, 与原算法一致) */
+                    Err_Atan2 = at2_theta * 100.0f;
+                }
                 /* ===== 传感器灌入 + 倾角计算 + 状态机更新 ===== */
                 Element_FeedSensors(&g_ectx, adc_normalized,
                     IMU_Filter_Data->sensor.dat.ax,
@@ -1287,6 +1328,11 @@ void Main_Control_Task_Init(void)
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_r_nagtive));
     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_actual);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
+    /* atan2 观测 (HIGH_FREQ) */
+    Debug_Register("At2_Ex", DBG_FLOAT | HIGH_FREQ_TYPE, &at2_Ex);
+    Debug_Register("At2_Ey", DBG_FLOAT | HIGH_FREQ_TYPE, &at2_Ey);
+    Debug_Register("At2_Th", DBG_FLOAT | HIGH_FREQ_TYPE, &at2_theta);
+    Debug_Register("Err_At2",DBG_FLOAT | HIGH_FREQ_TYPE, &Err_Atan2);
 
     /* ================================================================
      * 2. ADC 误差权重 & 归一化 — 默认值 & Debug 注册
@@ -1300,6 +1346,11 @@ void Main_Control_Task_Init(void)
     Debug_Register("Err_K_B", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_B_K);
     Debug_Register("Err_K_C", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_C_K);
     Debug_Register("Err_K_D", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_D_K);
+    /* atan2 4系数 (STATIC_TYPE — 上位机在线调参) */
+    Debug_Register("At2_KA",  DBG_FLOAT | STATIC_TYPE, &at2_KA);
+    Debug_Register("At2_KB",  DBG_FLOAT | STATIC_TYPE, &at2_KB);
+    Debug_Register("At2_KC",  DBG_FLOAT | STATIC_TYPE, &at2_KC);
+    Debug_Register("At2_KD",  DBG_FLOAT | STATIC_TYPE, &at2_KD);
 
     /* 十字专用 (g_params_cross.adc, Init 末尾 copy 后个别清零) */
     Debug_Register("Cr_ErrKA", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_A_K);
@@ -1349,10 +1400,10 @@ void Main_Control_Task_Init(void)
     /* ================================================================
      * 4. 外环观测 (HIGH_FREQ) — 只看不改
      * ================================================================ */
-    Debug_Register("TgtYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
-    Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
-    Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
-    Debug_Register("OutITrm", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
+    //Debug_Register("TgtYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
+   // Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
+   // Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
+   // Debug_Register("OutITrm", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
 
     /* ================================================================
      * 5. 内环 PI — 默认值 & Debug 注册
@@ -1374,7 +1425,7 @@ void Main_Control_Task_Init(void)
 
     /* ================================================================
      * 5b. 速度输出后处理 — 默认值 & Debug 注册
-     * ================================================================ */
+     * ============================================0==================== */
     g_params.speed_out.max_output = 250.0f;
     g_params.speed_out.min_output = 2.0f;
     g_params.speed_out.max_diff   = 200.0f;
