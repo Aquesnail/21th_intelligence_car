@@ -538,6 +538,7 @@ static void Enter_Barrel(ElementCtx_t *ctx)
 static void Enter_BarrelClimb(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_barrel);
+    VoteWin_Reset(&ctx->vote_barrel_peak);
 }
 
 static void Enter_BarrelDescend(ElementCtx_t *ctx)
@@ -919,11 +920,8 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("RingEx2", DBG_FLOAT | STATIC_TYPE, &RingExit[2]);
     Debug_Register("RingEx3", DBG_FLOAT | STATIC_TYPE, &RingExit[3]);
 
-    /* 投票窗 & 角度阈值 (VoteWin_Init 默认值 + 尾部覆盖块确定最终值) */
+    /* 角度阈值 */
     Debug_Register("Ring_AngThr", DBG_FLOAT | STATIC_TYPE, &angle_level);
-    Debug_Register("Ring_WinLen", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.len);
-    Debug_Register("Ring_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.entry_thresh);
-    Debug_Register("Ring_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.exit_thresh);
 
     /* 开环 / 时序参数 */
     Debug_Register("OL_Yaw",      DBG_FLOAT  | STATIC_TYPE, &g_ol_ring_yawrate);
@@ -942,9 +940,6 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_wall.entry_thresh = 7;
     vote_win_wall.exit_thresh  = 7;
     Debug_Register("Wall_EntTiltB", DBG_FLOAT | STATIC_TYPE, &wall_entry_tiltb);
-    Debug_Register("Wall_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
-    Debug_Register("Wall_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.entry_thresh);
-    Debug_Register("Wall_ExtThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.exit_thresh);
 
     /* CLIMB→HORIZONTAL: |TiltR| > 70 */
     wall_climb_exit_tiltr = 70.0f;
@@ -952,8 +947,6 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_wall_climb.entry_thresh = 7;
     vote_win_wall_climb.exit_thresh  = 7;
     Debug_Register("Wall_ClimbTR", DBG_FLOAT | STATIC_TYPE, &wall_climb_exit_tiltr);
-    Debug_Register("WCl_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_climb.len);
-    Debug_Register("WCl_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_climb.entry_thresh);
 
     /* HORIZONTAL→DESCEND: |TiltR| < 70 */
     wall_horiz_exit_tiltr = 70.0f;
@@ -961,8 +954,6 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_wall_horiz.entry_thresh = 7;
     vote_win_wall_horiz.exit_thresh  = 7;
     Debug_Register("Wall_HorizTR", DBG_FLOAT | STATIC_TYPE, &wall_horiz_exit_tiltr);
-    Debug_Register("WHr_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_horiz.len);
-    Debug_Register("WHr_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_horiz.entry_thresh);
 
     /* DESCEND→STRAIGHT: TiltB > 60, 消隐期内强制投 0 */
     wall_descend_exit_tiltb = 60.0f;
@@ -971,8 +962,6 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_wall_descend.exit_thresh  = 7;
     Debug_Register("Wall_DescTiltB", DBG_FLOAT  | STATIC_TYPE, &wall_descend_exit_tiltb);
     Debug_Register("Wall_DesBlk",    DBG_UINT16 | STATIC_TYPE, &wall_descent_blanking_frames);
-    Debug_Register("WDs_WinLen",   DBG_UINT8  | STATIC_TYPE, &vote_win_wall_descend.len);
-    Debug_Register("WDs_EntThr",   DBG_UINT8  | STATIC_TYPE, &vote_win_wall_descend.entry_thresh);
 
     /* 超时 */
     Debug_Register("Wall_Timeout", DBG_UINT16 | STATIC_TYPE, &g_wall_timeout_frames);
@@ -988,19 +977,13 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_barrel.exit_thresh  = 7;
     Debug_Register("Bar_EnTilt", DBG_FLOAT | STATIC_TYPE, &barrel_entry_tilt);
     Debug_Register("Bar_ExTilt", DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
-    Debug_Register("Bar_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.len);
-    Debug_Register("Bar_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.entry_thresh);
-    Debug_Register("Bar_ExtThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.exit_thresh);
 
     /* 峰值 > 75° (投票窗滤波) */
     barrel_peak_tilt = 75.0f;
-    vote_win_barrel_peak.len          = 10;
+    vote_win_barrel_peak.len          = 0;
     vote_win_barrel_peak.entry_thresh = 7;
     vote_win_barrel_peak.exit_thresh  = 7;
     Debug_Register("Bar_PeakTilt", DBG_FLOAT | STATIC_TYPE, &barrel_peak_tilt);
-    Debug_Register("Bar_PkWnLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.len);
-    Debug_Register("Bar_PkWnEnTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.entry_thresh);
-    Debug_Register("Bar_PkWnExTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.exit_thresh);
 
     /* 超时 */
     Debug_Register("Bar_Timeout", DBG_UINT16 | STATIC_TYPE, &g_barrel_timeout_frames);
@@ -1018,14 +1001,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("Cross_EnSum",   DBG_FLOAT  | STATIC_TYPE, &cross_entry_sum);
     Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
     Debug_Register("Cross_AllSum",  DBG_FLOAT  | STATIC_TYPE, &cross_all_sum);
-    Debug_Register("Cross_EntThr",  DBG_UINT8  | STATIC_TYPE, &vote_win_cross.entry_thresh);
-    Debug_Register("Cross_ExtThr",  DBG_UINT8  | STATIC_TYPE, &vote_win_cross.exit_thresh);
-    Debug_Register("Cross_WinLen", DBG_UINT8  | STATIC_TYPE, &vote_win_cross.len);
     Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
-
-    /* 倾角退出投票窗 (VoteWin_Init 默认值 + 尾部覆盖块确定最终值) */
-    Debug_Register("Cross_TltWnLen", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.len);
-    Debug_Register("Cross_TltExtTh", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.exit_thresh);
 
     /* ================================================================
      * 7. 直角转弯 RIGHT_ANGLE — 默认值 & Debug 注册
@@ -1038,13 +1014,46 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("RA_YawFwdK", DBG_FLOAT  | STATIC_TYPE, &g_ra_yawrate_feedforward_k);
     Debug_Register("RA_EnThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_entry_thresh);
     Debug_Register("RA_ExThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_exit_thresh);
-    Debug_Register("RA_WinLen",  DBG_UINT8  | STATIC_TYPE, &vote_win_ra.len);
-    Debug_Register("RA_WinEnTh", DBG_UINT8  | STATIC_TYPE, &vote_win_ra.entry_thresh);
-    Debug_Register("RA_WinExTh", DBG_UINT8  | STATIC_TYPE, &vote_win_ra.exit_thresh);
     Debug_Register("RA_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ra_timeout_frames);
 
     /* ================================================================
-     * 8. 投票窗缓冲区绑定 & 上下文赋值
+     * 8. 时间滤波(投票窗)参数 — 集中管理, 暂时注释以减少上位机参数列表
+     *    需要恢复时取消注释即可
+     * ================================================================ */
+    /* 环岛 */
+    // Debug_Register("Ring_WinLen", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.len);
+    // Debug_Register("Ring_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.entry_thresh);
+    // Debug_Register("Ring_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.exit_thresh);
+    /* 上墙 */
+    // Debug_Register("Wall_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
+    // Debug_Register("Wall_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.entry_thresh);
+    // Debug_Register("Wall_ExtThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.exit_thresh);
+    // Debug_Register("WCl_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_climb.len);
+    // Debug_Register("WCl_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_climb.entry_thresh);
+    // Debug_Register("WHr_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_horiz.len);
+    // Debug_Register("WHr_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_horiz.entry_thresh);
+    // Debug_Register("WDs_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_descend.len);
+    // Debug_Register("WDs_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_wall_descend.entry_thresh);
+    /* 滚筒 */
+    // Debug_Register("Bar_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.len);
+    // Debug_Register("Bar_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.entry_thresh);
+    // Debug_Register("Bar_ExtThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.exit_thresh);
+     Debug_Register("Bar_PkWnLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.len);
+     Debug_Register("Bar_PkWnEnTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.entry_thresh);
+     Debug_Register("Bar_PkWnExTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.exit_thresh);
+    /* 十字 */
+    // Debug_Register("Cross_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_cross.entry_thresh);
+    // Debug_Register("Cross_ExtThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_cross.exit_thresh);
+    // Debug_Register("Cross_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_cross.len);
+    // Debug_Register("Cross_TltWnLen", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.len);
+    // Debug_Register("Cross_TltExtTh", DBG_UINT8 | STATIC_TYPE, &vote_win_cross_tilt.exit_thresh);
+    /* 直角转弯 */
+    // Debug_Register("RA_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_ra.len);
+    // Debug_Register("RA_WinEnTh",  DBG_UINT8 | STATIC_TYPE, &vote_win_ra.entry_thresh);
+    // Debug_Register("RA_WinExTh",  DBG_UINT8 | STATIC_TYPE, &vote_win_ra.exit_thresh);
+
+    /* ================================================================
+     * 9. 投票窗缓冲区绑定 & 上下文赋值
      * ================================================================ */
     VoteWin_Init(&vote_win_ring,         ring_vote_buf,          100);
     VoteWin_Init(&vote_win_wall,         wall_vote_buf,          WALL_WIN_MAX);

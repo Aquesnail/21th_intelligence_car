@@ -15,6 +15,7 @@
 #include "element.h"
 #include "led_indicator.h"
 #include "pwm_user.h"
+#include "fan_control.h"
 #pragma warning disable = 174
 
 /* ================================================================
@@ -83,6 +84,7 @@ typedef struct {
     AdcErrParams_t      adc;
     PIParams_t          inner;
     SpeedOutputParams_t speed_out;  /* 速度输出后处理 */
+    FuzzyPID            fuzzy;      /* 模糊PID参数 */
 } ControlParams_t;
 
 /* 控制管线运行时状态 (每帧变化) */
@@ -108,9 +110,10 @@ typedef struct {
 /* ================================================================
  * 控制管道参数 + 状态 (Phase 3: 集中管理, 替代散落变量)
  * ================================================================ */
-/* 元素专用控制参数 (cross 走 g_params_cross, 其余回落 g_params) */
+/* 元素专用控制参数 (cross→g_params_cross, ring→g_params_ring, 其余回落 g_params) */
 static ControlParams_t g_params;         /* 默认参数 */
 static ControlParams_t g_params_cross;   /* 十字专用 (屏蔽竖直电感) */
+static ControlParams_t g_params_ring;    /* 环岛专用 */
 static ControlState_t  g_state;          /* 运行时 memset 初始化 */
 static const ControlParams_t *g_active_params_prev = NULL; /* 上一帧参数集, 用于检测切换 */
 static motor_data_t speed_target_l; /* 左轮速度目标 (被 ApplySpeedOutputParams / CtrlState_Seed 引用) */
@@ -149,6 +152,12 @@ static const ControlParams_t* GetActiveParams(element_t e)
     switch (e) {
     case ELEMENT_CROSS:
         return &g_params_cross;
+    case ELEMENT_RING_LEFT_ENTRANCE:
+    case ELEMENT_RING_RIGHT_ENTRANCE:
+    case ELEMENT_RING_LEFT_PASS:
+    case ELEMENT_RING_RIGHT_PASS:
+    case ELEMENT_IN_RING:
+        return &g_params_ring;
     default:
         return &g_params;
     }
@@ -403,25 +412,6 @@ uint8_t ADC_NormalizeCommand(const char* cmd) {
     }
     return 0; // 未识别
 }
-static uint16_t fan_D = 375;
-static void Fan_D_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
-{
-    uint16_t new_val;
-    (void)len;
-    (void)peri_addr;
-    memcpy(&new_val, pData, sizeof(uint16_t));
-    fan_D = new_val;
-    //PWMA_Set(fan_D);
-}
-
-static void Fan_D_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
-{
-    uint16_t val;
-    (void)len;
-    (void)peri_addr;
-    val = fan_D;
-    memcpy(pData, &val, sizeof(uint16_t));
-}
 
 /* ================================================================
  * 控制管道 API
@@ -518,7 +508,7 @@ static DebugPeriDesc_t g_pid_b_ilim_desc = {REG_B_PID_SPEED_INTEGRAL_LIMIT, Moto
 static DebugPeriDesc_t g_right_speed_desc = {REG_A_SPEED_TARGET, Motor_Reg_Read_Cb,Motor_Reg_Write_Cb}; // 只写当前右轮速度
 static DebugPeriDesc_t g_left_speed_desc  = {REG_B_SPEED_TARGET,Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 只写当前左轮速度
 static DebugPeriDesc_t g_ec_ma_count_desc = {0, EC_MA_Read_Cb, EC_MA_Write_Cb}; /* EC移动平均窗口大小 */
-static DebugPeriDesc_t g_fan_d = {0, Fan_D_Read_Cb, Fan_D_Write_Cb}; /* 风扇占空比寄存器 */
+
 static DebugPeriDesc_t g_outer_lpf_fc_desc = {0, OuterLpf_Read_Cb, OuterLpf_Write_Cb}; /* 外环LPF截止频率 */
 static DebugPeriDesc_t g_d_ma_win_desc     = {0, D_MA_Win_Read_Cb, D_MA_Win_Write_Cb}; /* 微分MA窗口 */
 extern IMU_Filter_t *IMU_Filter_Data;
@@ -586,8 +576,6 @@ uint8_t Motor_HandleCommand(const char* cmd)
     return 1;
 }
 
-static FuzzyPID pid_struct; // 运行时 memset 初始化
-static float pid_output=0.0f;
 static float common_speed=60.0f;
 /* 外环带宽限制: 斜率限制 + 低通滤波 — 参数g_params + 状态g_state */
 
@@ -723,7 +711,7 @@ void System_Reset(void){
     g_ectx.offtrack_active = 0;
     g_ectx.total_frames = 0;
     manual_control_flag = 1;
-    PWMA_Set(0);
+    Fan_TurnOff();
     LED_RequestBreathing();              /* 切手动 → 呼吸灯 */
     g_auto_transition = 0;
     g_ss_magnitude = 0.0f;  /* 重置缓启动 */
@@ -735,7 +723,7 @@ void Change_Maunal(){
         /* 切换到自动模式: 启动风扇(推车模式跳过), 2s 后再激活电机 */
         manual_control_flag = 0;
         if (!g_ectx.push_mode) {
-            PWMA_Set(fan_D);
+            Fan_SoftStart_Trigger(fan_D);
         }
         LED_RequestSteady(255, 255, 255);   /* 切自动 → 稳态白光 */
         g_auto_transition = 1;
@@ -753,7 +741,7 @@ void Change_Maunal(){
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
         manual_control_flag = 1;
-        PWMA_Set(0);
+        Fan_TurnOff();
         LED_RequestBreathing();              /* 切手动 → 呼吸灯 */
         g_auto_transition = 0;
         g_ss_magnitude = 0.0f;  /* 重置缓启动 */
@@ -835,12 +823,12 @@ static void ControlDispatch(ControlStrategy_t ctrl, float spd_r, float spd_l)
         break;
     case CTRL_BRAKE:
         Motor_Write_Speeds(0.0f, 0.0f);
-        PWMA_Set(0);   /* 关负压风扇 */
+        Fan_TurnOff();   /* 关负压风扇 */
         break;
     case CTRL_FREEWHEEL:
     default:
         Motor_Write_Speeds(0.0f, 0.0f);
-        PWMA_Set(0);
+        Fan_TurnOff();
         break;
     }
 }
@@ -1112,7 +1100,7 @@ void Main_Control_Task(void *pvParameters)
                 {
                     const ControlParams_t *p = GetActiveParams(current_element);
                     actual_yaw_rate_raw = IMU_Get_Gyro_Z();
-                    g_state.tar_yaw_raw = RunOuterLoop(&p->outer, &g_state, &pid_struct,
+                    g_state.tar_yaw_raw = RunOuterLoop(&p->outer, &g_state, &p->fuzzy,
                                                         Err_Angle, actual_yaw_rate_raw);
                 }
 //角速度环路劫持
@@ -1214,6 +1202,7 @@ void Main_Control_Task(void *pvParameters)
                     }
 
                 }
+                Fan_SoftStart_Step();
                 //taskEXIT_CRITICAL();
             }
 
@@ -1255,12 +1244,13 @@ void Main_Control_Task_Init(void)
     memset(&g_left_speed_target,  0, sizeof(g_left_speed_target));
     memset(&g_right_speed_target, 0, sizeof(g_right_speed_target));
     memset(adc_normalized,       0, sizeof(adc_normalized));
-    memset(&pid_struct,          0, sizeof(pid_struct));
     memset(&g_params,            0, sizeof(g_params));
     memset(&g_params_cross,      0, sizeof(g_params_cross));
+    memset(&g_params_ring,       0, sizeof(g_params_ring));
 
-   
+
     memcpy(&g_params_cross, &g_params, sizeof(ControlParams_t));
+    memcpy(&g_params_ring,  &g_params, sizeof(ControlParams_t));
 
     memset(&g_state,             0, sizeof(g_state));
     memset(&speed_target_l,      0, sizeof(speed_target_l));
@@ -1346,6 +1336,34 @@ void Main_Control_Task_Init(void)
     Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
     Debug_Register("GyroLPFFc", DBG_FLOAT  | STATIC_TYPE, &g_params.outer.gyro_lpf_fc);
 
+    /* 十字专用外环参数 (g_params_cross.outer, 上位机独立调参) */
+    Debug_Register("Cr_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_slew_max);
+    Debug_Register("Cr_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_lpf_fc);
+    Debug_Register("Cr_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.gyro_lpf_fc);
+    Debug_Register("Cr_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_high);
+    Debug_Register("Cr_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_low);
+    Debug_Register("Cr_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_thresh);
+    Debug_Register("Cr_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.diff_deadband);
+    Debug_Register("Cr_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_cross.outer.d_ma_window);
+    Debug_Register("Cr_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_Ki);
+    Debug_Register("Cr_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_limit);
+    Debug_Register("Cr_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_sep_hi);
+    Debug_Register("Cr_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_sep_lo);
+
+    /* 环岛专用外环参数 (g_params_ring.outer, 上位机独立调参) */
+    Debug_Register("Rn_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_slew_max);
+    Debug_Register("Rn_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_lpf_fc);
+    Debug_Register("Rn_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.gyro_lpf_fc);
+    Debug_Register("Rn_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_high);
+    Debug_Register("Rn_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_low);
+    Debug_Register("Rn_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_thresh);
+    Debug_Register("Rn_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.diff_deadband);
+    Debug_Register("Rn_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_ring.outer.d_ma_window);
+    Debug_Register("Rn_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_Ki);
+    Debug_Register("Rn_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_limit);
+    Debug_Register("Rn_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_sep_hi);
+    Debug_Register("Rn_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_sep_lo);
+
     /* ================================================================
      * 4. 外环观测 (HIGH_FREQ) — 只看不改
      * ================================================================ */
@@ -1389,29 +1407,53 @@ void Main_Control_Task_Init(void)
     Debug_Register("SpdSlew", DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.slew_rate);
 
     /* ================================================================
-     * 6. 模糊 PID — 默认值 & Debug 注册
+     * 6. 模糊 PID — 默认值 & Debug 注册 (三套独立: 默认 / 十字 / 环岛)
      * ================================================================ */
-    pid_struct.e_max    = 50.0f;
-    pid_struct.Kp0      = 0.17000000178813934f;
-    pid_struct.setpoint = 0.0f;
-    FuzzyPID_Init(&pid_struct, pid_struct.Kp0, pid_struct.e_max);
+    g_params.fuzzy.e_max    = 50.0f;
+    g_params.fuzzy.Kp0      = 0.17000000178813934f;
+    g_params.fuzzy.setpoint = 0.0f;
+    FuzzyPID_Init(&g_params.fuzzy, g_params.fuzzy.Kp0, g_params.fuzzy.e_max);
     /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
-    pid_struct.kp_singletons[FUZZY_NB] = 2.200000047683716f;
-    pid_struct.kp_singletons[FUZZY_NM] = 1.600000023841858f;
-    pid_struct.kp_singletons[FUZZY_NS] = 1.399999976158142f;
-    pid_struct.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
-    pid_struct.kp_singletons[FUZZY_PS] = 1.399999976158142f;
-    pid_struct.kp_singletons[FUZZY_PM] = 1.600000023841858f;
-    pid_struct.kp_singletons[FUZZY_PB] = 2.200000047683716f;
-    Debug_Register("FKp0",   DBG_FLOAT | STATIC_TYPE, &pid_struct.Kp0);
-    Debug_Register("Fe_max", DBG_FLOAT | STATIC_TYPE, &pid_struct.e_max);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NB]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NM]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_NS]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_ZO]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PS]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PM]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &pid_struct.kp_singletons[FUZZY_PB]);
+    g_params.fuzzy.kp_singletons[FUZZY_NB] = 2.200000047683716f;
+    g_params.fuzzy.kp_singletons[FUZZY_NM] = 1.600000023841858f;
+    g_params.fuzzy.kp_singletons[FUZZY_NS] = 1.399999976158142f;
+    g_params.fuzzy.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
+    g_params.fuzzy.kp_singletons[FUZZY_PS] = 1.399999976158142f;
+    g_params.fuzzy.kp_singletons[FUZZY_PM] = 1.600000023841858f;
+    g_params.fuzzy.kp_singletons[FUZZY_PB] = 2.200000047683716f;
+
+    /* 默认 */
+    Debug_Register("FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.Kp0);
+    Debug_Register("Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.e_max);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NB]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PB]);
+
+    /* 十字专用 */
+    Debug_Register("Cr_FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.Kp0);
+    Debug_Register("Cr_Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.e_max);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NB]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NM]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PS]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PM]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PB]);
+
+    /* 环岛专用 */
+    Debug_Register("Rn_FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.Kp0);
+    Debug_Register("Rn_Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.e_max);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NB]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NM]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PS]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PM]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PB]);
 
     /* ================================================================
      * 7. 电机外设 (PERI_TYPE) — 通过 SPI 读写电机寄存器
@@ -1443,6 +1485,7 @@ void Main_Control_Task_Init(void)
      * ================================================================ */
     g_stream_active = 0;
     copy_params(&g_params_cross, &g_params);
+    copy_params(&g_params_ring,&g_params);
     g_params_cross.adc.err_B_K = 0.0f;
     g_params_cross.adc.err_D_K = 0.0f;
 
