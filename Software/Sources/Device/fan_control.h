@@ -12,9 +12,9 @@
 #define FAN_SS_DUTY_MIN      250     /* 占空比下限 (钳位)               */
 #define FAN_SS_DUTY_MAX      500     /* 占空比上限 (钳位)               */
 #define FAN_SS_START_DUTY    275     /* 缓启动起始占空比                */
-#define FAN_SS_STEP_DUTY     50      /* 每步占空比增量 (用于计算时长)   */
+#define FAN_SS_STEP_DUTY     40      /* 每步占空比增量 (用于计算时长)   */
 #define FAN_SS_STEP_TIME_SEC 1.0f    /* 每步对应时间 (秒)               */
-#define FAN_SS_BASE_TIME_SEC 2.0f    /* 保底启动时间 (秒)               */
+#define FAN_SS_BASE_TIME_SEC 1.0f    /* 保底启动时间 (秒)               */
 
 /* 风扇占空比变量 (上位机可读写, 缓启动以此为目标值) */
 extern uint16_t fan_D;
@@ -32,5 +32,6 @@ void Fan_SoftStart_Trigger(uint16_t target);
 void Fan_SoftStart_Step(void);
 void Fan_TurnOff(void);
 void Fan_SetDuty(uint16_t duty);
+uint8_t Fan_IsSoftStartComplete(void);
 
 #endif /* FAN_CONTROL_H */

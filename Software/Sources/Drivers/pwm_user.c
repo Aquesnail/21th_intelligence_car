@@ -102,3 +102,7 @@ void PWMA_Set(uint16_t t){
   if(t>700) t = 0;
   PWMA_SetCCR4Value(t);
 }
+
+uint16_t PWMA_Read(void){
+  return (PWMA_CCR4H << 8) + PWMA_CCR4L;
+}

@@ -163,6 +163,7 @@ static const ControlParams_t* GetActiveParams(element_t e)
     }
 }
 
+
 /* ================================================================
  * ApplyParamsIfChanged — 参数集切换时 seed 管线, 防止突变抖动
  * ================================================================ */
@@ -719,11 +720,20 @@ void System_Reset(void){
 
 
 void Change_Maunal(){
+    const ElementProp_t *init_prop;
+    uint16_t init_fan_d;
+
 	if(manual_control_flag){
-        /* 切换到自动模式: 启动风扇(推车模式跳过), 2s 后再激活电机 */
+        /* 切换到自动模式: 启动风扇(推车模式跳过), 等缓启动完成后激活电机 */
         manual_control_flag = 0;
         if (!g_ectx.push_mode) {
-            Fan_SoftStart_Trigger(fan_D);
+            init_prop = Element_GetProp(ELEMENT_STRAIGHT);
+            if (init_prop != NULL && init_prop->fan_d_ptr != NULL) {
+                init_fan_d = *(init_prop->fan_d_ptr);
+            } else {
+                init_fan_d = fan_D;
+            }
+            Fan_SoftStart_Trigger(init_fan_d);
         }
         LED_RequestSteady(255, 255, 255);   /* 切自动 → 稳态白光 */
         g_auto_transition = 1;
@@ -946,6 +956,7 @@ void Main_Control_Task(void *pvParameters)
     float gx_body, gy_body, gz_body;  /* 重力向量, 传入 Element_CalcTilt */
     const ElementProp_t *prop;              /* 当前元素属性 (每 tick 查一次) */
     ControlStrategy_t    ctrl;              /* 当前有效控制策略 */
+    uint16_t elem_fan_d;                    /* 元素切换时查表的有效风扇占空比 */
 
     (void)pvParameters;
 
@@ -1069,13 +1080,20 @@ void Main_Control_Task(void *pvParameters)
                 prop = Element_GetProp(current_element);
                 ctrl = Element_GetEffectiveCtrl(current_element, &g_ectx);
 
-                /* 元素切换 → 更新 LED (仅自动模式, 手动模式保持呼吸灯) */
+                /* 元素切换 → 更新 LED + 风扇 (仅自动模式, 手动模式保持呼吸灯) */
                 if (!manual_control_flag && current_element != prev_element) {
                     LED_GetElementColor(current_element, &led_r, &led_g, &led_b);
                     if (current_element == ELEMENT_SAFETY_STOP) {
                         LED_RequestBreathing();
                     } else {
                         LED_RequestSteady(led_r, led_g, led_b);
+                        /* 元素切换时应用对应的风扇占空比 */
+                        if (prop != NULL && prop->fan_d_ptr != NULL) {
+                            elem_fan_d = *(prop->fan_d_ptr);
+                        } else {
+                            elem_fan_d = fan_D;
+                        }
+                        Fan_SetDuty(elem_fan_d);
                     }
                     prev_element = current_element;
                 }
@@ -1183,10 +1201,11 @@ void Main_Control_Task(void *pvParameters)
                         g_reg_write_pending = 0;
                     }
 
-                    /* 风扇启动后等待 2s 再激活电机 (推车模式立即激活) */
+                    /* 风扇缓启动完成后激活电机 (推车模式跳过风扇, 立即激活) */
                     if (g_auto_transition == 1) {
                         if (g_ectx.push_mode
-                            || (xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)) {
+                            || ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)
+                                && Fan_IsSoftStartComplete())) {
                             g_auto_transition = 2;
                             lpf_reset(&g_state.lpf_gyro, 0.0f);
                             g_state.inner.error_sum = 0.0f;

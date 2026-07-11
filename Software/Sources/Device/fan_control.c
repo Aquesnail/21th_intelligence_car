@@ -8,7 +8,7 @@
  * 全局变量
  * ================================================================ */
 
-/* 风扇占空比 (上位机在线可调, 默认 375) */
+/* 风扇占空比默认值 (上位机在线可调, 当元素 fan_d_ptr=NULL 时回退到此值) */
 uint16_t fan_D = 375;
 
 /* ================================================================
@@ -29,7 +29,7 @@ static void Fan_PWM_Write(uint16_t duty)
     PWMA_Set(duty);
 }
 
-static void Fan_SetDuty(uint16_t duty);  /* 前向声明, 供回调使用 */
+void Fan_SetDuty(uint16_t duty);  /* 前向声明, 供回调使用 */
 
 /* ================================================================
  * 调试回调 (上位机读写 fan_D)
@@ -146,4 +146,9 @@ void Fan_SetDuty(uint16_t duty)
         /* 已运转且缓启动已完成: 直接写入 */
         Fan_PWM_Write(duty);
     }
+}
+
+uint8_t Fan_IsSoftStartComplete(void)
+{
+    return (g_fan_ss_active == 0) ? 1 : 0;
 }

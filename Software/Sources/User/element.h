@@ -27,6 +27,8 @@ typedef enum ElementType {
     ELEMENT_BARREL_VERTICAL_PEAK,  /* 滚筒子状态: 下行阶段的垂直角度峰值 */
     ELEMENT_BARREL_DESCEND,        /* 滚筒子状态: 下行阶段 */
 
+    ELEMENT_SKIP_AIRBORNE,         /* 跷跷板子状态: 腾空阶段 */
+
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
     /* 以下保留，暂未使用 */
     ELEMENT_RING_LEFT_EXIT,
@@ -71,6 +73,7 @@ typedef struct {
     element_t          id;              /* 元素枚举值 */
     const char        *name;            /* 可读名称（Debug_Log 用） */
     float             *speed_ptr;       /* 指向对应速度变量（NULL = 不改变速度） */
+    uint16_t          *fan_d_ptr;
     unsigned char      led_r;           /* LED 颜色 R */
     unsigned char      led_g;           /* LED 颜色 G */
     unsigned char      led_b;           /* LED 颜色 B */
@@ -106,6 +109,7 @@ typedef struct {
     VoteWindow_t vote_cross;
     VoteWindow_t vote_cross_tilt;   /* 十字倾角退出投票窗 */
     VoteWindow_t vote_right_angle;  /* 直角转弯投票窗 */
+    VoteWindow_t vote_skip;         /* 跷跷板投票窗 */
 
     /* ---- 环岛专用状态 ---- */
     unsigned char  ring_side;           /* 0=左环, 1=右环 */
