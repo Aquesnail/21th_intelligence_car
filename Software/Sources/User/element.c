@@ -11,7 +11,7 @@ extern unsigned char manual_control_flag;
  * ================================================================ */
 
 /* ---- 车身水平倾角阈值 (多元素共用) ---- */
-static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
+static float angle_level = 10.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
 
 /* ---- 推车调试 ---- */
 
@@ -25,17 +25,17 @@ static float g_speed_wall         = 45.0f;
 static float g_speed_wall_climb   = 45.0f;
 static float g_speed_wall_horiz   = 40.0f;
 static float g_speed_wall_descend = 50.0f;
-static float g_speed_barrel       = 60.0f;
+static float g_speed_barrel       = 70.0f;
 static float g_speed_cross        = 60.0f;
-static float g_speed_skip         = 45.0f;
+static float g_speed_skip         = 30.0f;
 
 /* ---- 风扇占空比变量 (供元素属性表 fan_d_ptr 指向 + Debug_Register 在线调参) ---- */
-static uint16_t g_fan_d_straight = 375;
-static uint16_t g_fan_d_ring     = 375;
-static uint16_t g_fan_d_wall     = 375;
-static uint16_t g_fan_d_cross    = 375;
-static uint16_t g_fan_d_barrel   = 375;
-static uint16_t g_fan_d_skip     = 375;
+static uint16_t g_fan_d_straight = 400;
+static uint16_t g_fan_d_ring     = 400;
+static uint16_t g_fan_d_wall     = 425;
+static uint16_t g_fan_d_cross    = 400;
+static uint16_t g_fan_d_barrel   = 400;
+static uint16_t g_fan_d_skip     = 400;
 
 /* ---- 环岛开环参数 (被 g_element_props 引用, 必须前置) ---- */
 float    g_ol_ring_angle   = 0.0f;    /* 环岛开环目标角度(绝对值, 度) */
@@ -291,7 +291,7 @@ static VoteWindow_t vote_win_ring;
 static unsigned short g_pass_timeout_frames = 300;  /* 默认300帧=600ms */
 static float    g_ring_exit_yaw_thresh  = 200.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
 static unsigned short g_ring_exit_lockout_frames = 1000;  /* 锁存时长(帧), 默认1000帧=2s */
-static unsigned short g_ring_timeout_frames   = 1000; /* 环岛总超时 (帧, =2s) */
+static unsigned short g_ring_timeout_frames   = 700;  /* 环岛总超时 (帧, ≈1.4s) */
 
 /* ---- 环岛 Check ---- */
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
@@ -511,7 +511,7 @@ static VoteWindow_t vote_win_barrel_peak;
 static VoteWindow_t vote_win_barrel;
 static float   barrel_entry_tilt;
 static float   barrel_exit_tilt;
-static float   barrel_peak_tilt = 75.0f;
+static float   barrel_peak_tilt = 70.0f;
 static unsigned short g_barrel_timeout_frames = 60000; /* 滚筒总超时 (帧, =120s) */
 static unsigned short g_barrel_exit_lockout_frames = 200; /* 出桶后锁存帧数 (默认200帧=400ms) */
 
@@ -592,7 +592,7 @@ static VoteWindow_t vote_win_cross_tilt;
 static float   cross_entry_sum;
 static float   cross_exit_sum;
 static float   cross_all_sum;              /* adc[0]+adc[1]+adc[2]+adc[3] 总和阈值 */
-static unsigned short g_cross_timeout_frames  = 10000; /* 十字总超时 (帧, =20s) */
+static unsigned short g_cross_timeout_frames  = 250;  /* 十字总超时 (帧, =500ms) */
 
 /* ---- 十字 Check ---- */
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
@@ -687,7 +687,7 @@ static float   skip_exit_sum;                    /* 腾空阈值: 四通道ADC�
 static float   skip_airborne_exit_tilt;          /* 落地阈值: |tilt_fb| < 此值 → 判定落地回平 */
 static float   skip_landing_adc_min;            /* 落地阈值: 四通道ADC之和 > 此值 */
 static float   skip_landing_adc_max;            /* 落地阈值: 四通道ADC之和 < 此值 */
-static unsigned short g_skip_timeout_frames = 5000;         /* 跷跷板总超时 (帧, =10s) */
+static unsigned short g_skip_timeout_frames = 500;          /* 跷跷板总超时 (帧, =1s) */
 static unsigned short g_skip_exit_lockout_frames = 200;    /* 退出后锁存帧数 (默认200帧=400ms) */
 
 /* ---- 跷跷板 Check ---- */
@@ -1149,8 +1149,8 @@ void Element_Init(ElementCtx_t *ctx)
     /* ================================================================
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
      * ================================================================ */
-    /* 进入: tilt_fb < -30°, 腾空: ADC和 < 500, 落地: |tilt| < 10° + ADC和在600~1000 */
-    skip_entry_tilt          = -30.0f;
+    /* 进入: tilt_fb < -15°, 腾空: ADC和 < 500, 落地: |tilt| < 10° + ADC和在600~1000 */
+    skip_entry_tilt          = -15.0f;
     skip_exit_sum            = 500.0f;
     skip_airborne_exit_tilt  = 10.0f;
     skip_landing_adc_min     = 600.0f;
