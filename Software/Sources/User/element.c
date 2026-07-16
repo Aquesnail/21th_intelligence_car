@@ -146,8 +146,8 @@ void VoteWin_Init(VoteWindow_t *w, unsigned char xdata *buf, unsigned char max_l
     w->idx     = 0;
     w->cnt     = 0;
     w->len     = 10;          /* 默认窗长 10 帧 */
-    w->entry_thresh = 7;      /* 默认 70% 多数 */
-    w->exit_thresh  = 7;
+    w->entry_thresh = 5;      /* 默认 70% 多数 */
+    w->exit_thresh  = 5;
 
     for (i = 0; i < max_len; i++) {
         buf[i] = 0;
@@ -593,6 +593,7 @@ static float   cross_entry_sum;
 static float   cross_exit_sum;
 static float   cross_all_sum;              /* adc[0]+adc[1]+adc[2]+adc[3] 总和阈值 */
 static unsigned short g_cross_timeout_frames  = 250;  /* 十字总超时 (帧, =500ms) */
+static unsigned short g_cross_exit_lockout_frames = 300; /* 十字退出后禁止再进入锁存 (帧, =600ms) */
 
 /* ---- 十字 Check ---- */
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
@@ -601,9 +602,7 @@ static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
     float cross_all;
 
     if (ctx->exit_lockout_cnt > 0) return 0;
-
-   // if (!Track_CheckExpected(ctx, ELEMENT_CROSS)) return 0;
-
+    if (ctx->cross_lockout_cnt > 0) return 0;
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
     cross_all     = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
@@ -652,6 +651,7 @@ static void Enter_Cross(ElementCtx_t *ctx)
 
 static void Enter_CrossExit(ElementCtx_t *ctx)
 {
+    ctx->cross_lockout_cnt = g_cross_exit_lockout_frames;
     VoteWin_Reset(&ctx->vote_cross);
     VoteWin_Reset(&ctx->vote_cross_tilt);
     //Enter_ExitToStraight(ctx);
@@ -659,12 +659,14 @@ static void Enter_CrossExit(ElementCtx_t *ctx)
 
 static void Enter_CrossTiltExit(ElementCtx_t *ctx)
 {
+    ctx->cross_lockout_cnt = g_cross_exit_lockout_frames;
     VoteWin_Reset(&ctx->vote_cross);
     VoteWin_Reset(&ctx->vote_cross_tilt);
 }
 
 static void Enter_CrossTimeout(ElementCtx_t *ctx)
 {
+    ctx->cross_lockout_cnt = g_cross_exit_lockout_frames;
     VoteWin_Reset(&ctx->vote_cross);
     VoteWin_Reset(&ctx->vote_cross_tilt);
     Enter_ExitToStraight(ctx);
@@ -768,6 +770,7 @@ static unsigned char Check_CrossToSkip(ElementCtx_t *ctx)
 
 static void Enter_CrossToSkip(ElementCtx_t *ctx)
 {
+    ctx->cross_lockout_cnt = g_cross_exit_lockout_frames;
     VoteWin_Reset(&ctx->vote_cross);
     VoteWin_Reset(&ctx->vote_cross_tilt);
     VoteWin_Reset(&ctx->vote_skip);
@@ -994,6 +997,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->elem_frame_cnt   = 0;
         ctx->ring_entry_yaw   = 0.0f;
         ctx->exit_lockout_cnt = 0;
+        ctx->cross_lockout_cnt = 0;
         ctx->track_idx        = 0;
         ctx->track_table_enabled = 1;
         ctx->offtrack_active     = 0;
@@ -1145,6 +1149,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
     Debug_Register("Cross_AllSum",  DBG_FLOAT  | STATIC_TYPE, &cross_all_sum);
     Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
+    Debug_Register("Cross_ExLock", DBG_UINT16 | STATIC_TYPE, &g_cross_exit_lockout_frames);
 
     /* ================================================================
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
@@ -1232,7 +1237,7 @@ void Element_Init(ElementCtx_t *ctx)
 
     /* 覆盖 VoteWin_Init 默认值, 匹配 JSON 调参后的值 */
     vote_win_ring.entry_thresh = 3;
-    vote_win_ring.exit_thresh  = 0;
+    vote_win_ring.exit_thresh  = 5;
     vote_win_cross.len         = 0;
     vote_win_cross_tilt.len    = 0;
     vote_win_skip.len          = 0;
@@ -1412,6 +1417,9 @@ element_t Element_Update(ElementCtx_t *ctx)
     ctx->elem_blanking_cnt++;
     if (ctx->exit_lockout_cnt > 0) {
         ctx->exit_lockout_cnt--;
+    }
+    if (ctx->cross_lockout_cnt > 0) {
+        ctx->cross_lockout_cnt--;
     }
     /* 环岛链帧计数 (ENTRANCE/PASS/IN_RING 超时兜底) */
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
