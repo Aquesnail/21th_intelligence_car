@@ -14,11 +14,13 @@ void FuzzyPID_Init(FuzzyPID *pid, float kp0, float e_max)
 {
     /* 局部变量必须定义在开头 */
     int i;
-    int tmp_kp[7] = {
+    int tmp_kp[9] = {
         FUZZY_PB, /* e NB — 大偏差时Kp极大 */
         FUZZY_PM, /* e NM */
         FUZZY_PS, /* e NS */
+        FUZZY_PZ, /* e NZ — 近零偏差, 和PZ同档 */
         FUZZY_ZO, /* e ZO — 中央直道Kp最小 */
+        FUZZY_PZ, /* e PZ — 近零偏差 */
         FUZZY_PS, /* e PS */
         FUZZY_PM, /* e PM */
         FUZZY_PB  /* e PB — 大偏差时Kp极大 */
@@ -29,18 +31,23 @@ void FuzzyPID_Init(FuzzyPID *pid, float kp0, float e_max)
     pid->e_max = e_max;
 
     /* ---- 输出单点系数 ---- */
-    /* 对应 FUZZY_NB(0)..FUZZY_PB(6) */
+    /* 对应 FUZZY_NB(0)..FUZZY_PB(8) */
     pid->kp_singletons[FUZZY_NB] = 2.2f;
     pid->kp_singletons[FUZZY_NM] = 2.0f;
     pid->kp_singletons[FUZZY_NS] = 1.1f;
+    pid->kp_singletons[FUZZY_NZ] = 0.65f;
     pid->kp_singletons[FUZZY_ZO] = 0.2f;
+    pid->kp_singletons[FUZZY_PZ] = 0.65f;
     pid->kp_singletons[FUZZY_PS] = 1.1f;
     pid->kp_singletons[FUZZY_PM] = 2.0f;
     pid->kp_singletons[FUZZY_PB] = 2.2f;
 
-    /* ---- 填写规则表 (7个e模糊集 → Kp输出语言值) ---- */
-    for (i = 0; i < 7; i++)
+    /* ---- 填写规则表 (9个e模糊集 → Kp输出语言值) ---- */
+    for (i = 0; i < 9; i++)
         pid->rule_kp[i] = tmp_kp[i];
+
+    /* ---- 超出部分线性增益 (与PB singleton连续) ---- */
+    pid->Kp_excess = kp0 * pid->kp_singletons[FUZZY_PB];
 
     /* ---- 初始化状态 ---- */
     pid->setpoint = 0.0f;   /* 循迹通常目标偏差为0 */
@@ -64,11 +71,12 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
 {
     /* 所有局部变量必须在此处声明 */
     float error;
+    float error_excess;
     float kp_coeff;
     float kp;
     float output;
-    float mu_e[7];
-    float centers_e[7];
+    float mu_e[9];
+    float centers_e[9];
     float half_width_e;
     float sum_w;
     float sum_wp;
@@ -84,22 +92,28 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
     /* 1. 计算基本误差 */
     error = pid->setpoint - measurement;
 
-    /* 2. 限幅到模糊域内 */
-    if (error > pid->e_max)  error = pid->e_max;
-    if (error < -pid->e_max) error = -pid->e_max;
-
-    /* 3. 模糊化：计算 error 的 7 个隶属度 */
-    /* e 中心点：均匀分布 [-1,1] */
-    for (i = 0; i < 7; i++) {
-        centers_e[i] = -1.0f + i * (2.0f / 6.0f);
+    /* 2. 分离模糊域内部分和超出部分 */
+    error_excess = 0.0f;
+    if (error > pid->e_max) {
+        error_excess = error - pid->e_max;
+        error = pid->e_max;
+    } else if (error < -pid->e_max) {
+        error_excess = error + pid->e_max;
+        error = -pid->e_max;
     }
-    half_width_e = 2.0f / 6.0f;   /* 保证相邻隶属度有足够重叠 */
-    fuzzify(error, pid->e_max, 7, centers_e, half_width_e, mu_e);
+
+    /* 3. 模糊化：计算 error 的 9 个隶属度 */
+    /* e 中心点：均匀分布 [-1,1] */
+    for (i = 0; i < 9; i++) {
+        centers_e[i] = -1.0f + i * (2.0f / 8.0f);
+    }
+    half_width_e = 2.0f / 8.0f;   /* 9个模糊集, 保证相邻隶属度有足够重叠 */
+    fuzzify(error, pid->e_max, 9, centers_e, half_width_e, mu_e);
 
     /* 4. 1D 解模糊：加权平均，单输入仅依赖 e 隶属度 */
     sum_w = 0.0f;
     sum_wp = 0.0f;
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < 9; i++) {
         if (mu_e[i] < 1.0e-6f) continue;   /* 小值略过，加速 */
         weight = mu_e[i];
         pos = pid->kp_singletons[pid->rule_kp[i]];
@@ -114,9 +128,9 @@ float FuzzyPID_Step(FuzzyPID *pid, float measurement)
         kp_coeff = sum_wp / sum_w;
     }
 
-    /* 5. 计算最终P参数并输出 */
+    /* 5. 计算最终P参数并输出 (模糊P + 超出部分线性尾巴) */
     kp = pid->Kp0 * kp_coeff;
-    output = kp * error;
+    output = kp * error + pid->Kp_excess * error_excess;
 
     return output;
 }

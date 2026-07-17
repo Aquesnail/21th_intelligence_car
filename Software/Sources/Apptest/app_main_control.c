@@ -99,6 +99,10 @@ typedef struct {
     float   i_term;
     Lpf_t   lpf_gyro;
     float   gyro_filtered;
+    Lpf_t   lpf_lat_g;       /* v·ω 侧向加速度滤波器 */
+    float   lat_g_filtered;   /* v·ω 滤波后侧向加速度 (g) */
+    Lpf_t   lpf_lat_g_acc;    /* 加速度计 侧向加速度滤波器 */
+    float   lat_g_acc_filtered; /* 加速度计 滤波后侧向加速度 (g) */
     float   tar_yaw_raw;
     float   target_yaw;
     float   pid_output;
@@ -136,7 +140,11 @@ static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float se
     s->i_term          = 0.0f;
     s->filtered_d_term = 0.0f;
     lpf_reset(&s->lpf_outer, seed_val);
+    lpf_reset(&s->lpf_lat_g, 0.0f);
+    lpf_reset(&s->lpf_lat_g_acc, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
+    s->lat_g_filtered   = 0.0f;
+    s->lat_g_acc_filtered = 0.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = speed_target_l.f;
@@ -344,8 +352,8 @@ float PI_Step(const PIParams_t *params, PIState_t *state, float setpoint, float 
     state->error_sum += params->Ki * error;
     if (state->error_sum > params->error_sum_max)  state->error_sum = params->error_sum_max;
     if (state->error_sum < -params->error_sum_max) state->error_sum = -params->error_sum_max;
-    if (error < params->min_sep && error > -params->min_sep) state->error_sum = 0;
-    if (error > params->max_sep || error < -params->max_sep) state->error_sum = 0;
+   // if (error < params->min_sep && error > -params->min_sep) state->error_sum = 0;
+    //if (error > params->max_sep || error < -params->max_sep) state->error_sum = 0;
     d_term = params->Kd * (error - state->last_error);
     state->last_error = error;
     output = params->Kp * error + state->error_sum + d_term;
@@ -439,7 +447,11 @@ static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
     s->gyro_filtered   = 0.0f;
     lpf_reset(&s->lpf_outer, 0.0f);
     lpf_reset(&s->lpf_gyro,  0.0f);
+    lpf_reset(&s->lpf_lat_g, 0.0f);
+    lpf_reset(&s->lpf_lat_g_acc, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
+    s->lat_g_filtered   = 0.0f;
+    s->lat_g_acc_filtered = 0.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = 0.0f;
@@ -502,6 +514,60 @@ static void D_MA_Win_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     g_params.outer.d_ma_window = (uint8_t)new_val;
     ma_set_window(&g_state.d_ma, g_params.outer.d_ma_window);
 }
+
+/* ================================================================
+ * 侧向加速度 LPF 截止频率 (PERI_TYPE 读写, 两套方案独立可调)
+ * ================================================================ */
+static float g_lat_g_vw_fc  = 200.0f;   /* v·ω 方案 LPF 截止频率 */
+static float g_lat_g_acc_fc = 200.0f;   /* 加速度计方案 LPF 截止频率 */
+
+static void LatG_VW_Lpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float val;
+    (void)len;
+    (void)peri_addr;
+    val = g_lat_g_vw_fc;
+    memcpy(pData, &val, sizeof(float));
+}
+
+static void LatG_VW_Lpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float new_fc;
+    (void)len;
+    (void)peri_addr;
+    memcpy(&new_fc, pData, sizeof(float));
+    if (new_fc < 1.0f)  new_fc = 1.0f;
+    if (new_fc > 400.0f) new_fc = 400.0f;
+    g_lat_g_vw_fc = new_fc;
+    g_state.lpf_lat_g.alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
+    g_state.lpf_lat_g.freq = new_fc;
+}
+
+static void LatG_ACC_Lpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float val;
+    (void)len;
+    (void)peri_addr;
+    val = g_lat_g_acc_fc;
+    memcpy(pData, &val, sizeof(float));
+}
+
+static void LatG_ACC_Lpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float new_fc;
+    (void)len;
+    (void)peri_addr;
+    memcpy(&new_fc, pData, sizeof(float));
+    if (new_fc < 1.0f)  new_fc = 1.0f;
+    if (new_fc > 400.0f) new_fc = 400.0f;
+    g_lat_g_acc_fc = new_fc;
+    g_state.lpf_lat_g_acc.alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
+    g_state.lpf_lat_g_acc.freq = new_fc;
+}
+
+static DebugPeriDesc_t g_lat_g_vw_lpf_desc  = {0, LatG_VW_Lpf_Read_Cb,  LatG_VW_Lpf_Write_Cb};
+static DebugPeriDesc_t g_lat_g_acc_lpf_desc = {0, LatG_ACC_Lpf_Read_Cb, LatG_ACC_Lpf_Write_Cb};
+
 static DebugPeriDesc_t g_pid_a_kp_desc   = {REG_A_PID_SPEED_KP,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_ki_desc   = {REG_A_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_kd_desc   = {REG_A_PID_SPEED_KD,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
@@ -627,9 +693,9 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
     float eff_max_diff;
 
     /* ---- 1. 差速死区 ---- */
-    if (*diff_speed < p->min_diff && *diff_speed > -p->min_diff) {
-        *diff_speed = 0.0f;
-    }
+  //  if (*diff_speed < p->min_diff && *diff_speed > -p->min_diff) {
+  //      *diff_speed = 0.0f;
+   // }
 
     /* ---- 2. 差速限幅 ---- */
     eff_max_diff = p->max_diff;
@@ -682,8 +748,8 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
  * ================================================================ */
 #define SPD_WR_SIGN_R  (-1)   /* 右电机 (REG_A) 写入符号 */
 #define SPD_WR_SIGN_L  (-1)   /* 左电机 (REG_B) 写入符号 */
-#define SPD_RD_SIGN_R  (-1)   /* 右电机 读取/显示符号 */
-#define SPD_RD_SIGN_L  (1)    /* 左电机 读取/显示符号 */
+#define SPD_RD_SIGN_R  (1)   /* 右电机 读取/显示符号 */
+#define SPD_RD_SIGN_L  (-1)    /* 左电机 读取/显示符号 */
 static void Motor_Write_Speeds(float spd_r, float spd_l)
 {
     motor_data_t dr, dl;
@@ -1056,17 +1122,49 @@ void Main_Control_Task(void *pvParameters)
                     Err_Angle = CalcAdcError(&p->adc, Err_1, Err_2, Err_3, Err_4);
                 }
                 /* ===== 传感器灌入 + 倾角计算 + 状态机更新 ===== */
-                Element_FeedSensors(&g_ectx, adc_normalized,
-                    IMU_Filter_Data->sensor.dat.ax,
-                    IMU_Filter_Data->sensor.dat.ay,
-                    IMU_Filter_Data->sensor.dat.az,
-                    yaw, Err_Angle, g_state.err_filtered);
+                {
+                    float adc_feed[4];
+                    if (change_inductor == 1) {
+                        adc_feed[0] = adc_normalized[0];
+                        adc_feed[1] = adc_normalized[1];
+                        adc_feed[2] = adc_normalized[2];
+                        adc_feed[3] = adc_normalized[3];
+                    } else {
+                        /* 非1模式下横向/竖直电感通道互换, 重排使元素检测一致 */
+                        adc_feed[0] = adc_normalized[1];
+                        adc_feed[1] = adc_normalized[0];
+                        adc_feed[2] = adc_normalized[3];
+                        adc_feed[3] = adc_normalized[2];
+                    }
+                    Element_FeedSensors(&g_ectx, adc_feed,
+                        IMU_Filter_Data->sensor.dat.ax,
+                        IMU_Filter_Data->sensor.dat.ay,
+                        IMU_Filter_Data->sensor.dat.az,
+                        yaw, Err_Angle, g_state.err_filtered);
+                }
 
                 IMU_Get_Angle(&roll, &pitch, &yaw);
                 yaw = IMU_Get_Yaw_Unwrapped();
 
                 IMU_GetGravityVector(&gx_body, &gy_body, &gz_body);
                 Element_CalcTilt(&g_ectx, gx_body, gy_body, gz_body);
+
+                /* 侧向加速度方案1: v × ω 运动学法 (rad/s × m × rad/s → g) */
+                {
+                    float avg_speed_rad_s;
+                    float speed_mps;
+                    float lat_g_raw;
+                    avg_speed_rad_s = (abs_f(g_left_speed_actual) + abs_f(g_right_speed_actual)) * 0.5f;
+                    speed_mps = avg_speed_rad_s * 0.016f;  /* 轮胎半径 = 3.2cm / 2 = 1.6cm = 0.016m */
+                    lat_g_raw = -speed_mps * g_state.gyro_filtered / 9.80665f;
+                    g_state.lat_g_filtered = lpf_update(&g_state.lpf_lat_g, lat_g_raw);
+                }
+                /* 侧向加速度方案2: 加速度计 Y − 重力投影 (m/s² → g) */
+                {
+                    float lat_g_acc_raw;
+                    lat_g_acc_raw = (IMU_Filter_Data->sensor.dat.ay - gy_body * 9.80665f) / 9.80665f;
+                    g_state.lat_g_acc_filtered = lpf_update(&g_state.lpf_lat_g_acc, lat_g_acc_raw);
+                }
 
                 current_element = Element_Update(&g_ectx);
                 /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
@@ -1299,6 +1397,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_filtered);
     Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);
     Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_lr);
+    Debug_Register("LatG_VW",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_filtered);
+    Debug_Register("LatG_ACC", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_acc_filtered);
     /* 电机 */
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_r_nagtive));
@@ -1357,65 +1457,65 @@ void Main_Control_Task_Init(void)
     g_params.outer.outer_i_sep_hi  = 10000.0f;
     g_params.outer.outer_i_sep_lo  = 30.0f;
     Debug_Register("OutSlew",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_slew_max);
-    Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
-    Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
-    Debug_Register("KdDifLo",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_low);
-    Debug_Register("KdDifTh",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_thresh);
-    Debug_Register("DiffDead",  DBG_FLOAT  | STATIC_TYPE, &g_params.outer.diff_deadband);
-    Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
-    Debug_Register("Out_Ki",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_Ki);
-    Debug_Register("OutILim",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_limit);
-    Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
-    Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
+   // Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
+   // Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
+    //Debug_Register("KdDifLo",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_low);
+    //Debug_Register("KdDifTh",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_thresh);
+    //Debug_Register("DiffDead",  DBG_FLOAT  | STATIC_TYPE, &g_params.outer.diff_deadband);
+   // Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
+    //Debug_Register("Out_Ki",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_Ki);
+    //Debug_Register("OutILim",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_limit);
+    //Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
+   // Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
     Debug_Register("GyroLPFFc", DBG_FLOAT  | STATIC_TYPE, &g_params.outer.gyro_lpf_fc);
 
     /* 十字专用外环参数 (g_params_cross.outer, 上位机独立调参) */
     Debug_Register("Cr_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_slew_max);
-    Debug_Register("Cr_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_lpf_fc);
-    Debug_Register("Cr_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.gyro_lpf_fc);
-    Debug_Register("Cr_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_high);
-    Debug_Register("Cr_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_low);
-    Debug_Register("Cr_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_thresh);
-    Debug_Register("Cr_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.diff_deadband);
-    Debug_Register("Cr_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_cross.outer.d_ma_window);
-    Debug_Register("Cr_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_Ki);
-    Debug_Register("Cr_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_limit);
-    Debug_Register("Cr_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_sep_hi);
-    Debug_Register("Cr_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_sep_lo);
+   // Debug_Register("Cr_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_lpf_fc);
+   // Debug_Register("Cr_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.gyro_lpf_fc);
+    //Debug_Register("Cr_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_high);
+   // Debug_Register("Cr_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_low);
+   // Debug_Register("Cr_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.Kd_diff_thresh);
+   // Debug_Register("Cr_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.diff_deadband);
+    //Debug_Register("Cr_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_cross.outer.d_ma_window);
+    //Debug_Register("Cr_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_Ki);
+   // Debug_Register("Cr_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_limit);
+   // Debug_Register("Cr_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_sep_hi);
+   // Debug_Register("Cr_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_i_sep_lo);
 
-    /* 环岛专用外环参数 (g_params_ring.outer, 上位机独立调参) */
-    Debug_Register("Rn_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_slew_max);
-    Debug_Register("Rn_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_lpf_fc);
-    Debug_Register("Rn_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.gyro_lpf_fc);
-    Debug_Register("Rn_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_high);
-    Debug_Register("Rn_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_low);
-    Debug_Register("Rn_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_thresh);
-    Debug_Register("Rn_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.diff_deadband);
-    Debug_Register("Rn_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_ring.outer.d_ma_window);
-    Debug_Register("Rn_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_Ki);
-    Debug_Register("Rn_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_limit);
-    Debug_Register("Rn_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_sep_hi);
-    Debug_Register("Rn_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_sep_lo);
+    // /* 环岛专用外环参数 (g_params_ring.outer, 上位机独立调参) */
+    // Debug_Register("Rn_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_slew_max);
+    // Debug_Register("Rn_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_lpf_fc);
+    // Debug_Register("Rn_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.gyro_lpf_fc);
+    // Debug_Register("Rn_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_high);
+    // Debug_Register("Rn_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_low);
+    // Debug_Register("Rn_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.Kd_diff_thresh);
+    // Debug_Register("Rn_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.diff_deadband);
+    // Debug_Register("Rn_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_ring.outer.d_ma_window);
+    // Debug_Register("Rn_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_Ki);
+    // Debug_Register("Rn_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_limit);
+    // Debug_Register("Rn_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_sep_hi);
+    // Debug_Register("Rn_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_i_sep_lo);
 
     /* 墙面专用外环参数 (g_params_wall.outer, 上位机独立调参) */
-    Debug_Register("Wl_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_slew_max);
-    Debug_Register("Wl_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_lpf_fc);
-    Debug_Register("Wl_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.gyro_lpf_fc);
-    Debug_Register("Wl_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.Kd_diff_high);
-    Debug_Register("Wl_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.Kd_diff_low);
-    Debug_Register("Wl_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.Kd_diff_thresh);
-    Debug_Register("Wl_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.diff_deadband);
-    Debug_Register("Wl_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_wall.outer.d_ma_window);
-    Debug_Register("Wl_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_Ki);
-    Debug_Register("Wl_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_i_limit);
-    Debug_Register("Wl_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_i_sep_hi);
-    Debug_Register("Wl_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_i_sep_lo);
+    // Debug_Register("Wl_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_slew_max);
+    // Debug_Register("Wl_OLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_lpf_fc);
+    // Debug_Register("Wl_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.gyro_lpf_fc);
+    // Debug_Register("Wl_KdDHi",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.Kd_diff_high);
+    // Debug_Register("Wl_KdDLo",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.Kd_diff_low);
+    // Debug_Register("Wl_KdDTh",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.Kd_diff_thresh);
+    // Debug_Register("Wl_DfDead", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.diff_deadband);
+    // Debug_Register("Wl_MAWin",  DBG_UINT8 | STATIC_TYPE, &g_params_wall.outer.d_ma_window);
+    // Debug_Register("Wl_OutKi",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_Ki);
+    // Debug_Register("Wl_OutILm", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_i_limit);
+    // Debug_Register("Wl_OutIH",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_i_sep_hi);
+    // Debug_Register("Wl_OutIL",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_i_sep_lo);
 
     /* ================================================================
      * 4. 外环观测 (HIGH_FREQ) — 只看不改
      * ================================================================ */
     Debug_Register("TgtYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
-    Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
+   // Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
     Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
     Debug_Register("OutITrm", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
 
@@ -1425,7 +1525,7 @@ void Main_Control_Task_Init(void)
     g_params.inner.Kp = 5.800000190734863f;
     g_params.inner.Ki = 0.0f;
     g_params.inner.Kd = 0.10000000149011612f;
-    g_params.inner.error_sum_max = 0.0f;
+    g_params.inner.error_sum_max = 50.0f;    /* 内环积分上限, 之前为0导致I项完全失效 */
     g_params.inner.max_sep = 100000.0f;
     g_params.inner.min_sep = 0.0f;
     g_state.inner.error_sum  = 0.0f;
@@ -1438,12 +1538,12 @@ void Main_Control_Task_Init(void)
     Debug_Register("YawLoLi",  DBG_FLOAT | STATIC_TYPE, &g_params.inner.min_sep);
 
     /* 墙面专用内环 PI 参数 (g_params_wall.inner) */
-    Debug_Register("Wl_YKp",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Kp);
-    Debug_Register("Wl_YKi",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Ki);
-    Debug_Register("Wl_YKd",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Kd);
-    Debug_Register("Wl_YLim",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.error_sum_max);
-    Debug_Register("Wl_YHiL",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.max_sep);
-    Debug_Register("Wl_YLoL",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.min_sep);
+    // Debug_Register("Wl_YKp",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Kp);
+    // Debug_Register("Wl_YKi",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Ki);
+    // Debug_Register("Wl_YKd",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Kd);
+    // Debug_Register("Wl_YLim",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.error_sum_max);
+    // Debug_Register("Wl_YHiL",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.max_sep);
+    // Debug_Register("Wl_YLoL",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.min_sep);
 
     /* ================================================================
      * 5b. 速度输出后处理 — 默认值 & Debug 注册
@@ -1475,11 +1575,13 @@ void Main_Control_Task_Init(void)
     g_params.fuzzy.Kp0      = 0.17000000178813934f;
     g_params.fuzzy.setpoint = 0.0f;
     FuzzyPID_Init(&g_params.fuzzy, g_params.fuzzy.Kp0, g_params.fuzzy.e_max);
-    /* 覆盖模糊 Kp 单点值 (FKp NB~PB) */
+    /* 覆盖模糊 Kp 单点值 (FKp NB~PB, 9 档) */
     g_params.fuzzy.kp_singletons[FUZZY_NB] = 2.200000047683716f;
     g_params.fuzzy.kp_singletons[FUZZY_NM] = 1.600000023841858f;
     g_params.fuzzy.kp_singletons[FUZZY_NS] = 1.399999976158142f;
+    g_params.fuzzy.kp_singletons[FUZZY_NZ] = 1.149999976158142f;
     g_params.fuzzy.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
+    g_params.fuzzy.kp_singletons[FUZZY_PZ] = 1.149999976158142f;
     g_params.fuzzy.kp_singletons[FUZZY_PS] = 1.399999976158142f;
     g_params.fuzzy.kp_singletons[FUZZY_PM] = 1.600000023841858f;
     g_params.fuzzy.kp_singletons[FUZZY_PB] = 2.200000047683716f;
@@ -1487,10 +1589,13 @@ void Main_Control_Task_Init(void)
     /* 默认 */
     Debug_Register("FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.Kp0);
     Debug_Register("Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.e_max);
+    Debug_Register("FKeX",   DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.Kp_excess);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NB]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NM]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NZ]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PZ]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PS]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PM]);
     Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PB]);
@@ -1498,10 +1603,13 @@ void Main_Control_Task_Init(void)
     /* 十字专用 */
     Debug_Register("Cr_FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.Kp0);
     Debug_Register("Cr_Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.e_max);
+    Debug_Register("Cr_FKeX",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.Kp_excess);
     Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NB]);
     Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NM]);
     Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NZ]);
     Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PZ]);
     Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PS]);
     Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PM]);
     Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PB]);
@@ -1509,10 +1617,13 @@ void Main_Control_Task_Init(void)
     /* 环岛专用 */
     Debug_Register("Rn_FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.Kp0);
     Debug_Register("Rn_Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.e_max);
+    Debug_Register("Rn_FKeX",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.Kp_excess);
     Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NB]);
     Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NM]);
     Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NZ]);
     Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PZ]);
     Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PS]);
     Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PM]);
     Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PB]);
@@ -1520,10 +1631,13 @@ void Main_Control_Task_Init(void)
     /* 墙面专用模糊 PID (g_params_wall.fuzzy) */
     Debug_Register("Wl_FKp0",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.Kp0);
     Debug_Register("Wl_Femax", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.e_max);
+    Debug_Register("Wl_FKeX",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.Kp_excess);
     Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NB]);
     Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NM]);
     Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NZ]);
     Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PZ]);
     Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PS]);
     Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PM]);
     Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PB]);
@@ -1544,6 +1658,10 @@ void Main_Control_Task_Init(void)
     Debug_Register("Manual",    DBG_UINT8  | STATIC_TYPE, &manual_control_flag);
     Debug_Register("stat",      DBG_UINT16,                &g_ectx.current);
 
+    /* 侧向加速度 LPF 截止频率 (PERI_TYPE → 上位机可读写) */
+    Debug_Register("LatG_VW_Fc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lat_g_vw_lpf_desc);
+    Debug_Register("LatG_ACC_Fc", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lat_g_acc_lpf_desc);
+
     /* ================================================================
      * 9. 滤波器 & 移动平均初始化 (依赖外环默认参数)
      * ================================================================ */
@@ -1551,6 +1669,8 @@ void Main_Control_Task_Init(void)
     lpf_init_fc(&g_lpf_right,             400.0f, 0.002f);
     lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
     lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
+    lpf_init_fc(&g_state.lpf_lat_g, 200.0f, 0.002f);      /* v·ω 侧向加速度滤波 */
+    lpf_init_fc(&g_state.lpf_lat_g_acc, 200.0f, 0.002f);  /* 加速度计 侧向加速度滤波 */
     ma_init(&g_state.d_ma, g_params.outer.d_ma_window);
 
     /* ================================================================
@@ -1563,12 +1683,14 @@ void Main_Control_Task_Init(void)
     g_params_cross.adc.err_B_K = 0.0f;
     g_params_cross.adc.err_D_K = 0.0f;
 
-    /* 环岛专用模糊 PID 固化 (来自 改一下环岛.json 调参结果) */
+    /* 环岛专用模糊 PID 固化 (来自 改一下环岛.json 调参结果, 9档插值) */
     g_params_ring.fuzzy.Kp0 = 0.10000000149011612f;
     g_params_ring.fuzzy.kp_singletons[FUZZY_NB] = 1.5f;
     g_params_ring.fuzzy.kp_singletons[FUZZY_NM] = 1.399999976158142f;
     g_params_ring.fuzzy.kp_singletons[FUZZY_NS] = 1.100000023841858f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_NZ] = 1.0f;
     g_params_ring.fuzzy.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_PZ] = 1.0f;
     g_params_ring.fuzzy.kp_singletons[FUZZY_PS] = 1.100000023841858f;
     g_params_ring.fuzzy.kp_singletons[FUZZY_PM] = 1.399999976158142f;
     g_params_ring.fuzzy.kp_singletons[FUZZY_PB] = 1.5f;
