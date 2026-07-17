@@ -592,8 +592,10 @@ static VoteWindow_t vote_win_cross_tilt;
 static float   cross_entry_sum;
 static float   cross_exit_sum;
 static float   cross_all_sum;              /* adc[0]+adc[1]+adc[2]+adc[3] 总和阈值 */
+static float   cross_all_exit_sum;         /* 退出: 四通道总和 < 此值 (需低于 cross_all_sum 保持滞回) */
 static unsigned short g_cross_timeout_frames  = 250;  /* 十字总超时 (帧, =500ms) */
 static unsigned short g_cross_exit_lockout_frames = 300; /* 十字退出后禁止再进入锁存 (帧, =600ms) */
+static unsigned short g_cross_exit_blanking_frames = 50; /* 进入十字后退出消隐 (帧, =100ms), 期间屏蔽 ADC/倾角退出, 防止单帧闪退 */
 
 /* ---- 十字 Check ---- */
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
@@ -617,9 +619,17 @@ static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
 static unsigned char Check_CrossExit(ElementCtx_t *ctx)
 {
     float cross_adc_sum;
+    float cross_all;
+
+    /* 消隐期: 刚进十字时 sum 还在进入阈值附近, 未消隐会单帧闪退并触发锁存 */
+    if (ctx->elem_frame_cnt < g_cross_exit_blanking_frames) {
+        return 0;
+    }
     cross_adc_sum = ctx->adc[1] + ctx->adc[3];
+    cross_all     = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
-        return (cross_adc_sum < cross_exit_sum) ? 1 : 0;
+        return (cross_adc_sum < cross_exit_sum
+                || cross_all < cross_all_exit_sum) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_cross, ctx->vote_cross.exit_thresh);
 }
@@ -628,6 +638,11 @@ static unsigned char Check_CrossTilt(ElementCtx_t *ctx)
 {
     float tilt_fb_abs;
     float tilt_lr_abs;
+
+    /* 消隐期: 与 ADC 退出共用, 防止进入瞬间倾角毛刺导致闪退 */
+    if (ctx->elem_frame_cnt < g_cross_exit_blanking_frames) {
+        return 0;
+    }
     tilt_fb_abs = (ctx->tilt_fb > 0.0f) ? ctx->tilt_fb : -ctx->tilt_fb;
     tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
     if (ctx->vote_cross_tilt.len == 0) {
@@ -1139,17 +1154,20 @@ void Element_Init(ElementCtx_t *ctx)
     /* ================================================================
      * 6. 十字 CROSS — 默认值 & Debug 注册
      * ================================================================ */
-    /* 进入 >1000, 退出 <600 (滞回) */
+    /* 进入: [1]+[3]>300 且全和>2000; 退出: [1]+[3]<150 或全和<1500 (滞回: 退出阈值必须低于进入阈值) */
 
     //经观察陀螺仪解算出的倾角数据波形良好，可以不加时间滤波
     cross_entry_sum = 300.0f;
-    cross_exit_sum  = 600.0f;
+    cross_exit_sum  = 150.0f;
     cross_all_sum   = 2000.0f;
+    cross_all_exit_sum = 1500.0f;
     Debug_Register("Cross_EnSum",   DBG_FLOAT  | STATIC_TYPE, &cross_entry_sum);
     Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
     Debug_Register("Cross_AllSum",  DBG_FLOAT  | STATIC_TYPE, &cross_all_sum);
+    Debug_Register("Cross_ExAll",   DBG_FLOAT  | STATIC_TYPE, &cross_all_exit_sum);
     Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
     Debug_Register("Cross_ExLock", DBG_UINT16 | STATIC_TYPE, &g_cross_exit_lockout_frames);
+    Debug_Register("Cross_ExBlk",  DBG_UINT16 | STATIC_TYPE, &g_cross_exit_blanking_frames);
 
     /* ================================================================
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
@@ -1506,7 +1524,8 @@ element_t Element_Update(ElementCtx_t *ctx)
         cross_vote = (cross_adc_sum > cross_entry_sum && cross_all > cross_all_sum
                       && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) ? 1 : 0;
     } else if (ctx->current == ELEMENT_CROSS) {
-        cross_vote = (cross_adc_sum < cross_exit_sum) ? 1 : 0;
+        cross_vote = (cross_adc_sum < cross_exit_sum
+                   || cross_all < cross_all_exit_sum) ? 1 : 0;
     } else {
         cross_vote = 0;
     }
