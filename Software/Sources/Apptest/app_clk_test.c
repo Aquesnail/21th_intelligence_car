@@ -11,11 +11,11 @@
 extern void PWM_Test_Simple(void);
 extern volatile uint8_t g_p54_key_flag;
 extern uint8_t manual_control_flag;
-#define P54_LONG_PRESS_TICKS  40   /* 40 * 25ms = 1000ms */
+#define P54_LONG_PRESS_TICKS  500  /* 500 * 2ms = 1000ms */
 extern void Change_Maunal();
 
 /* ================================================================
- * app_clk_test — LED 动画引擎任务 (25ms 周期)
+ * app_clk_test — LED 动画引擎任务 (2ms 周期 / 500Hz, 与主控同频)
  *
  *   双模式:
  *     MODE_BREATHING — 彩虹呼吸灯 (手动模式 / 安全停车时)
@@ -46,6 +46,12 @@ void app_clk_test(void)
     uint8_t  btn_pressed;
     uint16_t btn_hold_cnt;
 
+    /* vTaskDelayUntil 精确周期控制 */
+    TickType_t xLastWakeTime;
+
+    /* 动画帧跳计数器 (降频保持原呼吸速度) */
+    uint8_t anim_tick;
+
     /* ---- 初始化 ---- */
     hue = 0;
     breath_phase = 0;
@@ -60,6 +66,8 @@ void app_clk_test(void)
     g_led_mode = LED_MODE_BREATHING;
     btn_pressed = 0;
     btn_hold_cnt = 0;
+    xLastWakeTime = xTaskGetTickCount();
+    anim_tick = 0;
 
     for (;;) {
 
@@ -132,9 +140,13 @@ void app_clk_test(void)
             g = (uint8_t)((uint16_t)g * breath / 255);
             b = (uint8_t)((uint16_t)b * breath / 255);
 
-            hue++;
-            breath_phase += 3;
-            if (breath_phase >= 512) breath_phase = 0;
+            anim_tick++;
+            if (anim_tick >= 12) {
+                anim_tick = 0;
+                hue++;
+                breath_phase += 3;
+                if (breath_phase >= 512) breath_phase = 0;
+            }
 
         } else {
             /* LED_MODE_STEADY: 稳态显示 */
@@ -147,7 +159,7 @@ void app_clk_test(void)
         WS2812_SetColor(0, r, g, b);
         WS2812_Show();
 
-        vTaskDelay(pdMS_TO_TICKS(25));
+        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2));
     }
 }
 

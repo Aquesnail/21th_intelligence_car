@@ -67,6 +67,11 @@ typedef struct {
     float   outer_i_limit;
     float   outer_i_sep_hi;
     float   outer_i_sep_lo;
+    float   lat_g_l_max;     /* 左转最大侧g (绝对值) */
+    float   lat_g_l_safe;    /* 左转安全侧g, 超过此值开始减速 */
+    float   lat_g_r_max;     /* 右转最大侧g (绝对值) */
+    float   lat_g_r_safe;    /* 右转安全侧g, 超过此值开始减速 */
+    float   lat_g_brake_k;   /* 侧g减速系数 (0~1, 越大削得越狠) */
 } OuterLoopParams_t;
 
 /* 速度输出后处理参数 (每个元素独立配置) */
@@ -101,8 +106,6 @@ typedef struct {
     float   gyro_filtered;
     Lpf_t   lpf_lat_g;       /* v·ω 侧向加速度滤波器 */
     float   lat_g_filtered;   /* v·ω 滤波后侧向加速度 (g) */
-    Lpf_t   lpf_lat_g_acc;    /* 加速度计 侧向加速度滤波器 */
-    float   lat_g_acc_filtered; /* 加速度计 滤波后侧向加速度 (g) */
     float   tar_yaw_raw;
     float   target_yaw;
     float   pid_output;
@@ -141,10 +144,8 @@ static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float se
     s->filtered_d_term = 0.0f;
     lpf_reset(&s->lpf_outer, seed_val);
     lpf_reset(&s->lpf_lat_g, 0.0f);
-    lpf_reset(&s->lpf_lat_g_acc, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
     s->lat_g_filtered   = 0.0f;
-    s->lat_g_acc_filtered = 0.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = speed_target_l.f;
@@ -381,6 +382,7 @@ static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     *(char *)(peri_addr) = (char)count;
 }
 static float normalized_adc_k[4] = {0.9329785108566284f, 0.5593241453170776f, 1.065938949584961f, 0.8841170072555542f}; // ADC 归一化系数数组
+static float user_calib_k[4] = {1.0f, 1.0f, 1.0f, 1.0f};  /* 用户个性化校准系数 [横左,竖左,横右,竖右] 逻辑位置索引 */
 static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
 static uint8_t change_inductor = 1;
@@ -448,10 +450,8 @@ static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
     lpf_reset(&s->lpf_outer, 0.0f);
     lpf_reset(&s->lpf_gyro,  0.0f);
     lpf_reset(&s->lpf_lat_g, 0.0f);
-    lpf_reset(&s->lpf_lat_g_acc, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
     s->lat_g_filtered   = 0.0f;
-    s->lat_g_acc_filtered = 0.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = 0.0f;
@@ -519,7 +519,6 @@ static void D_MA_Win_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
  * 侧向加速度 LPF 截止频率 (PERI_TYPE 读写, 两套方案独立可调)
  * ================================================================ */
 static float g_lat_g_vw_fc  = 200.0f;   /* v·ω 方案 LPF 截止频率 */
-static float g_lat_g_acc_fc = 200.0f;   /* 加速度计方案 LPF 截止频率 */
 
 static void LatG_VW_Lpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
@@ -543,30 +542,7 @@ static void LatG_VW_Lpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     g_state.lpf_lat_g.freq = new_fc;
 }
 
-static void LatG_ACC_Lpf_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
-{
-    float val;
-    (void)len;
-    (void)peri_addr;
-    val = g_lat_g_acc_fc;
-    memcpy(pData, &val, sizeof(float));
-}
-
-static void LatG_ACC_Lpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
-{
-    float new_fc;
-    (void)len;
-    (void)peri_addr;
-    memcpy(&new_fc, pData, sizeof(float));
-    if (new_fc < 1.0f)  new_fc = 1.0f;
-    if (new_fc > 400.0f) new_fc = 400.0f;
-    g_lat_g_acc_fc = new_fc;
-    g_state.lpf_lat_g_acc.alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
-    g_state.lpf_lat_g_acc.freq = new_fc;
-}
-
 static DebugPeriDesc_t g_lat_g_vw_lpf_desc  = {0, LatG_VW_Lpf_Read_Cb,  LatG_VW_Lpf_Write_Cb};
-static DebugPeriDesc_t g_lat_g_acc_lpf_desc = {0, LatG_ACC_Lpf_Read_Cb, LatG_ACC_Lpf_Write_Cb};
 
 static DebugPeriDesc_t g_pid_a_kp_desc   = {REG_A_PID_SPEED_KP,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
 static DebugPeriDesc_t g_pid_a_ki_desc   = {REG_A_PID_SPEED_KI,             Motor_Reg_Read_Cb, Motor_Reg_Write_Cb};
@@ -848,6 +824,36 @@ static float abs_f(float t){
         return -t;
     }
 }
+
+/* ================================================================
+ * ApplyLatGSpeedLimit — 侧向加速度速度限制
+ *   根据当前侧g超限程度, 动态削减基础速度
+ *   lat_g > 0 → 左转, 用左转参数; lat_g < 0 → 右转, 用右转参数
+ * ================================================================ */
+static float CalcLatGBrakeFactor(float lat_g, float max_g, float safe_g, float brake_k)
+{
+    float lat_g_abs;
+    float over_ratio;
+
+    lat_g_abs = (lat_g > 0.0f) ? lat_g : -lat_g;
+
+    /* 未超过安全阈值, 不干预 */
+    if (lat_g_abs <= safe_g) {
+        return 1.0f;
+    }
+
+    /* 参数不合理 (max <= safe), 不干预 */
+    if (max_g <= safe_g) {
+        return 1.0f;
+    }
+
+    /* 超出比例: 0.0 (刚到safe) → 1.0 (达到或超过max) */
+    over_ratio = (lat_g_abs - safe_g) / (max_g - safe_g);
+    if (over_ratio > 1.0f) over_ratio = 1.0f;
+
+    /* brake_k 控制削减力度: 0=不削减, 1=到max时减到0 */
+    return 1.0f - (over_ratio * brake_k);
+}
 /* err_angle_filtered 已移入 g_state.err_filtered */
 
 /* ================================================================
@@ -1023,12 +1029,15 @@ void Main_Control_Task(void *pvParameters)
     float Err_2;
     float Err_3;
     float Err_4;
+    float adc_feed[4];              /* 逻辑电感排列 [横,竖,横,竖], 一次重排后全用此数组 */
+    float adc_calib[4];             /* 用户校准后: adc_feed[i] * user_calib_k[i], 供循迹控制用 */
     float differential_speed;
     float actual_yaw_rate_raw;  /* 陀螺仪原始角速度 (滤波前) */
     float gx_body, gy_body, gz_body;  /* 重力向量, 传入 Element_CalcTilt */
     const ElementProp_t *prop;              /* 当前元素属性 (每 tick 查一次) */
     ControlStrategy_t    ctrl;              /* 当前有效控制策略 */
     uint16_t elem_fan_d;                    /* 元素切换时查表的有效风扇占空比 */
+    float    lat_g_brake_factor;            /* 侧g制动系数, 同步缩减线速度和角速度 */
 
     (void)pvParameters;
 
@@ -1100,17 +1109,28 @@ void Main_Control_Task(void *pvParameters)
                 }
                 tmp_adc13 = adc_normalized[1]+adc_normalized[3];
                 tmp_adcsum = adc_normalized[0]+adc_normalized[1]+adc_normalized[2]+adc_normalized[3];
-                if(change_inductor == 1){
-                    Err_1 = (float)((adc_normalized[0]) - (adc_normalized[2]));//0,2对应横向电感
-                    Err_2 = (float)((adc_normalized[1]) - (adc_normalized[3]));//1,3对应竖直电感
-                    Err_3 = (float)(adc_normalized[0] + adc_normalized[2]);
-                    Err_4 = abs_f((float)(adc_normalized[1] - adc_normalized[3]));
-                }else{
-                    Err_1 = (float)((adc_normalized[1]) - (adc_normalized[3]));
-                    Err_2 = (float)((adc_normalized[0]) - (adc_normalized[2]));
-                    Err_3 = (float)(adc_normalized[1] + adc_normalized[3]);
-                    Err_4 = abs_f((float)(adc_normalized[0] - adc_normalized[2]));
+                /* 一次重排: 根据电感极性把物理ADC通道映射为逻辑顺序 [横,竖,横,竖] */
+                if (change_inductor == 1) {
+                    adc_feed[0] = adc_normalized[0];
+                    adc_feed[1] = adc_normalized[1];
+                    adc_feed[2] = adc_normalized[2];
+                    adc_feed[3] = adc_normalized[3];
+                } else {
+                    adc_feed[0] = adc_normalized[1];
+                    adc_feed[1] = adc_normalized[0];
+                    adc_feed[2] = adc_normalized[3];
+                    adc_feed[3] = adc_normalized[2];
                 }
+                /* 下面全部基于逻辑排列计算, 不再出现 change_inductor */
+                /* 第二级: 用户个性化校准 (循迹控制用), 元素判断用 adc_feed 不受影响 */
+                adc_calib[0] = adc_feed[0] * user_calib_k[0];  /* 横向左 */
+                adc_calib[1] = adc_feed[1] * user_calib_k[1];  /* 竖直左 */
+                adc_calib[2] = adc_feed[2] * user_calib_k[2];  /* 横向右 */
+                adc_calib[3] = adc_feed[3] * user_calib_k[3];  /* 竖直右 */
+                Err_1 = adc_calib[0] - adc_calib[2];  /* 横向差分 */
+                Err_2 = adc_calib[1] - adc_calib[3];  /* 竖直差分 */
+                Err_3 = adc_calib[0] + adc_calib[2];  /* 横向和   */
+                Err_4 = abs_f(adc_calib[1] - adc_calib[3]); /* 竖直差绝对值 */
                 
                 if(Err_1 < adc_err_zone && Err_1 > -adc_err_zone) Err_1 = 0.0f;
                 if(Err_2 < adc_err_zone && Err_2 > -adc_err_zone) Err_2 = 0.0f;
@@ -1122,26 +1142,11 @@ void Main_Control_Task(void *pvParameters)
                     Err_Angle = CalcAdcError(&p->adc, Err_1, Err_2, Err_3, Err_4);
                 }
                 /* ===== 传感器灌入 + 倾角计算 + 状态机更新 ===== */
-                {
-                    float adc_feed[4];
-                    if (change_inductor == 1) {
-                        adc_feed[0] = adc_normalized[0];
-                        adc_feed[1] = adc_normalized[1];
-                        adc_feed[2] = adc_normalized[2];
-                        adc_feed[3] = adc_normalized[3];
-                    } else {
-                        /* 非1模式下横向/竖直电感通道互换, 重排使元素检测一致 */
-                        adc_feed[0] = adc_normalized[1];
-                        adc_feed[1] = adc_normalized[0];
-                        adc_feed[2] = adc_normalized[3];
-                        adc_feed[3] = adc_normalized[2];
-                    }
-                    Element_FeedSensors(&g_ectx, adc_feed,
-                        IMU_Filter_Data->sensor.dat.ax,
-                        IMU_Filter_Data->sensor.dat.ay,
-                        IMU_Filter_Data->sensor.dat.az,
-                        yaw, Err_Angle, g_state.err_filtered);
-                }
+                Element_FeedSensors(&g_ectx, adc_feed,
+                    IMU_Filter_Data->sensor.dat.ax,
+                    IMU_Filter_Data->sensor.dat.ay,
+                    IMU_Filter_Data->sensor.dat.az,
+                    yaw, Err_Angle, g_state.err_filtered);
 
                 IMU_Get_Angle(&roll, &pitch, &yaw);
                 yaw = IMU_Get_Yaw_Unwrapped();
@@ -1154,18 +1159,11 @@ void Main_Control_Task(void *pvParameters)
                     float avg_speed_rad_s;
                     float speed_mps;
                     float lat_g_raw;
-                    avg_speed_rad_s = (abs_f(g_left_speed_actual) + abs_f(g_right_speed_actual)) * 0.5f;
+                    avg_speed_rad_s = (abs_f(g_left_speed_actual) + abs_f(g_right_speed_actual)) * 0.5f * 2.0f;//传感器读出角速度是真实值的1/2，这里再乘2.0
                     speed_mps = avg_speed_rad_s * 0.016f;  /* 轮胎半径 = 3.2cm / 2 = 1.6cm = 0.016m */
                     lat_g_raw = -speed_mps * g_state.gyro_filtered / 9.80665f;
                     g_state.lat_g_filtered = lpf_update(&g_state.lpf_lat_g, lat_g_raw);
                 }
-                /* 侧向加速度方案2: 加速度计 Y − 重力投影 (m/s² → g) */
-                {
-                    float lat_g_acc_raw;
-                    lat_g_acc_raw = (IMU_Filter_Data->sensor.dat.ay - gy_body * 9.80665f) / 9.80665f;
-                    g_state.lat_g_acc_filtered = lpf_update(&g_state.lpf_lat_g_acc, lat_g_acc_raw);
-                }
-
                 current_element = Element_Update(&g_ectx);
                 /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
 /************    状态机插入 ****************** */
@@ -1218,6 +1216,26 @@ void Main_Control_Task(void *pvParameters)
                     common_speed = *(prop->speed_ptr);
                 }
 
+                /* 侧g 制动系数 (左右不对称, 根据侧g方向选参, 同步缩减线速度和角速度) */
+                {
+                    const ControlParams_t *p = GetActiveParams(current_element);
+                    float max_g, safe_g;
+
+                    if (g_state.lat_g_filtered > 0.0f) {
+                        /* 右转侧g为正 */
+                        max_g  = p->outer.lat_g_r_max;
+                        safe_g = p->outer.lat_g_r_safe;
+                    } else {
+                        /* 左转侧g为负 */
+                        max_g  = p->outer.lat_g_l_max;
+                        safe_g = p->outer.lat_g_l_safe;
+                    }
+                    lat_g_brake_factor = CalcLatGBrakeFactor(g_state.lat_g_filtered,
+                                              max_g, safe_g,
+                                              p->outer.lat_g_brake_k);
+                    common_speed *= lat_g_brake_factor;
+                }
+
                 /* ===== Block 2: �⻷ȫ���� �� tar_yaw_raw ===== */
                 {
                     const ControlParams_t *p = GetActiveParams(current_element);
@@ -1230,7 +1248,8 @@ void Main_Control_Task(void *pvParameters)
 /***************    状态机插入 ****************** */
 
                 g_ectx.yawrate = g_state.tar_yaw_raw;
-                g_state.target_yaw = SelectTargetYaw(ctrl, prop,&g_ectx);
+                g_state.target_yaw = SelectTargetYaw(ctrl, prop, &g_ectx);
+                g_state.target_yaw *= lat_g_brake_factor;
 
 
 /***************   状态机插入 ****************** */
@@ -1398,7 +1417,6 @@ void Main_Control_Task_Init(void)
     Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);
     Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_lr);
     Debug_Register("LatG_VW",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_filtered);
-    Debug_Register("LatG_ACC", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_acc_filtered);
     /* 电机 */
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_r_nagtive));
@@ -1435,11 +1453,17 @@ void Main_Control_Task_Init(void)
     Debug_Register("ADC_DeadZone",DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
     Debug_Register("ADC_ErrZone", DBG_FLOAT  | STATIC_TYPE, &adc_err_zone);
 
-    /* 归一化系数 */
+    /* 归一化系数 (自动校准, 上位机代为保存) */
     Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[0]);
     Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[1]);
     Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[2]);
     Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[3]);
+
+    /* 用户个性化校准系数 (逻辑位置索引: [横左,竖左,横右,竖右]) */
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[0]);
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[1]);
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[2]);
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[3]);
 
     /* ================================================================
      * 3. 外环控制参数 (OuterLoop) — 默认值 & Debug 注册
@@ -1456,6 +1480,11 @@ void Main_Control_Task_Init(void)
     g_params.outer.outer_i_limit   = 0.0f;
     g_params.outer.outer_i_sep_hi  = 10000.0f;
     g_params.outer.outer_i_sep_lo  = 30.0f;
+    g_params.outer.lat_g_l_max  = 1.5f;
+    g_params.outer.lat_g_l_safe = 0.8f;
+    g_params.outer.lat_g_r_max  = 1.5f;
+    g_params.outer.lat_g_r_safe = 0.8f;
+    g_params.outer.lat_g_brake_k = 0.6f;
     Debug_Register("OutSlew",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_slew_max);
    // Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
    // Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
@@ -1468,6 +1497,11 @@ void Main_Control_Task_Init(void)
     //Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
    // Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
     Debug_Register("GyroLPFFc", DBG_FLOAT  | STATIC_TYPE, &g_params.outer.gyro_lpf_fc);
+    Debug_Register("LatG_L_Max", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_l_max);
+    Debug_Register("LatG_L_Saf", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_l_safe);
+    Debug_Register("LatG_R_Max", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_r_max);
+    Debug_Register("LatG_R_Saf", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_r_safe);
+    Debug_Register("LatG_BrkK", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_brake_k);
 
     /* 十字专用外环参数 (g_params_cross.outer, 上位机独立调参) */
     Debug_Register("Cr_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_slew_max);
@@ -1659,8 +1693,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("stat",      DBG_UINT16,                &g_ectx.current);
 
     /* 侧向加速度 LPF 截止频率 (PERI_TYPE → 上位机可读写) */
-    Debug_Register("LatG_VW_Fc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lat_g_vw_lpf_desc);
-    Debug_Register("LatG_ACC_Fc", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lat_g_acc_lpf_desc);
+  //  Debug_Register("LatG_VW_Fc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lat_g_vw_lpf_desc);
 
     /* ================================================================
      * 9. 滤波器 & 移动平均初始化 (依赖外环默认参数)
@@ -1670,7 +1703,6 @@ void Main_Control_Task_Init(void)
     lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
     lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
     lpf_init_fc(&g_state.lpf_lat_g, 200.0f, 0.002f);      /* v·ω 侧向加速度滤波 */
-    lpf_init_fc(&g_state.lpf_lat_g_acc, 200.0f, 0.002f);  /* 加速度计 侧向加速度滤波 */
     ma_init(&g_state.d_ma, g_params.outer.d_ma_window);
 
     /* ================================================================
