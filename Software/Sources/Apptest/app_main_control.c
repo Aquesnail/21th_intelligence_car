@@ -1483,25 +1483,25 @@ void Main_Control_Task_Init(void)
      * 1. 实时观测 (HIGH_FREQ) — 只看不改
      * ================================================================ */
     /* ADC */
-    Debug_Register("adc0",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[0]);
-    Debug_Register("adc1",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[1]);
-    Debug_Register("adc2",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
-    Debug_Register("adc3",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
+    Debug_Register("adc0",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[0]);
+    Debug_Register("adc1",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[1]);
+    Debug_Register("adc2",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[2]);
+    Debug_Register("adc3",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[3]);
     //Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adc13);
     //Debug_Register("adcsum", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adcsum);
     /* 姿态 */
-    Debug_Register("yaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
-    Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_filtered);
-    Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);
-    Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_lr);
+    Debug_Register("yaw",    DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &yaw);
+    Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.err_filtered);
+    Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_ectx.tilt_fb);
+    Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_ectx.tilt_lr);
    // Debug_Register("LatG_VW",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_filtered);
    // Debug_Register("ErrB_Fac_Spd", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_brake_spd);
    // Debug_Register("ErrB_Fac_Yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_brake_yaw);
     /* 电机 */
-    Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
-    Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_r_nagtive));
-    Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_left_speed_actual);
-    Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, &g_right_speed_actual);
+    Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_l.f));
+    Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_r_nagtive));
+    Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_left_speed_actual);
+    Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_right_speed_actual);
 
     /* ================================================================
      * 2. ADC 误差权重 & 归一化 — 默认值 & Debug 注册
@@ -1511,39 +1511,39 @@ void Main_Control_Task_Init(void)
     g_params.adc.err_B_K = 7.5f;
     g_params.adc.err_C_K = 5.0f;
     g_params.adc.err_D_K = 8.75f;
-    Debug_Register("Err_K_A", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_A_K);
-    Debug_Register("Err_K_B", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_B_K);
-    Debug_Register("Err_K_C", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_C_K);
-    Debug_Register("Err_K_D", DBG_FLOAT | STATIC_TYPE, &g_params.adc.err_D_K);
+    Debug_Register("Str_ADC_KA", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_STRAIGHT, &g_params.adc.err_A_K);
+    Debug_Register("Str_ADC_KB", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_STRAIGHT, &g_params.adc.err_B_K);
+    Debug_Register("Str_ADC_KC", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_STRAIGHT, &g_params.adc.err_C_K);
+    Debug_Register("Str_ADC_KD", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_STRAIGHT, &g_params.adc.err_D_K);
 
     /* 十字专用 (g_params_cross.adc, Init 末尾 copy 后个别清零) */
-    Debug_Register("Cr_ErrKA", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_A_K);
-    Debug_Register("Cr_ErrKB", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_B_K);
-    Debug_Register("Cr_ErrKC", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_C_K);
-    Debug_Register("Cr_ErrKD", DBG_FLOAT | STATIC_TYPE, &g_params_cross.adc.err_D_K);
+    Debug_Register("Crs_ADC_KA", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_CROSS, &g_params_cross.adc.err_A_K);
+    Debug_Register("Crs_ADC_KB", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_CROSS, &g_params_cross.adc.err_B_K);
+    Debug_Register("Crs_ADC_KC", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_CROSS, &g_params_cross.adc.err_C_K);
+    Debug_Register("Crs_ADC_KD", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_CROSS, &g_params_cross.adc.err_D_K);
 
     /* 墙面专用 (g_params_wall.adc) */
-    Debug_Register("Wl_ErrKA", DBG_FLOAT | STATIC_TYPE, &g_params_wall.adc.err_A_K);
-    Debug_Register("Wl_ErrKB", DBG_FLOAT | STATIC_TYPE, &g_params_wall.adc.err_B_K);
-    Debug_Register("Wl_ErrKC", DBG_FLOAT | STATIC_TYPE, &g_params_wall.adc.err_C_K);
-    Debug_Register("Wl_ErrKD", DBG_FLOAT | STATIC_TYPE, &g_params_wall.adc.err_D_K);
+    Debug_Register("Wal_ADC_KA", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_WALL, &g_params_wall.adc.err_A_K);
+    Debug_Register("Wal_ADC_KB", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_WALL, &g_params_wall.adc.err_B_K);
+    Debug_Register("Wal_ADC_KC", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_WALL, &g_params_wall.adc.err_C_K);
+    Debug_Register("Wal_ADC_KD", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_WALL, &g_params_wall.adc.err_D_K);
 
     /* 死区 & 通道选择 */
-    Debug_Register("CH_Induct",   DBG_UINT8  | STATIC_TYPE, &change_inductor);
-    Debug_Register("ADC_DeadZone",DBG_UINT16 | STATIC_TYPE, &adc_dead_zone);
-    Debug_Register("ADC_ErrZone", DBG_FLOAT  | STATIC_TYPE, &adc_err_zone);
+    Debug_Register("Sys_CH_Induct",   DBG_UINT8  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &change_inductor);
+    Debug_Register("Sys_ADC_DZ",DBG_UINT16 | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &adc_dead_zone);
+    Debug_Register("Sys_ADC_EZ", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &adc_err_zone);
 
     /* 归一化系数 (自动校准, 上位机代为保存) */
-    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[0]);
-    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[1]);
-    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[2]);
-    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, &normalized_adc_k[3]);
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &normalized_adc_k[0]);
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &normalized_adc_k[1]);
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &normalized_adc_k[2]);
+    Debug_Register("NormK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &normalized_adc_k[3]);
 
     /* 用户个性化校准系数 (逻辑位置索引: [横左,竖左,横右,竖右]) */
-    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[0]);
-    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[1]);
-    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[2]);
-    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, &user_calib_k[3]);
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &user_calib_k[0]);
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &user_calib_k[1]);
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &user_calib_k[2]);
+    Debug_Register("CalibK", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &user_calib_k[3]);
 
     /* ================================================================
      * 3. 外环控制参数 (OuterLoop) — 默认值 & Debug 注册
@@ -1570,7 +1570,7 @@ void Main_Control_Task_Init(void)
     g_params.outer.err_brake_safe = 55.0f;
     g_params.outer.err_brake_k_spd = 0.0f;
     g_params.outer.err_brake_k_yaw = 0.0f;
-    Debug_Register("OutSlew",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_slew_max);
+    Debug_Register("Str_Out_SlewMax",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_slew_max);
    // Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
    // Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
     //Debug_Register("KdDifLo",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_low);
@@ -1581,67 +1581,67 @@ void Main_Control_Task_Init(void)
     //Debug_Register("OutILim",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_limit);
     //Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
    // Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
-    Debug_Register("GyroLPFFc", DBG_FLOAT  | STATIC_TYPE, &g_params.outer.gyro_lpf_fc);
-    Debug_Register("LatG_L_Max", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_l_max);
-    Debug_Register("LatG_L_Saf", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_l_safe);
-    Debug_Register("LatG_R_Max", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_r_max);
-    Debug_Register("LatG_R_Saf", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_r_safe);
-    Debug_Register("LatG_BrkSpd", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_brake_k_spd);
-    Debug_Register("LatG_BrkYaw", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_brake_k_yaw);
-    Debug_Register("ErrB_Max",  DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_max);
-    Debug_Register("ErrB_Safe", DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_safe);
-    Debug_Register("ErrB_BrkSpd", DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_k_spd);
-    Debug_Register("ErrB_BrkYaw", DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_k_yaw);
+    Debug_Register("Str_Out_GyroFc", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.gyro_lpf_fc);
+    Debug_Register("Str_Out_LG_LMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_l_max);
+    Debug_Register("Str_Out_LG_LSaf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_l_safe);
+    Debug_Register("Str_Out_LG_RMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_r_max);
+    Debug_Register("Str_Out_LG_RSaf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_r_safe);
+    Debug_Register("Str_Out_LGBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_brake_k_spd);
+    Debug_Register("Str_Out_LGBrkYw", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_brake_k_yaw);
+    Debug_Register("Str_Out_EBMax",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_max);
+    Debug_Register("Str_Out_EBSafe", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_safe);
+    Debug_Register("Str_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_k_spd);
+    Debug_Register("Str_Out_EBrkYw", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_k_yaw);
 
     /* 十字专用外环参数 (g_params_cross.outer, 上位机独立调参) */
-    Debug_Register("Cr_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_slew_max);
-    Debug_Register("Cr_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.gyro_lpf_fc);
-    Debug_Register("Cr_LG_LMx", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.lat_g_l_max);
-    Debug_Register("Cr_LG_LSf", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.lat_g_l_safe);
-    Debug_Register("Cr_LG_RMx", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.lat_g_r_max);
-    Debug_Register("Cr_LG_RSf", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.lat_g_r_safe);
-    Debug_Register("Cr_LGBrkS", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.lat_g_brake_k_spd);
-    Debug_Register("Cr_LGBrkY", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.lat_g_brake_k_yaw);
-    Debug_Register("Cr_EB_Mx",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.err_brake_max);
-    Debug_Register("Cr_EB_Sf",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.err_brake_safe);
-    Debug_Register("Cr_EBrkSp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.err_brake_k_spd);
-    Debug_Register("Cr_EBrkYa", DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.err_brake_k_yaw);
+    Debug_Register("Crs_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_slew_max);
+    Debug_Register("Crs_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.gyro_lpf_fc);
+    Debug_Register("Crs_Out_LG_LMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_l_max);
+    Debug_Register("Crs_Out_LG_LSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_l_safe);
+    Debug_Register("Crs_Out_LG_RMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_r_max);
+    Debug_Register("Crs_Out_LG_RSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_r_safe);
+    Debug_Register("Crs_Out_LGBrkS", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_brake_k_spd);
+    Debug_Register("Crs_Out_LGBrkY", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_brake_k_yaw);
+    Debug_Register("Crs_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_max);
+    Debug_Register("Crs_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_safe);
+    Debug_Register("Crs_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_k_spd);
+    Debug_Register("Crs_Out_EBrkYa", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_k_yaw);
 
     /* 环岛专用外环参数 (g_params_ring.outer, 上位机独立调参) */
-    Debug_Register("Rn_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.outer_slew_max);
-    Debug_Register("Rn_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.gyro_lpf_fc);
-    Debug_Register("Rn_LG_LMx", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.lat_g_l_max);
-    Debug_Register("Rn_LG_LSf", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.lat_g_l_safe);
-    Debug_Register("Rn_LG_RMx", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.lat_g_r_max);
-    Debug_Register("Rn_LG_RSf", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.lat_g_r_safe);
-    Debug_Register("Rn_LGBrkS", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.lat_g_brake_k_spd);
-    Debug_Register("Rn_LGBrkY", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.lat_g_brake_k_yaw);
-    Debug_Register("Rn_EB_Mx",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.err_brake_max);
-    Debug_Register("Rn_EB_Sf",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.err_brake_safe);
-    Debug_Register("Rn_EBrkSp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.err_brake_k_spd);
-    Debug_Register("Rn_EBrkYa", DBG_FLOAT | STATIC_TYPE, &g_params_ring.outer.err_brake_k_yaw);
+    Debug_Register("Rng_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_slew_max);
+    Debug_Register("Rng_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.gyro_lpf_fc);
+    Debug_Register("Rng_Out_LG_LMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_l_max);
+    Debug_Register("Rng_Out_LG_LSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_l_safe);
+    Debug_Register("Rng_Out_LG_RMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_r_max);
+    Debug_Register("Rng_Out_LG_RSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_r_safe);
+    Debug_Register("Rng_Out_LGBrkS", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_brake_k_spd);
+    Debug_Register("Rng_Out_LGBrkY", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_brake_k_yaw);
+    Debug_Register("Rng_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_max);
+    Debug_Register("Rng_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_safe);
+    Debug_Register("Rng_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_k_spd);
+    Debug_Register("Rng_Out_EBrkYa", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_k_yaw);
 
     /* 墙面专用外环参数 (g_params_wall.outer, 上位机独立调参) */
-    Debug_Register("Wl_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.outer_slew_max);
-    Debug_Register("Wl_GLPFc",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.gyro_lpf_fc);
-    Debug_Register("Wl_LG_LMx", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.lat_g_l_max);
-    Debug_Register("Wl_LG_LSf", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.lat_g_l_safe);
-    Debug_Register("Wl_LG_RMx", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.lat_g_r_max);
-    Debug_Register("Wl_LG_RSf", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.lat_g_r_safe);
-    Debug_Register("Wl_LGBrkS", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.lat_g_brake_k_spd);
-    Debug_Register("Wl_LGBrkY", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.lat_g_brake_k_yaw);
-    Debug_Register("Wl_EB_Mx",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.err_brake_max);
-    Debug_Register("Wl_EB_Sf",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.err_brake_safe);
-    Debug_Register("Wl_EBrkSp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.err_brake_k_spd);
-    Debug_Register("Wl_EBrkYa", DBG_FLOAT | STATIC_TYPE, &g_params_wall.outer.err_brake_k_yaw);
+    Debug_Register("Wal_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_slew_max);
+    Debug_Register("Wal_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.gyro_lpf_fc);
+    Debug_Register("Wal_Out_LG_LMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_l_max);
+    Debug_Register("Wal_Out_LG_LSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_l_safe);
+    Debug_Register("Wal_Out_LG_RMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_r_max);
+    Debug_Register("Wal_Out_LG_RSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_r_safe);
+    Debug_Register("Wal_Out_LGBrkS", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_brake_k_spd);
+    Debug_Register("Wal_Out_LGBrkY", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_brake_k_yaw);
+    Debug_Register("Wal_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_max);
+    Debug_Register("Wal_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_safe);
+    Debug_Register("Wal_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_k_spd);
+    Debug_Register("Wal_Out_EBrkYa", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_k_yaw);
 
     /* ================================================================
      * 4. 外环观测 (HIGH_FREQ) — 只看不改
      * ================================================================ */
-    Debug_Register("TgtYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
+    Debug_Register("TgtYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.pid_output);
    // Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
-    Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
-    Debug_Register("YawITrm", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.inner.error_sum);
+    Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.gyro_filtered);
+    Debug_Register("YawITrm", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.inner.error_sum);
 
     /* ================================================================
      * 5. 内环 PI — 默认值 & Debug 注册
@@ -1654,30 +1654,30 @@ void Main_Control_Task_Init(void)
     g_params.inner.min_sep = 0.0f;
     g_state.inner.error_sum  = 0.0f;
     g_state.inner.last_error = 0.0f;
-    Debug_Register("Yaw_Kp",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kp);
-    Debug_Register("Yaw_Ki",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.Ki);
-    Debug_Register("Yaw_Kd",   DBG_FLOAT | STATIC_TYPE, &g_params.inner.Kd);
-    Debug_Register("YawLimit", DBG_FLOAT | STATIC_TYPE, &g_params.inner.error_sum_max);
-    Debug_Register("YawHiLi",  DBG_FLOAT | STATIC_TYPE, &g_params.inner.max_sep);
-    Debug_Register("YawLoLi",  DBG_FLOAT | STATIC_TYPE, &g_params.inner.min_sep);
+    Debug_Register("Str_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.Kp);
+    Debug_Register("Str_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.Ki);
+    Debug_Register("Str_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.Kd);
+    Debug_Register("Str_In_ILim", DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.error_sum_max);
+    Debug_Register("Str_In_SepHi",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.max_sep);
+    Debug_Register("Str_In_SepLo",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.min_sep);
 
     /* 十字专用内环 PI 参数 (g_params_cross.inner) */
-    Debug_Register("Cr_YKp",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.inner.Kp);
-    Debug_Register("Cr_YKi",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.inner.Ki);
-    Debug_Register("Cr_YKd",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.inner.Kd);
-    Debug_Register("Cr_YLim",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.inner.error_sum_max);
+    Debug_Register("Crs_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.Kp);
+    Debug_Register("Crs_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.Ki);
+    Debug_Register("Crs_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.Kd);
+    Debug_Register("Crs_In_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.error_sum_max);
 
     /* 环岛专用内环 PI 参数 (g_params_ring.inner) */
-    Debug_Register("Rn_YKp",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.inner.Kp);
-    Debug_Register("Rn_YKi",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.inner.Ki);
-    Debug_Register("Rn_YKd",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.inner.Kd);
-    Debug_Register("Rn_YLim",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.inner.error_sum_max);
+    Debug_Register("Rng_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.Kp);
+    Debug_Register("Rng_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.Ki);
+    Debug_Register("Rng_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.Kd);
+    Debug_Register("Rng_In_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.error_sum_max);
 
     /* 墙面专用内环 PI 参数 (g_params_wall.inner) */
-    Debug_Register("Wl_YKp",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Kp);
-    Debug_Register("Wl_YKi",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Ki);
-    Debug_Register("Wl_YKd",   DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.Kd);
-    Debug_Register("Wl_YLim",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.inner.error_sum_max);
+    Debug_Register("Wal_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.Kp);
+    Debug_Register("Wal_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.Ki);
+    Debug_Register("Wal_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.Kd);
+    Debug_Register("Wal_In_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.error_sum_max);
 
     /* ================================================================
      * 5b. 速度输出后处理 — 默认值 & Debug 注册
@@ -1689,32 +1689,32 @@ void Main_Control_Task_Init(void)
     g_params.speed_out.slew_rate  = 40.0f;
     g_state.last_spd_l = 0.0f;
     g_state.last_spd_r = 0.0f;
-    Debug_Register("SpdMax",  DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.max_output);
-    Debug_Register("SpdMin",  DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.min_output);
-    Debug_Register("DiffMax", DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.max_diff);
-    Debug_Register("DiffMin", DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.min_diff);
-    Debug_Register("SpdSlew", DBG_FLOAT | STATIC_TYPE, &g_params.speed_out.slew_rate);
+    Debug_Register("Str_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_output);
+    Debug_Register("Str_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.min_output);
+    Debug_Register("Str_Spd_DiffMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_diff);
+    Debug_Register("Str_Spd_DiffMin", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.min_diff);
+    Debug_Register("Str_Spd_Slew", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.slew_rate);
 
     /* 墙面专用速度输出后处理 (g_params_wall.speed_out) */
-    Debug_Register("Wl_SpdMx", DBG_FLOAT | STATIC_TYPE, &g_params_wall.speed_out.max_output);
-    Debug_Register("Wl_SpdMn", DBG_FLOAT | STATIC_TYPE, &g_params_wall.speed_out.min_output);
-    Debug_Register("Wl_DfMx",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.speed_out.max_diff);
-    Debug_Register("Wl_DfMn",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.speed_out.min_diff);
-    Debug_Register("Wl_SpdSl", DBG_FLOAT | STATIC_TYPE, &g_params_wall.speed_out.slew_rate);
+    Debug_Register("Wal_Spd_MaxOut", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_output);
+    Debug_Register("Wal_Spd_MinOut", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.min_output);
+    Debug_Register("Wal_Spd_DiffMx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_diff);
+    Debug_Register("Wal_Spd_DiffMn",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.min_diff);
+    Debug_Register("Wal_Spd_Slew", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.slew_rate);
 
     /* 十字专用速度输出后处理 (g_params_cross.speed_out) */
-    Debug_Register("Cr_SpMx",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.speed_out.max_output);
-    Debug_Register("Cr_SpMn",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.speed_out.min_output);
-    Debug_Register("Cr_DfMx",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.speed_out.max_diff);
-    Debug_Register("Cr_DfMn",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.speed_out.min_diff);
-    Debug_Register("Cr_SpSl",  DBG_FLOAT | STATIC_TYPE, &g_params_cross.speed_out.slew_rate);
+    Debug_Register("Crs_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_output);
+    Debug_Register("Crs_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.min_output);
+    Debug_Register("Crs_Spd_DiffMx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_diff);
+    Debug_Register("Crs_Spd_DiffMn",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.min_diff);
+    Debug_Register("Crs_Spd_Slew",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.slew_rate);
 
     /* 环岛专用速度输出后处理 (g_params_ring.speed_out) */
-    Debug_Register("Rn_SpMx",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.speed_out.max_output);
-    Debug_Register("Rn_SpMn",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.speed_out.min_output);
-    Debug_Register("Rn_DfMx",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.speed_out.max_diff);
-    Debug_Register("Rn_DfMn",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.speed_out.min_diff);
-    Debug_Register("Rn_SpSl",  DBG_FLOAT | STATIC_TYPE, &g_params_ring.speed_out.slew_rate);
+    Debug_Register("Rng_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_output);
+    Debug_Register("Rng_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.min_output);
+    Debug_Register("Rng_Spd_DiffMx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_diff);
+    Debug_Register("Rng_Spd_DiffMn",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.min_diff);
+    Debug_Register("Rng_Spd_Slew",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.slew_rate);
 
     /* ================================================================
      * 6. 模糊 PID — 默认值 & Debug 注册 (三套独立: 默认 / 十字 / 环岛)
@@ -1735,76 +1735,76 @@ void Main_Control_Task_Init(void)
     g_params.fuzzy.kp_singletons[FUZZY_PB] = 2.200000047683716f;
 
     /* 默认 */
-    Debug_Register("FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.Kp0);
-    Debug_Register("Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.e_max);
-    Debug_Register("FKeX",   DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.Kp_excess);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NB]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NM]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NS]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_NZ]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_ZO]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PZ]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PS]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PM]);
-    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, &g_params.fuzzy.kp_singletons[FUZZY_PB]);
+    Debug_Register("Str_Fzy_Kp0",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.Kp0);
+    Debug_Register("Str_Fzy_EMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.e_max);
+    Debug_Register("Str_Fzy_KeX",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.Kp_excess);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_NB]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_NM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_NZ]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_PZ]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_PS]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_PM]);
+    Debug_Register("FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.kp_singletons[FUZZY_PB]);
 
     /* 十字专用 */
-    Debug_Register("Cr_FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.Kp0);
-    Debug_Register("Cr_Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.e_max);
-    Debug_Register("Cr_FKeX",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.Kp_excess);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NB]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NM]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NS]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_NZ]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_ZO]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PZ]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PS]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PM]);
-    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_cross.fuzzy.kp_singletons[FUZZY_PB]);
+    Debug_Register("Crs_Fzy_Kp0",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.Kp0);
+    Debug_Register("Crs_Fzy_EMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.e_max);
+    Debug_Register("Crs_Fzy_KeX",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.Kp_excess);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_NB]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_NM]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_NZ]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_PZ]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_PS]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_PM]);
+    Debug_Register("Cr_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_CROSS, &g_params_cross.fuzzy.kp_singletons[FUZZY_PB]);
 
     /* 环岛专用 */
-    Debug_Register("Rn_FKp0",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.Kp0);
-    Debug_Register("Rn_Fe_max", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.e_max);
-    Debug_Register("Rn_FKeX",   DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.Kp_excess);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NB]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NM]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NS]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_NZ]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_ZO]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PZ]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PS]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PM]);
-    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_ring.fuzzy.kp_singletons[FUZZY_PB]);
+    Debug_Register("Rng_Fzy_Kp0",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.Kp0);
+    Debug_Register("Rng_Fzy_EMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.e_max);
+    Debug_Register("Rng_Fzy_KeX",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.Kp_excess);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_NB]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_NM]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_NZ]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_PZ]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_PS]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_PM]);
+    Debug_Register("Rn_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_RING, &g_params_ring.fuzzy.kp_singletons[FUZZY_PB]);
 
     /* 墙面专用模糊 PID (g_params_wall.fuzzy) */
-    Debug_Register("Wl_FKp0",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.Kp0);
-    Debug_Register("Wl_Femax", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.e_max);
-    Debug_Register("Wl_FKeX",  DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.Kp_excess);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NB]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NM]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NS]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_NZ]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_ZO]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PZ]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PS]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PM]);
-    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, &g_params_wall.fuzzy.kp_singletons[FUZZY_PB]);
+    Debug_Register("Wal_Fzy_Kp0",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.Kp0);
+    Debug_Register("Wal_Fzy_EMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.e_max);
+    Debug_Register("Wal_Fzy_KeX",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.Kp_excess);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_NB]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_NM]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_NS]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_NZ]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_ZO]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_PZ]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_PS]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_PM]);
+    Debug_Register("Wl_FKp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_WALL, &g_params_wall.fuzzy.kp_singletons[FUZZY_PB]);
 
     /* ================================================================
      * 7. 电机外设 (PERI_TYPE) — 通过 SPI 读写电机寄存器
      * ================================================================ */
-    Debug_Register("A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_a_ilim_desc);
-    Debug_Register("B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_pid_b_ilim_desc);
+    Debug_Register("Mtr_A_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, VAR_CAT_MOTOR_PERI, VAR_ELEM_GLOBAL, &g_pid_a_ilim_desc);
+    Debug_Register("Mtr_B_ILim", DBG_FLOAT | STATIC_TYPE | PERI_TYPE, VAR_CAT_MOTOR_PERI, VAR_ELEM_GLOBAL, &g_pid_b_ilim_desc);
 
     /* ================================================================
      * 8. 系统 / 杂项 — Debug 注册
      * ================================================================ */
-    Debug_Register("ComSpd",    DBG_FLOAT  | STATIC_TYPE, &common_speed);
-    Debug_Register("Drive_Spd", DBG_FLOAT  | STATIC_TYPE, &drive_speed);
-    Debug_Register("Fan_D",     DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_fan_d);
-    Debug_Register("SS_Step",   DBG_FLOAT  | STATIC_TYPE, &g_ss_step);
-    Debug_Register("Manual",    DBG_UINT8  | STATIC_TYPE, &manual_control_flag);
-    Debug_Register("stat",      DBG_UINT8 | HIGH_FREQ_TYPE, &g_current_element_u8);
+    Debug_Register("Sys_ComSpd",    DBG_FLOAT  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &common_speed);
+    Debug_Register("Sys_DriveSpd", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &drive_speed);
+    Debug_Register("Sys_FanD",     DBG_UINT16 | STATIC_TYPE | PERI_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_fan_d);
+    Debug_Register("Sys_SS_Step",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_ss_step);
+    Debug_Register("Sys_Manual",    DBG_UINT8  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &manual_control_flag);
+    Debug_Register("stat",      DBG_UINT8 | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_current_element_u8);
 
     /* 侧向加速度 LPF 截止频率 (PERI_TYPE → 上位机可读写) */
   //  Debug_Register("LatG_VW_Fc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lat_g_vw_lpf_desc);

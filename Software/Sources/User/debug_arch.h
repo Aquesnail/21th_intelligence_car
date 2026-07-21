@@ -16,6 +16,25 @@
 #define StaticType_Msk  0x20
 #define PeriType_Msk    0x40
 
+/* ── 变量语义分类 (1字节) ── */
+#define VAR_CAT_ADC_ERR     0x00  /* ADC误差权重  */
+#define VAR_CAT_OUTER_LOOP  0x01  /* 外环控制     */
+#define VAR_CAT_INNER_PI    0x02  /* 内环PI       */
+#define VAR_CAT_SPEED_OUT   0x03  /* 速度输出     */
+#define VAR_CAT_FUZZY_PID   0x04  /* 模糊PID      */
+#define VAR_CAT_ELEMENT     0x05  /* 元素行为     */
+#define VAR_CAT_SYSTEM      0x06  /* 系统杂项     */
+#define VAR_CAT_OBSERVE     0x07  /* 纯观测变量   */
+#define VAR_CAT_MOTOR_PERI  0x08  /* 电机外设     */
+#define VAR_CAT_UNCATED     0xFF  /* 未分类(兼容) */
+
+/* ── 元素类型上下文 (1字节) ── */
+#define VAR_ELEM_GLOBAL     0x00  /* 全局/无特定元素 */
+#define VAR_ELEM_STRAIGHT   0x01  /* 直线(默认)      */
+#define VAR_ELEM_CROSS      0x02  /* 十字             */
+#define VAR_ELEM_RING       0x03  /* 环岛             */
+#define VAR_ELEM_WALL       0x04  /* 墙面             */
+
 #define HIGH_FREQ_TYPE 0x10
 #define LOW_FREQ_TYPE  0x00
 #define STATIC_TYPE    0x20
@@ -33,14 +52,14 @@ typedef struct {
 
 /* 静态变量表定义宏 -------------------------------------------------------- */
 #define DEBUG_VAR_TABLE_BEGIN()  \
-    typedef struct { char name[11]; uint8_t type; void* addr; } _DebugVarEntry_t; \
+    typedef struct { char name[17]; uint8_t type; uint8_t category; uint8_t element; void* addr; } _DebugVarEntry_t; \
     static const _DebugVarEntry_t _debugVarTable[] = {
 
-#define DEBUG_VAR(name, type_flags, var_addr)  \
-    { name, type_flags, (void*)var_addr }
+#define DEBUG_VAR(name, type_flags, cat, elem, var_addr)  \
+    { name, type_flags, cat, elem, (void*)var_addr }
 
-#define DEBUG_VAR_PERI(name, type_flags, desc_ptr)  \
-    { name, (type_flags) | PERI_TYPE, (void*)desc_ptr }
+#define DEBUG_VAR_PERI(name, type_flags, cat, elem, desc_ptr)  \
+    { name, (type_flags) | PERI_TYPE, cat, elem, (void*)desc_ptr }
 
 #define DEBUG_VAR_TABLE_END()  \
     }; \
@@ -65,7 +84,7 @@ typedef struct{
 extern SemaphoreHandle_t xDebugReadySignal;
 
 void vDebugTask(void *pvParameters);
-void Debug_Register(char* name, uint8_t type, void* addr);
+void Debug_Register(char* name, uint8_t type, uint8_t category, uint8_t element, void* addr);
 void Debug_RegisterFromTable(const void* table, uint8_t count);
 void Debug_Log(const char* fmt,...);
 void vDebug_Log(const char* fmt, va_list args);

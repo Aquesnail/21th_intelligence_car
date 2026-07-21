@@ -1149,33 +1149,33 @@ void Element_Init(ElementCtx_t *ctx)
     /* ================================================================
      * 1. 共享 / 赛道表 / 安全停车 — Debug 注册
      * ================================================================ */
-    Debug_Register("TTimeOut", DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_frames);
-    Debug_Register("OffTkMs",  DBG_FLOAT  | STATIC_TYPE, &g_offtrack_timeout_ms);
-    Debug_Register("OffTkAdc", DBG_FLOAT  | STATIC_TYPE, &g_offtrack_adc_thresh);
-    Debug_Register("TblEnable",DBG_UINT8  | STATIC_TYPE, &ctx->track_table_enabled);
-    Debug_Register("DbgElem",  DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
-    Debug_Register("PushMode", DBG_UINT8  | STATIC_TYPE, &ctx->push_mode);
-    Debug_Register("Index",    DBG_UINT8 , &ctx->track_idx);
+    Debug_Register("El_TTimeOut", DBG_UINT32 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ontrack_timeout_frames);
+    Debug_Register("El_OffTkMs",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_offtrack_timeout_ms);
+    Debug_Register("El_OffTkAdc", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_offtrack_adc_thresh);
+    Debug_Register("El_TblEnable",DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->track_table_enabled);
+    Debug_Register("El_DbgElem",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_single_element_debug);
+    Debug_Register("El_PushMode", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->push_mode);
+    Debug_Register("Index",    DBG_UINT8 , VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &ctx->track_idx);
     /* ================================================================
      * 2. 速度变量 — Debug 注册
      * ================================================================ */
-    Debug_Register("Cruising",  DBG_FLOAT | STATIC_TYPE, &g_speed_cruising);
-    Debug_Register("RingSpd",   DBG_FLOAT | STATIC_TYPE, &g_speed_ring);
-    Debug_Register("WallSpd",   DBG_FLOAT | STATIC_TYPE, &g_speed_wall);
-    Debug_Register("WClimbSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_wall_climb);
-    Debug_Register("WHorizSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_wall_horiz);
-    Debug_Register("WDescSpd",  DBG_FLOAT | STATIC_TYPE, &g_speed_wall_descend);
-    Debug_Register("BarrelSpd", DBG_FLOAT | STATIC_TYPE, &g_speed_barrel);
-    Debug_Register("CrossSpd",  DBG_FLOAT | STATIC_TYPE, &g_speed_cross);
-    Debug_Register("SkipSpd",   DBG_FLOAT | STATIC_TYPE, &g_speed_skip);
+    Debug_Register("El_Cruising",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_cruising);
+    Debug_Register("El_RingSpd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_ring);
+    Debug_Register("El_WallSpd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_wall);
+    Debug_Register("El_WClimbSpd", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_wall_climb);
+    Debug_Register("El_WHorizSpd", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_wall_horiz);
+    Debug_Register("El_WDescSpd",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_wall_descend);
+    Debug_Register("El_BarrelSpd", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_barrel);
+    Debug_Register("El_CrossSpd",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_cross);
+    Debug_Register("El_SkipSpd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_skip);
 
     /* ---- 风扇占空比变量 — Debug 注册 ---- */
-    Debug_Register("FanD_Str",  DBG_UINT16 | STATIC_TYPE, &g_fan_d_straight);
-    Debug_Register("FanD_Ring", DBG_UINT16 | STATIC_TYPE, &g_fan_d_ring);
-    Debug_Register("FanD_Wall", DBG_UINT16 | STATIC_TYPE, &g_fan_d_wall);
-    Debug_Register("FanD_Cross",DBG_UINT16 | STATIC_TYPE, &g_fan_d_cross);
-    Debug_Register("FanD_Bar",  DBG_UINT16 | STATIC_TYPE, &g_fan_d_barrel);
-    Debug_Register("FanD_Skip", DBG_UINT16 | STATIC_TYPE, &g_fan_d_skip);
+    Debug_Register("El_FanD_Str",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_straight);
+    Debug_Register("El_FanD_Ring", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_ring);
+    Debug_Register("El_FanD_Wall", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_wall);
+    Debug_Register("El_FanD_Cross",DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_cross);
+    Debug_Register("El_FanD_Bar",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_barrel);
+    Debug_Register("El_FanD_Skip", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_skip);
 
     /* ================================================================
      * 3. 环岛 RING — 默认值 & Debug 注册
@@ -1185,32 +1185,32 @@ void Element_Init(ElementCtx_t *ctx)
     RingEntrance[1] = 0.0f;
     RingEntrance[2] = 1000.0f;
     RingEntrance[3] = 0.0f;
-    Debug_Register("RingEn0", DBG_FLOAT | STATIC_TYPE, &RingEntrance[0]);
-    Debug_Register("RingEn1", DBG_FLOAT | STATIC_TYPE, &RingEntrance[1]);
-    Debug_Register("RingEn2", DBG_FLOAT | STATIC_TYPE, &RingEntrance[2]);
-    Debug_Register("RingEn3", DBG_FLOAT | STATIC_TYPE, &RingEntrance[3]);
+    Debug_Register("El_RingEn0", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingEntrance[0]);
+    Debug_Register("El_RingEn1", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingEntrance[1]);
+    Debug_Register("El_RingEn2", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingEntrance[2]);
+    Debug_Register("El_RingEn3", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingEntrance[3]);
 
     /* 退出 ADC 阈值 */
     RingExit[0] = 1000.0f;
     RingExit[1] = 1000.0f;
     RingExit[2] = 1000.0f;
     RingExit[3] = 1000.0f;
-    Debug_Register("RingEx0", DBG_FLOAT | STATIC_TYPE, &RingExit[0]);
-    Debug_Register("RingEx1", DBG_FLOAT | STATIC_TYPE, &RingExit[1]);
-    Debug_Register("RingEx2", DBG_FLOAT | STATIC_TYPE, &RingExit[2]);
-    Debug_Register("RingEx3", DBG_FLOAT | STATIC_TYPE, &RingExit[3]);
+    Debug_Register("El_RingEx0", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingExit[0]);
+    Debug_Register("El_RingEx1", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingExit[1]);
+    Debug_Register("El_RingEx2", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingExit[2]);
+    Debug_Register("El_RingEx3", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingExit[3]);
 
     /* 角度阈值 */
-    Debug_Register("Ring_AngThr", DBG_FLOAT | STATIC_TYPE, &angle_level);
+    Debug_Register("El_RingAngThr", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &angle_level);
 
     /* 开环 / 时序参数 */
-    Debug_Register("OL_Yaw",      DBG_FLOAT  | STATIC_TYPE, &g_ol_ring_yawrate);
-    Debug_Register("PassTmOut",   DBG_UINT16 | STATIC_TYPE, &g_pass_timeout_frames);
-    Debug_Register("RingExYaw",   DBG_FLOAT  | STATIC_TYPE, &g_ring_exit_yaw_thresh);
-    Debug_Register("RingExLock",  DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
-    Debug_Register("Ring_Timeout",DBG_UINT16 | STATIC_TYPE, &g_ring_timeout_frames);
-    Debug_Register("Ring_OLAng", DBG_FLOAT  | STATIC_TYPE, &g_ol_ring_angle);
-    Debug_Register("RingVetoVt", DBG_FLOAT  | STATIC_TYPE, &g_ring_veto_vertical_sum);
+    Debug_Register("El_RingOLYaw",      DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ol_ring_yawrate);
+    Debug_Register("El_RingPassTO",   DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_pass_timeout_frames);
+    Debug_Register("El_RingExYaw",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_yaw_thresh);
+    Debug_Register("El_RingExLock",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_lockout_frames);
+    Debug_Register("El_RingTimeout",DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_timeout_frames);
+    Debug_Register("El_RingOLAng", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ol_ring_angle);
+    Debug_Register("El_RingVetoVt", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_veto_vertical_sum);
 
     /* ================================================================
      * 4. 上墙 WALL — 默认值 & Debug 注册
@@ -1220,33 +1220,33 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_wall.len          = 10;
     vote_win_wall.entry_thresh = 7;
     vote_win_wall.exit_thresh  = 7;
-    Debug_Register("Wall_EntTiltB", DBG_FLOAT | STATIC_TYPE, &wall_entry_tiltb);
+    Debug_Register("El_WallEntTB", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &wall_entry_tiltb);
 
     /* CLIMB→HORIZONTAL: |TiltR| > 70 */
     wall_climb_exit_tiltr = 70.0f;
     vote_win_wall_climb.len          = 10;
     vote_win_wall_climb.entry_thresh = 7;
     vote_win_wall_climb.exit_thresh  = 7;
-    Debug_Register("Wall_ClimbTR", DBG_FLOAT | STATIC_TYPE, &wall_climb_exit_tiltr);
+    Debug_Register("El_WallClimbTR", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &wall_climb_exit_tiltr);
 
     /* HORIZONTAL→DESCEND: |TiltR| < 70 */
     wall_horiz_exit_tiltr = 70.0f;
     vote_win_wall_horiz.len          = 10;
     vote_win_wall_horiz.entry_thresh = 7;
     vote_win_wall_horiz.exit_thresh  = 7;
-    Debug_Register("Wall_HorizTR", DBG_FLOAT | STATIC_TYPE, &wall_horiz_exit_tiltr);
+    Debug_Register("El_WallHorizTR", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &wall_horiz_exit_tiltr);
 
     /* DESCEND→STRAIGHT: TiltB > 60, 消隐期内强制投 0 */
     wall_descend_exit_tiltb = 60.0f;
     vote_win_wall_descend.len          = 10;
     vote_win_wall_descend.entry_thresh = 7;
     vote_win_wall_descend.exit_thresh  = 7;
-    Debug_Register("Wall_DescTiltB", DBG_FLOAT  | STATIC_TYPE, &wall_descend_exit_tiltb);
-    Debug_Register("Wall_DesBlk",    DBG_UINT16 | STATIC_TYPE, &wall_descent_blanking_frames);
+    Debug_Register("El_WallDescTB", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &wall_descend_exit_tiltb);
+    Debug_Register("El_WallDesBlk",    DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &wall_descent_blanking_frames);
 
     /* 超时 */
-    Debug_Register("Wall_Timeout", DBG_UINT16 | STATIC_TYPE, &g_wall_timeout_frames);
-    Debug_Register("Wall_ExLock",  DBG_UINT16 | STATIC_TYPE, &g_wall_exit_lockout_frames);
+    Debug_Register("El_WallTimeout", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_wall_timeout_frames);
+    Debug_Register("El_WallExLock",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_wall_exit_lockout_frames);
 
     /* ================================================================
      * 5. 滚筒 BARREL — 默认值 & Debug 注册
@@ -1257,19 +1257,19 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_barrel.len          = 10;
     vote_win_barrel.entry_thresh = 7;
     vote_win_barrel.exit_thresh  = 7;
-    Debug_Register("Bar_EnTilt", DBG_FLOAT | STATIC_TYPE, &barrel_entry_tilt);
-    Debug_Register("Bar_ExTilt", DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
+    Debug_Register("El_BarEnTilt", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &barrel_entry_tilt);
+    Debug_Register("El_BarExTilt", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &barrel_exit_tilt);
 
     /* 峰值 > 75° (投票窗滤波) */
     barrel_peak_tilt = 70.0f;
     vote_win_barrel_peak.len          = 10;
     vote_win_barrel_peak.entry_thresh = 7;
     vote_win_barrel_peak.exit_thresh  = 7;
-    Debug_Register("Bar_PeakTilt", DBG_FLOAT | STATIC_TYPE, &barrel_peak_tilt);
+    Debug_Register("El_BarPeakTilt", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &barrel_peak_tilt);
 
     /* 超时 */
-    Debug_Register("Bar_Timeout", DBG_UINT16 | STATIC_TYPE, &g_barrel_timeout_frames);
-    Debug_Register("Bar_ExLock",  DBG_UINT16 | STATIC_TYPE, &g_barrel_exit_lockout_frames);
+    Debug_Register("El_BarTimeout", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_barrel_timeout_frames);
+    Debug_Register("El_BarExLock",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_barrel_exit_lockout_frames);
 
     /* ================================================================
      * 6. 十字 CROSS — 默认值 & Debug 注册
@@ -1281,13 +1281,13 @@ void Element_Init(ElementCtx_t *ctx)
     cross_exit_sum  = 600.0f;
     cross_all_sum   = 2100.0f;
     cross_all_exit_sum = 1700.0f;
-    Debug_Register("Cross_EnSum",   DBG_FLOAT  | STATIC_TYPE, &cross_entry_sum);
-    Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
-    Debug_Register("Cross_AllSum",  DBG_FLOAT  | STATIC_TYPE, &cross_all_sum);
-    Debug_Register("Cross_ExAll",   DBG_FLOAT  | STATIC_TYPE, &cross_all_exit_sum);
-    Debug_Register("Cross_Timeout", DBG_UINT16 | STATIC_TYPE, &g_cross_timeout_frames);
-    Debug_Register("Cross_ExLock", DBG_UINT16 | STATIC_TYPE, &g_cross_exit_lockout_frames);
-    Debug_Register("Cross_ExBlk",  DBG_UINT16 | STATIC_TYPE, &g_cross_exit_blanking_frames);
+    Debug_Register("El_CrossEnSum",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &cross_entry_sum);
+    Debug_Register("El_CrossExSum",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &cross_exit_sum);
+    Debug_Register("El_CrossAllSum",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &cross_all_sum);
+    Debug_Register("El_CrossExAll",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &cross_all_exit_sum);
+    Debug_Register("El_CrossTimeout", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_cross_timeout_frames);
+    Debug_Register("El_CrossExLock", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_cross_exit_lockout_frames);
+    Debug_Register("El_CrossExBlk",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_cross_exit_blanking_frames);
 
     /* ================================================================
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
@@ -1302,18 +1302,18 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_skip.len          = 20;    /* 投票窗滤波, 20帧窗口抑制噪声 */
     vote_win_skip.entry_thresh = 19;
     vote_win_skip.exit_thresh  = 3;
-    Debug_Register("SkpEnTilt",  DBG_FLOAT  | STATIC_TYPE, &skip_entry_tilt);
-    Debug_Register("SkpEnTltLR", DBG_FLOAT  | STATIC_TYPE, &skip_entry_tilt_lr);
-    Debug_Register("SkpExSum",   DBG_FLOAT  | STATIC_TYPE, &skip_exit_sum);
-    Debug_Register("SkpAirTlt",  DBG_FLOAT  | STATIC_TYPE, &skip_airborne_exit_tilt);
-    Debug_Register("SkpLdMin",   DBG_FLOAT  | STATIC_TYPE, &skip_landing_adc_min);
-    Debug_Register("SkpLdMax",   DBG_FLOAT  | STATIC_TYPE, &skip_landing_adc_max);
-    Debug_Register("SkpTmOut",   DBG_UINT16 | STATIC_TYPE, &g_skip_timeout_frames);
-    Debug_Register("SkpExLck",   DBG_UINT16 | STATIC_TYPE, &g_skip_exit_lockout_frames);
-    Debug_Register("Skp_WnLen",  DBG_UINT8  | STATIC_TYPE, &vote_win_skip.len);
-    Debug_Register("Skp_WnEnTh", DBG_UINT8  | STATIC_TYPE, &vote_win_skip.entry_thresh);
-    Debug_Register("Skp_WnExTh", DBG_UINT8  | STATIC_TYPE, &vote_win_skip.exit_thresh);
-    Debug_Register("TiltLpfFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_tilt_lpf_fc_desc);
+    Debug_Register("El_SkpEnTilt",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt);
+    Debug_Register("El_SkpEnTltLR", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt_lr);
+    Debug_Register("El_SkpExSum",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_exit_sum);
+    Debug_Register("El_SkpAirTlt",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_airborne_exit_tilt);
+    Debug_Register("El_SkpLdMin",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_landing_adc_min);
+    Debug_Register("El_SkpLdMax",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_landing_adc_max);
+    Debug_Register("El_SkpTmOut",   DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_skip_timeout_frames);
+    Debug_Register("El_SkpExLck",   DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_skip_exit_lockout_frames);
+    Debug_Register("El_SkpWnLen",  DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_skip.len);
+    Debug_Register("El_SkpWnEnTh", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_skip.entry_thresh);
+    Debug_Register("El_SkpWnExTh", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_skip.exit_thresh);
+    Debug_Register("El_TiltLpfFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_tilt_lpf_fc_desc);
 
     /* ================================================================
      * 8. 直角转弯 RIGHT_ANGLE — 默认值 & Debug 注册
@@ -1323,15 +1323,15 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_ra.entry_thresh = 7;
     vote_win_ra.exit_thresh  = 7;
     g_ra_yawrate_feedforward_k = 0.6000000238418579f;
-    Debug_Register("RA_YawFwdK", DBG_FLOAT  | STATIC_TYPE, &g_ra_yawrate_feedforward_k);
-    Debug_Register("RA_EnThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_entry_thresh);
-    Debug_Register("RA_ExThr",   DBG_FLOAT  | STATIC_TYPE, &g_ra_exit_thresh);
-    Debug_Register("RA_Timeout", DBG_UINT16 | STATIC_TYPE, &g_ra_timeout_frames);
-    Debug_Register("RA_ExLkFrames", DBG_UINT16 | STATIC_TYPE, &g_ra_exit_lockout_frames);
-    Debug_Register("RingGlbLk", DBG_UINT16 | STATIC_TYPE, &g_ring_global_lock);
-    Debug_Register("WallGlbLk", DBG_UINT16 | STATIC_TYPE, &g_wall_global_lock);
-    Debug_Register("BarGlbLk",  DBG_UINT16 | STATIC_TYPE, &g_barrel_global_lock);
-    Debug_Register("SkpGlbLk",  DBG_UINT16 | STATIC_TYPE, &g_skip_global_lock);
+    Debug_Register("El_RAYawFwdK", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ra_yawrate_feedforward_k);
+    Debug_Register("El_RAEnThr",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ra_entry_thresh);
+    Debug_Register("El_RAExThr",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ra_exit_thresh);
+    Debug_Register("El_RATimeout", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ra_timeout_frames);
+    Debug_Register("El_RAExLkFrm", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ra_exit_lockout_frames);
+    Debug_Register("El_RingGlbLk", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_global_lock);
+    Debug_Register("El_WallGlbLk", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_wall_global_lock);
+    Debug_Register("El_BarGlbLk",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_barrel_global_lock);
+    Debug_Register("El_SkpGlbLk",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_skip_global_lock);
 
     /* ================================================================
      * 9. 时间滤波(投票窗)参数 — 集中管理, 暂时注释以减少上位机参数列表
@@ -1355,9 +1355,9 @@ void Element_Init(ElementCtx_t *ctx)
     // Debug_Register("Bar_WinLen",   DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.len);
     // Debug_Register("Bar_EntThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.entry_thresh);
     // Debug_Register("Bar_ExtThr",   DBG_UINT8 | STATIC_TYPE, &vote_win_barrel.exit_thresh);
-     Debug_Register("Bar_PkWnLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.len);
-     Debug_Register("Bar_PkWnEnTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.entry_thresh);
-     Debug_Register("Bar_PkWnExTh", DBG_UINT8 | STATIC_TYPE, &vote_win_barrel_peak.exit_thresh);
+     Debug_Register("El_BarPkWnLen",  DBG_UINT8 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_barrel_peak.len);
+     Debug_Register("El_BarPkWnEnTh", DBG_UINT8 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_barrel_peak.entry_thresh);
+     Debug_Register("El_BarPkWnExTh", DBG_UINT8 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_barrel_peak.exit_thresh);
     /* 十字 */
     // Debug_Register("Cross_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_cross.entry_thresh);
     // Debug_Register("Cross_ExtThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_cross.exit_thresh);

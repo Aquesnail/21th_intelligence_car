@@ -31,8 +31,10 @@ debug_port_t* debug_init_struct = NULL;
 /* ================= 类型定义 ================= */
 
 typedef struct {
-    char name[11];      // 10 chars + \0
-    uint8_t type;       // VarType_t
+    char name[17];      // 16 chars + \0
+    uint8_t type;       // VarType_t | flags
+    uint8_t category;   // VarCategory_t
+    uint8_t element;    // VarElement_t
     void* addr;         // 4字节指针
 } DebugObj_t;
 
@@ -141,17 +143,19 @@ static void Debug_TxCore(uint16_t id, uint8_t type, uint8_t *payload, uint8_t le
 
 // 发送元数据 (ID=0xFE)
 static void Debug_SendMetaPacket(uint16_t id) {
-    uint8_t buf[17]; // [ID:2][Type:1][Addr:4][Name:10]
+    uint8_t buf[25]; // [ID:2][Type:1][Addr:4][Category:1][Element:1][Name:16]
     if(id >= debugVarCount) return;
 
     buf[0] = (uint8_t)(id >> 8);
     buf[1] = (uint8_t)(id);
     buf[2] = debugTable[id].type;
     memcpy(&buf[3], &debugTable[id].addr, 4); // C251 4字节指针拷贝
-    memset(&buf[7], 0, 10);
-    strncpy((char*)&buf[7], debugTable[id].name, 10);
+    buf[7] = debugTable[id].category;   /* 新增 */
+    buf[8] = debugTable[id].element;    /* 新增 */
+    memset(&buf[9], 0, 16);
+    strncpy((char*)&buf[9], debugTable[id].name, 16);
     if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
-        Debug_TxCore(0xFE, 0xFF, buf, 17);
+        Debug_TxCore(0xFE, 0xFF, buf, 25);  /* 17 → 25 */
         xSemaphoreGive(xLogMutex);
     }
 
@@ -259,11 +263,13 @@ void Debug_LogLongString(char *buffer) {
 /* ================= 注册与接收逻辑 ================= */
 
 // 注册变量
-void Debug_Register(char* name, uint8_t type, void* addr) {
+void Debug_Register(char* name, uint8_t type, uint8_t category, uint8_t element, void* addr) {
     if(debugVarCount < MAX_DEBUG_VARS) {
-        memset(debugTable[debugVarCount].name, 0, 11);
-        strncpy(debugTable[debugVarCount].name, name, 10);
+        memset(debugTable[debugVarCount].name, 0, 17);
+        strncpy(debugTable[debugVarCount].name, name, 16);
         debugTable[debugVarCount].type = type;
+        debugTable[debugVarCount].category = category;
+        debugTable[debugVarCount].element = element;
         debugTable[debugVarCount].addr = addr;
         debugVarCount++;
     }
@@ -404,18 +410,20 @@ static void Debug_ProcessIncoming(void) {
 
             // ---> 动态注册 (Payload: Type, Addr4, Name10)
             case CMD_REGISTER:
-                if(len == 15 && debugVarCount < MAX_DEBUG_VARS) {
-                    debugTable[debugVarCount].type = rxBuf[3];
-                    memcpy(&debugTable[debugVarCount].addr, &rxBuf[4], 4);
-                    memset(debugTable[debugVarCount].name, 0, 11);
-                    strncpy(debugTable[debugVarCount].name, (char*)&rxBuf[8], 10);
-                    
+                if(len == 23 && debugVarCount < MAX_DEBUG_VARS) {
+                    debugTable[debugVarCount].type     = rxBuf[3];
+                    memcpy(&debugTable[debugVarCount].addr,     &rxBuf[4], 4);
+                    debugTable[debugVarCount].category = rxBuf[8];    /* 新增 */
+                    debugTable[debugVarCount].element  = rxBuf[9];    /* 新增 */
+                    memset(debugTable[debugVarCount].name, 0, 17);
+                    strncpy(debugTable[debugVarCount].name, (char*)&rxBuf[10], 16);
+
                     // 注册成功，补发 Meta
                     //delay_ms(2);
                     debugVarCount++;//先增加计数器
                     Debug_SendMetaPacket(debugVarCount-1);
                     //delay_ms(2);
-                    
+
                 }
                 break;
 
