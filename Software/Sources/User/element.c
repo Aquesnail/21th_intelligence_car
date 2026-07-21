@@ -8,12 +8,14 @@
 #include <string.h>
 extern unsigned char manual_control_flag;
 
+#define FABS(x) ((x) > 0.0f ? (x) : -(x))
+
 /* ================================================================
  * SECTION 0 — 共享参数 & 基础设施
  * ================================================================ */
 
 /* ---- 车身水平倾角阈值 (多元素共用) ---- */
-static float angle_level = 10.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
+static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
 
 /* ---- 推车调试 ---- */
 
@@ -21,14 +23,14 @@ static float angle_level = 10.0f;   /* 车身水平倾角阈值(度), 四元数�
  * 速度变量 (供元素属性表 speed_ptr 指向 + Debug_Register 在线调参)
  *   必须在 g_element_props 之前声明
  * ================================================================ */
-static float g_speed_cruising     = 60.0f;
-static float g_speed_ring         = 45.0f;
+static float g_speed_cruising     = 70.0f;
+static float g_speed_ring         = 60.0f;
 static float g_speed_wall         = 45.0f;
 static float g_speed_wall_climb   = 45.0f;
 static float g_speed_wall_horiz   = 40.0f;
 static float g_speed_wall_descend = 50.0f;
-static float g_speed_barrel       = 70.0f;
-static float g_speed_cross        = 60.0f;
+static float g_speed_barrel       = 95.0f;
+static float g_speed_cross        = 70.0f;
 static float g_speed_skip         = 30.0f;
 
 /* ---- 风扇占空比变量 (供元素属性表 fan_d_ptr 指向 + Debug_Register 在线调参) ---- */
@@ -36,12 +38,12 @@ static uint16_t g_fan_d_straight = 400;
 static uint16_t g_fan_d_ring     = 400;
 static uint16_t g_fan_d_wall     = 425;
 static uint16_t g_fan_d_cross    = 400;
-static uint16_t g_fan_d_barrel   = 400;
+static uint16_t g_fan_d_barrel   = 425;
 static uint16_t g_fan_d_skip     = 400;
 
 /* ---- 环岛开环参数 (被 g_element_props 引用, 必须前置) ---- */
 float    g_ol_ring_angle   = 0.0f;    /* 环岛开环目标角度(绝对值, 度) */
-float    g_ol_ring_yawrate = 8.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
+float    g_ol_ring_yawrate = 15.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
 
 /* ================================================================
  * 元素属性表 (Flash 常驻, 按 ELEMENT_ACTIVE_COUNT 索引)
@@ -93,9 +95,7 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
  * 安全停车 / 离赛道 / 上赛道超时
  * ================================================================ */
 static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
-static float   g_offtrack_adc_thresh   = 10.0f;   /* ADC 低于此值视为离赛道 */
-static unsigned long g_offtrack_start_tick  = 0;  /* 信号丢失起始 tick */
-static unsigned char  g_offtrack_active      = 0; /* 当前是否正在计时 */
+static float   g_offtrack_adc_thresh   = 20.0f;   /* ADC 低于此值视为离赛道 */
 static uint32_t g_ontrack_timeout_frames = 10000; /* 上赛道超时 (帧), 上位机下发帧数 (500帧/s, 10000帧=20s) */
 uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜像, 供上位机 HIGH_FREQ 上传) */
 
@@ -106,15 +106,16 @@ uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜�
 #define TRACK_TABLE_LEN  8
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
+    ELEMENT_BARREL,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_SKIP,
     ELEMENT_WALL,
+    
     ELEMENT_BARREL,
-
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_SKIP,
     ELEMENT_WALL,
-    ELEMENT_BARREL,
+    
     
    /* ELEMENT_CROSS, */
    /* ELEMENT_CROSS, */
@@ -122,9 +123,7 @@ static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
    /* ELEMENT_BARREL */
 };
 
-static unsigned char  g_track_table_enabled = 0;   /* 上位机可调: 1=启用, 0=旁路(单元素调试) */
-static unsigned char  g_track_idx = 0;             /* 指向下一个预期元素的索引 */
-static element_t g_single_element_debug = ELEMENT_STRAIGHT; /* 单元素调试: track_table_enabled=0时反复触发 */
+static element_t g_single_element_debug = ELEMENT_RING_LEFT_ENTRANCE; /* 单元素调试: track_table_enabled=0时反复触发 */
 
 /* ---- 投票窗缓冲区容量 ---- */
 #define WALL_WIN_MAX         20
@@ -211,20 +210,18 @@ void VoteWin_SetLen(VoteWindow_t *w, unsigned char len)
  * SECTION 2 — 赛道表辅助 & 公共动作
  * ================================================================ */
 
-static void Track_Advance(void)
+static void Track_Advance(ElementCtx_t *ctx)
 {
-    if (g_track_table_enabled && g_track_idx < TRACK_TABLE_LEN) {
-        g_track_idx++;
+    if (ctx->track_table_enabled && ctx->track_idx < TRACK_TABLE_LEN) {
+        ctx->track_idx++;
     }
 }
 
 static element_t Track_GetExpected(ElementCtx_t *ctx)
 {
-    (void)ctx;
-
-    if (g_track_table_enabled) {
-        if (g_track_idx < TRACK_TABLE_LEN) {
-            return (element_t)g_track_table[g_track_idx];
+    if (ctx->track_table_enabled) {
+        if (ctx->track_idx < TRACK_TABLE_LEN) {
+            return (element_t)g_track_table[ctx->track_idx];
         }
         return ELEMENT_STRAIGHT;
     } else {
@@ -277,8 +274,7 @@ ControlStrategy_t Element_GetEffectiveCtrl(element_t e, ElementCtx_t *ctx)
 /* ---- 统一退出到 STRAIGHT: 推进赛道元素表 (所有元素正常退出共用) ---- */
 static void Enter_ExitToStraight(ElementCtx_t *ctx)
 {
-    (void)ctx;
-    Track_Advance();
+    Track_Advance(ctx);
 }
 
 
@@ -292,20 +288,28 @@ static float RingExit[4];
 static unsigned char xdata ring_vote_buf[100];
 static VoteWindow_t vote_win_ring;
 
-static unsigned short g_pass_timeout_frames = 300;  /* 默认300帧=600ms */
-static float    g_ring_exit_yaw_thresh  = 200.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
-static unsigned short g_ring_exit_lockout_frames = 1000;  /* 锁存时长(帧), 默认1000帧=2s */
-static unsigned short g_ring_timeout_frames   = 700;  /* 环岛总超时 (帧, ≈1.4s) */
+static unsigned short g_pass_timeout_frames = 150;  /* 默认150帧=300ms */
+static float    g_ring_exit_yaw_thresh  = 300.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
+static unsigned short g_ring_exit_lockout_frames = 300;  /* 锁存时长(帧), 默认300帧=600ms */
+static unsigned short g_ring_timeout_frames   = 400;  /* 环岛总超时 (帧, ≈0.8s) */
+static float    g_ring_veto_vertical_sum = 600.0f;  /* 竖向电感和否决阈值: adc[1]+adc[3] > 此值 → 十字特征, 否决进环 */
 
 /* ---- 环岛 Check ---- */
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
 {
+    float ring_vert_sum;
+
     if (ctx->ring_lockout_cnt > 0) {
+        return 0;
+    }
+    /* 竖向电感和过高 → 十字横线特征, 瞬时否决, 防止十字误入环岛 */
+    ring_vert_sum = ctx->adc[1] + ctx->adc[3];
+    if (ring_vert_sum > g_ring_veto_vertical_sum) {
         return 0;
     }
     if (ctx->vote_ring.len == 0) {
         return ((ctx->adc[0] > RingEntrance[0] || ctx->adc[2] > RingEntrance[2])
-                && ((ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) < angle_level)) ? 1 : 0;
+                && (FABS(ctx->tilt_fb) < angle_level)) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_ring, ctx->vote_ring.entry_thresh);
 }
@@ -412,7 +416,7 @@ static VoteWindow_t vote_win_wall_descend;
 static float   wall_descend_exit_tiltb;       /* DESCEND→STRAIGHT 退出 TiltB 阈值 (默认 60) */
 static uint16_t wall_descent_blanking_frames = 200; /* HORIZONTAL→DESCEND 消隐帧数 (默认200帧=400ms) */
 
-static unsigned short g_wall_timeout_frames   = 60000; /* 上墙总超时 (帧, =120s) */
+static unsigned short g_wall_timeout_frames   = 2000; /* 上墙总超时 (帧, =4s) */
 static unsigned short g_wall_exit_lockout_frames = 300; /* 上墙超时退出后锁存帧数 (默认1000帧=2s) */
 /* ---- 上墙 Check ---- */
 static unsigned char Check_WallEntry(ElementCtx_t *ctx)
@@ -429,7 +433,7 @@ static unsigned char Check_WallEntry(ElementCtx_t *ctx)
 static unsigned char Check_WallClimbToHoriz(ElementCtx_t *ctx)
 {
     float tilt_lr_abs;
-    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    tilt_lr_abs = FABS(ctx->tilt_lr);
 
     if (ctx->vote_wall_climb.len == 0) {
         return (tilt_lr_abs > wall_climb_exit_tiltr) ? 1 : 0;
@@ -440,7 +444,7 @@ static unsigned char Check_WallClimbToHoriz(ElementCtx_t *ctx)
 static unsigned char Check_WallHorizToDescend(ElementCtx_t *ctx)
 {
     float tilt_lr_abs;
-    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    tilt_lr_abs = FABS(ctx->tilt_lr);
 
     if (ctx->vote_wall_horiz.len == 0) {
         return (tilt_lr_abs < wall_horiz_exit_tiltr) ? 1 : 0;
@@ -598,42 +602,32 @@ static float   cross_entry_sum;
 static float   cross_exit_sum;
 static float   cross_all_sum;              /* adc[0]+adc[1]+adc[2]+adc[3] 总和阈值 */
 static float   cross_all_exit_sum;         /* 退出: 四通道总和 < 此值 (需低于 cross_all_sum 保持滞回) */
-static unsigned short g_cross_timeout_frames  = 250;  /* 十字总超时 (帧, =500ms) */
-static unsigned short g_cross_exit_lockout_frames = 300; /* 十字退出后禁止再进入锁存 (帧, =600ms) */
-static unsigned short g_cross_exit_blanking_frames = 50; /* 进入十字后退出消隐 (帧, =100ms), 期间屏蔽 ADC/倾角退出, 防止单帧闪退 */
+static unsigned short g_cross_timeout_frames  = 2500;  /* 十字总超时 (帧, =5s) */
+static unsigned short g_cross_exit_lockout_frames = 5; /* 十字退出后禁止再进入锁存 (帧, =10ms) */
+static unsigned short g_cross_exit_blanking_frames = 30; /* 进入十字后退出消隐 (帧, =60ms), 期间屏蔽 ADC/倾角退出, 防止单帧闪退 */
 
 /* ---- 十字 Check ---- */
 static unsigned char Check_CrossEntry(ElementCtx_t *ctx)
 {
-    float cross_adc_sum;
-    float cross_all;
-
     if (ctx->cross_lockout_cnt > 0) return 0;
-    cross_adc_sum = ctx->adc[1] + ctx->adc[3];
-    cross_all     = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
-        return (cross_adc_sum > cross_entry_sum
-                && cross_all > cross_all_sum
-                && (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb) < angle_level
-                && (ctx->tilt_lr > 0.0f ? ctx->tilt_lr : -ctx->tilt_lr) < angle_level) ? 1 : 0;
+        return (ctx->cross_sum_cache > cross_entry_sum
+                && ctx->cross_all_cache > cross_all_sum
+                && FABS(ctx->tilt_fb) < angle_level
+                && FABS(ctx->tilt_lr) < angle_level) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_cross, ctx->vote_cross.entry_thresh);
 }
 
 static unsigned char Check_CrossExit(ElementCtx_t *ctx)
 {
-    float cross_adc_sum;
-    float cross_all;
-
     /* 消隐期: 刚进十字时 sum 还在进入阈值附近, 未消隐会单帧闪退并触发锁存 */
     if (ctx->elem_frame_cnt < g_cross_exit_blanking_frames) {
         return 0;
     }
-    cross_adc_sum = ctx->adc[1] + ctx->adc[3];
-    cross_all     = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
     if (ctx->vote_cross.len == 0) {
-        return (cross_adc_sum < cross_exit_sum
-                || cross_all < cross_all_exit_sum) ? 1 : 0;
+        return (ctx->cross_sum_cache < cross_exit_sum
+                || ctx->cross_all_cache < cross_all_exit_sum) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_cross, ctx->vote_cross.exit_thresh);
 }
@@ -647,8 +641,8 @@ static unsigned char Check_CrossTilt(ElementCtx_t *ctx)
     if (ctx->elem_frame_cnt < g_cross_exit_blanking_frames) {
         return 0;
     }
-    tilt_fb_abs = (ctx->tilt_fb > 0.0f) ? ctx->tilt_fb : -ctx->tilt_fb;
-    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    tilt_fb_abs = FABS(ctx->tilt_fb);
+    tilt_lr_abs = FABS(ctx->tilt_lr);
     if (ctx->vote_cross_tilt.len == 0) {
         return (tilt_fb_abs >= angle_level || tilt_lr_abs >= angle_level) ? 1 : 0;
     }
@@ -674,13 +668,6 @@ static void Enter_CrossExit(ElementCtx_t *ctx)
     VoteWin_Reset(&ctx->vote_cross);
     VoteWin_Reset(&ctx->vote_cross_tilt);
     //Enter_ExitToStraight(ctx);
-}
-
-static void Enter_CrossTiltExit(ElementCtx_t *ctx)
-{
-    ctx->cross_lockout_cnt = g_cross_exit_lockout_frames;
-    VoteWin_Reset(&ctx->vote_cross);
-    VoteWin_Reset(&ctx->vote_cross_tilt);
 }
 
 static void Enter_CrossTimeout(ElementCtx_t *ctx)
@@ -720,7 +707,7 @@ static unsigned char Check_SkipEntry(ElementCtx_t *ctx)
     if (!Track_CheckExpected(ctx, ELEMENT_SKIP)) return 0;
 
     /* 防误判: 真跷跷板只有前后倾, 左右倾必须小 */
-    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    tilt_lr_abs = FABS(ctx->tilt_lr);
     if (tilt_lr_abs > skip_entry_tilt_lr) return 0;
 
     if (ctx->vote_skip.len == 0) {
@@ -744,7 +731,7 @@ static unsigned char Check_SkipAirborneExit(ElementCtx_t *ctx)
 {
     float tilt_fb_abs;
     float skip_adc_sum;
-    tilt_fb_abs = (ctx->tilt_fb > 0.0f) ? ctx->tilt_fb : -ctx->tilt_fb;
+    tilt_fb_abs = FABS(ctx->tilt_fb);
     skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
 
     if (ctx->vote_skip.len == 0) {
@@ -783,7 +770,12 @@ static void Enter_SkipAirborneExit(ElementCtx_t *ctx)
 static void Enter_SkipTimeout(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_skip);
-    Enter_ExitToStraight(ctx);
+    /* 只有经过腾空阶段(AIRBORNE)的超时才推进元素表;
+     * 直接从 SKIP 超时 → 行驶震动误触发, 不推进表索引,
+     * 全局退出锁存会防止立即重入, 等锁存过后下一帧可重新检测进入 */
+    if (ctx->prev == ELEMENT_SKIP_AIRBORNE) {
+        Enter_ExitToStraight(ctx);
+    }
 }
 
 /* ---- 十字 → 跷跷板 纠错 (误触 CROSS 后跳回 SKIP, 放此处因 C89 需 skip_entry_tilt 先声明) ---- */
@@ -793,7 +785,7 @@ static unsigned char Check_CrossToSkip(ElementCtx_t *ctx)
     if (!Track_CheckExpected(ctx, ELEMENT_SKIP)) return 0;
 
     /* 防误判: 真跷跷板只有前后倾, 左右倾必须小 */
-    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    tilt_lr_abs = FABS(ctx->tilt_lr);
     if (tilt_lr_abs > skip_entry_tilt_lr) return 0;
 
     return (ctx->tilt_fb < skip_entry_tilt) ? 1 : 0;
@@ -823,7 +815,7 @@ static VoteWindow_t vote_win_ra;
 static float   g_ra_entry_thresh    = 100.0f;   /* |err_filtered| > 此值 → 进入直角 */
 static float   g_ra_exit_thresh     = 30.0f;    /* |err_raw| < 此值 → 退出直角 (滞回) */
 static unsigned short g_ra_timeout_frames = 1000;  /* 直角超时帧数 (默认1000帧=2s) */
-static unsigned short g_ra_exit_lockout_frames = 200;  /* 直角转弯退出后锁存帧数 (默认200帧=400ms) */
+static unsigned short g_ra_exit_lockout_frames = 0;  /* 直角转弯退出后锁存帧数 (默认0帧=无锁存) */
 static float   g_ra_yawrate_feedforward_k = 0.6000000238418579f; /* 直角转弯前馈角速度系数 */
 
 #define WHEELBASE_MM  16.0f   /* 轮半径 (mm)*/
@@ -842,16 +834,23 @@ static float Calc_RAPreYawrate(ElementCtx_t *ctx, float speed)
     return yawrate;
 }
 /* ---- 直角转弯 Check ---- */
-static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
+/* 直角转弯进入前置检查: 锁存 & 环岛内屏蔽 (左右共用) */
+static unsigned char Check_RightAngleEntry_Pre(ElementCtx_t *ctx)
 {
     if (ctx->ra_lockout_cnt > 0) return 0;
-    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE
-    || ctx->current == ELEMENT_RING_LEFT_PASS
-    || ctx->current == ELEMENT_IN_RING
-    || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
-    || ctx->current == ELEMENT_RING_RIGHT_PASS) {
+    if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
+        || ctx->current == ELEMENT_RING_LEFT_PASS
+        || ctx->current == ELEMENT_IN_RING
+        || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+        || ctx->current == ELEMENT_RING_RIGHT_PASS) {
         return 0;
     }
+    return 1;
+}
+
+static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
+{
+    if (!Check_RightAngleEntry_Pre(ctx)) return 0;
     if (ctx->vote_right_angle.len == 0) {
         return (ctx->err_raw < -g_ra_entry_thresh) ? 1 : 0;
     }
@@ -862,14 +861,7 @@ static unsigned char Check_RightAngleLeftEntry(ElementCtx_t *ctx)
 
 static unsigned char Check_RightAngleRightEntry(ElementCtx_t *ctx)
 {
-    if (ctx->ra_lockout_cnt > 0) return 0;
-    if(ctx->current == ELEMENT_RING_LEFT_ENTRANCE
-    || ctx->current == ELEMENT_RING_LEFT_PASS
-    || ctx->current == ELEMENT_IN_RING
-    || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
-    || ctx->current == ELEMENT_RING_RIGHT_PASS) {
-        return 0;
-    }
+    if (!Check_RightAngleEntry_Pre(ctx)) return 0;
     if (ctx->vote_right_angle.len == 0) {
         return (ctx->err_raw > g_ra_entry_thresh) ? 1 : 0;
     }
@@ -920,8 +912,8 @@ static void Enter_RightAngleExit(ElementCtx_t *ctx)
 
 static unsigned short g_ring_global_lock  = 300;  /* 环岛退出后全局锁存帧数 */
 static unsigned short g_wall_global_lock  = 200;  /* 上墙退出后全局锁存帧数 */
-static unsigned short g_barrel_global_lock = 150; /* 滚筒退出后全局锁存帧数 */
-static unsigned short g_skip_global_lock  = 150;  /* 跷跷板退出后全局锁存帧数 */
+static unsigned short g_barrel_global_lock = 300; /* 滚筒退出后全局锁存帧数 */
+static unsigned short g_skip_global_lock  = 30;  /* 跷跷板退出后全局锁存帧数 */
 
 static unsigned short GetGlobalExitLockFrames(element_t e)
 {
@@ -1027,7 +1019,7 @@ static const Transition_t g_transitions[] = {
     /* 十字 → STRAIGHT (prio 1=ADC退出, 2=超时, 3=倾角超限) */
     { ELEMENT_CROSS, ELEMENT_STRAIGHT, 1, Check_CrossExit,    Enter_CrossExit },
     { ELEMENT_CROSS, ELEMENT_STRAIGHT, 2, Check_CrossTimeout, Enter_CrossTimeout },
-    { ELEMENT_CROSS, ELEMENT_STRAIGHT, 3, Check_CrossTilt,    Enter_CrossTiltExit },
+    { ELEMENT_CROSS, ELEMENT_STRAIGHT, 3, Check_CrossTilt,    Enter_CrossExit },
 
     /* 直角转弯退出 */
     { ELEMENT_RIGHT_ANGLE_LEFT,  ELEMENT_STRAIGHT, 0, Check_RightAngleExit, Enter_RightAngleExit },
@@ -1079,7 +1071,7 @@ static void Element_EvaluateTransitions(ElementCtx_t *ctx)
 
 
 /* ---- Tilt LPF 截止频率读写回调 (上位机在线调参, 不重置output) ---- */
-static float g_tilt_lpf_fc = 80.0f;
+static float g_tilt_lpf_fc = 10.0f;
 static Lpf_t g_lpf_tilt_fb;
 static Lpf_t g_lpf_tilt_lr;
 static unsigned char tilt_lpf_ready = 0;
@@ -1134,14 +1126,16 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->cross_lockout_cnt  = 0;
         ctx->global_exit_lockout_cnt = 0;
         ctx->track_idx        = 0;
-        ctx->track_table_enabled = 1;
+        ctx->track_table_enabled = 0;
         ctx->offtrack_active     = 0;
         ctx->offtrack_start_tick = 0;
         ctx->push_mode           = 0;
         ctx->current = ELEMENT_STRAIGHT;
         ctx->prev    = ELEMENT_STRAIGHT;
-        ctx->tilt_fb   = 0.0f;
-        ctx->tilt_lr   = 0.0f;
+        ctx->tilt_fb      = 0.0f;
+        ctx->tilt_lr      = 0.0f;
+        ctx->cross_sum_cache = 0.0f;
+        ctx->cross_all_cache = 0.0f;
         tilt_lpf_ready = 0;      /* 下次 CalcTilt 重新初始化滤波器 */
         lpf_init_fc(&g_lpf_tilt_fb, g_tilt_lpf_fc, 0.002f);
         lpf_init_fc(&g_lpf_tilt_lr, g_tilt_lpf_fc, 0.002f);
@@ -1158,10 +1152,10 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("TTimeOut", DBG_UINT32 | STATIC_TYPE, &g_ontrack_timeout_frames);
     Debug_Register("OffTkMs",  DBG_FLOAT  | STATIC_TYPE, &g_offtrack_timeout_ms);
     Debug_Register("OffTkAdc", DBG_FLOAT  | STATIC_TYPE, &g_offtrack_adc_thresh);
-    Debug_Register("TblEnable",DBG_UINT8  | STATIC_TYPE, &g_track_table_enabled);
+    Debug_Register("TblEnable",DBG_UINT8  | STATIC_TYPE, &ctx->track_table_enabled);
     Debug_Register("DbgElem",  DBG_UINT16 | STATIC_TYPE, &g_single_element_debug);
     Debug_Register("PushMode", DBG_UINT8  | STATIC_TYPE, &ctx->push_mode);
-    Debug_Register("Index",    DBG_UINT8 , &g_track_idx);
+    Debug_Register("Index",    DBG_UINT8 , &ctx->track_idx);
     /* ================================================================
      * 2. 速度变量 — Debug 注册
      * ================================================================ */
@@ -1187,9 +1181,9 @@ void Element_Init(ElementCtx_t *ctx)
      * 3. 环岛 RING — 默认值 & Debug 注册
      * ================================================================ */
     /* 进入 ADC 阈值 */
-    RingEntrance[0] = 1200.0f;
+    RingEntrance[0] = 1000.0f;
     RingEntrance[1] = 0.0f;
-    RingEntrance[2] = 1200.0f;
+    RingEntrance[2] = 1000.0f;
     RingEntrance[3] = 0.0f;
     Debug_Register("RingEn0", DBG_FLOAT | STATIC_TYPE, &RingEntrance[0]);
     Debug_Register("RingEn1", DBG_FLOAT | STATIC_TYPE, &RingEntrance[1]);
@@ -1216,6 +1210,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("RingExLock",  DBG_UINT16 | STATIC_TYPE, &g_ring_exit_lockout_frames);
     Debug_Register("Ring_Timeout",DBG_UINT16 | STATIC_TYPE, &g_ring_timeout_frames);
     Debug_Register("Ring_OLAng", DBG_FLOAT  | STATIC_TYPE, &g_ol_ring_angle);
+    Debug_Register("RingVetoVt", DBG_FLOAT  | STATIC_TYPE, &g_ring_veto_vertical_sum);
 
     /* ================================================================
      * 4. 上墙 WALL — 默认值 & Debug 注册
@@ -1266,8 +1261,8 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("Bar_ExTilt", DBG_FLOAT | STATIC_TYPE, &barrel_exit_tilt);
 
     /* 峰值 > 75° (投票窗滤波) */
-    barrel_peak_tilt = 75.0f;
-    vote_win_barrel_peak.len          = 0;
+    barrel_peak_tilt = 70.0f;
+    vote_win_barrel_peak.len          = 10;
     vote_win_barrel_peak.entry_thresh = 7;
     vote_win_barrel_peak.exit_thresh  = 7;
     Debug_Register("Bar_PeakTilt", DBG_FLOAT | STATIC_TYPE, &barrel_peak_tilt);
@@ -1282,10 +1277,10 @@ void Element_Init(ElementCtx_t *ctx)
     /* 进入: [1]+[3]>300 且全和>2000; 退出: [1]+[3]<150 或全和<1500 (滞回: 退出阈值必须低于进入阈值) */
 
     //经观察陀螺仪解算出的倾角数据波形良好，可以不加时间滤波
-    cross_entry_sum = 300.0f;
-    cross_exit_sum  = 150.0f;
-    cross_all_sum   = 2000.0f;
-    cross_all_exit_sum = 1500.0f;
+    cross_entry_sum = 800.0f;
+    cross_exit_sum  = 600.0f;
+    cross_all_sum   = 2100.0f;
+    cross_all_exit_sum = 1700.0f;
     Debug_Register("Cross_EnSum",   DBG_FLOAT  | STATIC_TYPE, &cross_entry_sum);
     Debug_Register("Cross_ExSum",   DBG_FLOAT  | STATIC_TYPE, &cross_exit_sum);
     Debug_Register("Cross_AllSum",  DBG_FLOAT  | STATIC_TYPE, &cross_all_sum);
@@ -1298,14 +1293,14 @@ void Element_Init(ElementCtx_t *ctx)
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
      * ================================================================ */
     /* 进入: tilt_fb < -15° 且 |tilt_lr| <= 20°, 腾空: ADC和 < 500, 落地: |tilt| < 10° + ADC和在600~1000 */
-    skip_entry_tilt          = -15.0f;
-    skip_entry_tilt_lr       = 20.0f;   /* 左右倾角上限: 超过此值否决进入, 防颠簸/十字误判 */
+    skip_entry_tilt          = -16.0f;
+    skip_entry_tilt_lr       = 10.0f;   /* 左右倾角上限: 超过此值否决进入, 防颠簸/十字误判 */
     skip_exit_sum            = 500.0f;
     skip_airborne_exit_tilt  = 10.0f;
     skip_landing_adc_min     = 600.0f;
     skip_landing_adc_max     = 1000.0f;
-    vote_win_skip.len          = 5;    /* 投票窗滤波, 5帧窗口抑制噪声 */
-    vote_win_skip.entry_thresh = 3;
+    vote_win_skip.len          = 20;    /* 投票窗滤波, 20帧窗口抑制噪声 */
+    vote_win_skip.entry_thresh = 19;
     vote_win_skip.exit_thresh  = 3;
     Debug_Register("SkpEnTilt",  DBG_FLOAT  | STATIC_TYPE, &skip_entry_tilt);
     Debug_Register("SkpEnTltLR", DBG_FLOAT  | STATIC_TYPE, &skip_entry_tilt_lr);
@@ -1394,8 +1389,8 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_ring.exit_thresh  = 5;
     vote_win_cross.len         = 0;
     vote_win_cross_tilt.len    = 0;
-    vote_win_skip.len          = 5;
-    vote_win_skip.entry_thresh = 3;
+    vote_win_skip.len          = 20;
+    vote_win_skip.entry_thresh = 19;
     vote_win_skip.exit_thresh  = 3;
 
     if (ctx != NULL) {
@@ -1418,15 +1413,13 @@ void Element_Init(ElementCtx_t *ctx)
 /* ---- 重置离赛道超时计时器 ---- */
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx)
 {
-    (void)ctx;
-    g_offtrack_active = 0;
+    ctx->offtrack_active = 0;
 }
 
 /* ---- 重置赛道元素表索引 ---- */
 void Element_ResetTrackIndex(ElementCtx_t *ctx)
 {
-    (void)ctx;
-    g_track_idx = 0;
+    ctx->track_idx = 0;
 }
 
 
@@ -1467,7 +1460,7 @@ void Element_CalcTilt(ElementCtx_t *ctx, float gx_body, float gy_body, float gz_
 
     /* 水平分量幅值: g_horiz²+gz²=1 (四元数归一化保证) */
     g_horiz = (float)sqrt(gx_body * gx_body + gy_body * gy_body);
-    gz_abs  = (gz_body > 0.0f) ? gz_body : -gz_body;
+    gz_abs  = FABS(gz_body);
 
     /* 总倾角 = atan2(水平, 垂直) — 大倾角时 g_horiz→1, 无小分母 */
     tilt_total = (float)atan2(g_horiz, gz_abs) * 57.29578f;
@@ -1505,8 +1498,6 @@ element_t Element_Update(ElementCtx_t *ctx)
     unsigned char all_adc_low;
     unsigned long elapsed_ms;
     unsigned long now_tick;
-    float cross_adc_sum;
-    float cross_all;
     float tilt_fb_abs;
     unsigned char ring_vote;
     unsigned char wall_vote;
@@ -1528,29 +1519,29 @@ element_t Element_Update(ElementCtx_t *ctx)
     all_adc_low = (ctx->adc[0] < g_offtrack_adc_thresh && ctx->adc[1] < g_offtrack_adc_thresh
                 && ctx->adc[2] < g_offtrack_adc_thresh && ctx->adc[3] < g_offtrack_adc_thresh) ? 1 : 0;
     /* ---- 1. 倾角绝对值 (供投票和停车使用) ---- */
-    tilt_fb_abs = (ctx->tilt_fb > 0.0f ? ctx->tilt_fb : -ctx->tilt_fb);
-    tilt_lr_abs = (ctx->tilt_lr > 0.0f) ? ctx->tilt_lr : -ctx->tilt_lr;
+    tilt_fb_abs = FABS(ctx->tilt_fb);
+    tilt_lr_abs = FABS(ctx->tilt_lr);
     if (ctx->current != ELEMENT_SAFETY_STOP) {
         ctx->total_frames++;
     }
     now_tick = xTaskGetTickCount();
     if (all_adc_low && ctx->current != ELEMENT_SAFETY_STOP) {
-        if (g_offtrack_active == 0) {
-            g_offtrack_active = 1;
-            g_offtrack_start_tick = xTaskGetTickCount();
+        if (ctx->offtrack_active== 0) {
+            ctx->offtrack_active= 1;
+            ctx->offtrack_start_tick = xTaskGetTickCount();
         } else {
 
-            elapsed_ms = (now_tick - g_offtrack_start_tick) * portTICK_PERIOD_MS;
+            elapsed_ms = (now_tick - ctx->offtrack_start_tick) * portTICK_PERIOD_MS;
             if (elapsed_ms >= (unsigned long)g_offtrack_timeout_ms) {
                 ctx->current = ELEMENT_SAFETY_STOP;
                 Debug_Log(Element_GetProp(ELEMENT_SAFETY_STOP)->name);
-                g_offtrack_active = 0;
+                ctx->offtrack_active= 0;
                 g_current_element_u8 = (uint8_t)ctx->current;
                 return ctx->current;
             }
         }
     } else {
-        g_offtrack_active = 0;
+        ctx->offtrack_active= 0;
     }
     if (ctx->current != ELEMENT_SAFETY_STOP && ctx->push_mode != 1 && manual_control_flag == 0) {
         if (g_ontrack_timeout_frames > 0
@@ -1568,7 +1559,7 @@ element_t Element_Update(ElementCtx_t *ctx)
         if (ctx->adc[0] > g_offtrack_adc_thresh || ctx->adc[1] > g_offtrack_adc_thresh
             || ctx->adc[2] > g_offtrack_adc_thresh || ctx->adc[3] > g_offtrack_adc_thresh) {
             System_Reset();
-            g_offtrack_active = 0;
+            ctx->offtrack_active= 0;
             Element_ResetTrackIndex(ctx);
             Debug_Log(Element_GetProp(ELEMENT_STRAIGHT)->name);
             return ctx->current;
@@ -1577,8 +1568,8 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
 
     /* ---- 0.5 元素表 ---- */
-    if (!g_track_table_enabled) {
-        g_track_idx = 0;
+    if (!ctx->track_table_enabled) {
+        ctx->track_idx = 0;
     }
 
     /* ---- 0.6 通用帧计数 (各元素超时检测共用) ---- */
@@ -1669,15 +1660,17 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
     VoteWin_Push(&ctx->vote_barrel_peak, barrel_peak_vote);
 
+    /* 十字 ADC 和缓存 (一帧算一次, 投票 & Check 共用) */
+    ctx->cross_sum_cache = ctx->adc[1] + ctx->adc[3];
+    ctx->cross_all_cache = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
+
     /* 十字投票 */
-    cross_adc_sum = ctx->adc[1] + ctx->adc[3];
-    cross_all     = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
     if (ctx->current == ELEMENT_STRAIGHT) {
-        cross_vote = (cross_adc_sum > cross_entry_sum && cross_all > cross_all_sum
+        cross_vote = (ctx->cross_sum_cache > cross_entry_sum && ctx->cross_all_cache > cross_all_sum
                       && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) ? 1 : 0;
     } else if (ctx->current == ELEMENT_CROSS) {
-        cross_vote = (cross_adc_sum < cross_exit_sum
-                   || cross_all < cross_all_exit_sum) ? 1 : 0;
+        cross_vote = (ctx->cross_sum_cache < cross_exit_sum
+                   || ctx->cross_all_cache < cross_all_exit_sum) ? 1 : 0;
     } else {
         cross_vote = 0;
     }
@@ -1693,7 +1686,7 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* 直角转弯投票: STRAIGHT 下 |err_raw| > entry_thresh 则投票进入 */
     if (ctx->current == ELEMENT_STRAIGHT) {
-        err_abs = (ctx->err_raw > 0.0f) ? ctx->err_raw : -ctx->err_raw;
+        err_abs = FABS(ctx->err_raw);
         ra_vote = (err_abs > g_ra_entry_thresh) ? 1 : 0;
     } else if (ctx->current == ELEMENT_RIGHT_ANGLE_LEFT) {
         ra_vote = (ctx->err_raw > -g_ra_exit_thresh && ctx->err_raw < 0) ? 1 : 0;

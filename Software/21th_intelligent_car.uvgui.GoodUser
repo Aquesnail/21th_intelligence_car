@@ -3614,9 +3614,9 @@
       </Doc>
       <Doc>
         <Name>.\Sources\User\element.c</Name>
-        <ColumnNumber>0</ColumnNumber>
-        <TopLine>949</TopLine>
-        <CurrentLine>975</CurrentLine>
+        <ColumnNumber>16</ColumnNumber>
+        <TopLine>967</TopLine>
+        <CurrentLine>968</CurrentLine>
         <Folding>1</Folding>
         <ContractedFolders></ContractedFolders>
         <PaneID>0</PaneID>

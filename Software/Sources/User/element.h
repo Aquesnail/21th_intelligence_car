@@ -133,6 +133,10 @@ typedef struct {
     /* ---- 通用元素消隐帧计数 ---- */
     unsigned short elem_blanking_cnt;
 
+    /* ---- 十字 ADC 和缓存 (每帧计算一次, Check/Vote 共用) ---- */
+    float cross_sum_cache;
+    float cross_all_cache;
+
     unsigned long  total_frames;     /* 上赛道帧计数, 每 2ms 自增 */
     /* ---- 元素表 ---- */
     unsigned char track_idx;
