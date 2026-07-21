@@ -53,6 +53,15 @@ SemaphoreHandle_t xDebugReadySignal = NULL;
 // RTOS 句柄
 static EventGroupHandle_t xDebugEventGroup = NULL;
 
+/* 握手排查计数器 */
+static uint16_t g_handshake_cnt = 0;
+
+
+/* 元数据分批发状态机 (避免阻塞 HIGH_FREQ 数据) */
+static uint16_t g_meta_send_idx = 0;
+static uint8_t  g_meta_sending  = 0;
+#define META_BATCH_PER_TICK  3   /* 每 tick 发送元数据包数 */
+
 /* ================= 外部回调 ================= */
 extern void Debug_OnTextReceived(char* str, uint8_t len);
 
@@ -97,23 +106,24 @@ static uint8_t GetTypeSize(uint8_t type) {
  * @param payload 指向数据负载
  * @param len  负载长度
  */
-static void Debug_TxCore(uint8_t id, uint8_t type, uint8_t *payload, uint8_t len) {
+static void Debug_TxCore(uint16_t id, uint8_t type, uint8_t *payload, uint8_t len) {
     uint16_t crc;
-    uint8_t pktLen = 4 + len; // Head(1)+ID(1)+Type(1)+Len(1) + Payload(n)
+    uint8_t pktLen = 5 + len; // Head(1)+ID(2)+Type(1)+Len(1) + Payload(n)
 
-    // 1. 组包头
+    // 1. 组包头 (ID 大端序)
     txPkt[0] = 0xAA;
-    txPkt[1] = id;
-    txPkt[2] = type;
-    txPkt[3] = len;
+    txPkt[1] = (uint8_t)(id >> 8);
+    txPkt[2] = (uint8_t)(id);
+    txPkt[3] = type;
+    txPkt[4] = len;
 
     // 2. 拷贝负载
     if(len > 0 && payload != NULL) {
-        memcpy(&txPkt[4], payload, len);
+        memcpy(&txPkt[5], payload, len);
     }
 
-    if(len > (TX_BUF_SIZE - 6)){
-        len = TX_BUF_SIZE - 6;
+    if(len > (TX_BUF_SIZE - 7)){
+        len = TX_BUF_SIZE - 7;
     }
 		
     // 3. 计算 CRC (范围: ID ~ Payload结束)
@@ -130,24 +140,25 @@ static void Debug_TxCore(uint8_t id, uint8_t type, uint8_t *payload, uint8_t len
 /* ================= 业务发送函数 ================= */
 
 // 发送元数据 (ID=0xFE)
-static void Debug_SendMetaPacket(uint8_t id) {
-    uint8_t buf[16]; // 临时组装 [ID][Type][Addr4][Name10]
+static void Debug_SendMetaPacket(uint16_t id) {
+    uint8_t buf[17]; // [ID:2][Type:1][Addr:4][Name:10]
     if(id >= debugVarCount) return;
 
-    buf[0] = id;
-    buf[1] = debugTable[id].type;
-    memcpy(&buf[2], &debugTable[id].addr, 4); // C251 4字节指针拷贝
-    memset(&buf[6], 0, 10);
-    strncpy((char*)&buf[6], debugTable[id].name, 10);
+    buf[0] = (uint8_t)(id >> 8);
+    buf[1] = (uint8_t)(id);
+    buf[2] = debugTable[id].type;
+    memcpy(&buf[3], &debugTable[id].addr, 4); // C251 4字节指针拷贝
+    memset(&buf[7], 0, 10);
+    strncpy((char*)&buf[7], debugTable[id].name, 10);
     if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
-        Debug_TxCore(0xFE, 0xFF, buf, 16);
+        Debug_TxCore(0xFE, 0xFF, buf, 17);
         xSemaphoreGive(xLogMutex);
     }
-    
+
 }
 
 // 发送变量值 (ID=0..N)
-static void Debug_SendValuePacket(uint8_t id) {
+static void Debug_SendValuePacket(uint16_t id) {
     uint8_t len;
     uint8_t temp_buf[4];
     uint8_t* pData;
@@ -259,7 +270,7 @@ void Debug_Register(char* name, uint8_t type, void* addr) {
 }
 
 static void Debug_SendBulkHighFreqPacket(void) {
-    uint8_t i;
+    uint16_t i;
     uint8_t payload_len = 0;
     uint8_t xdata temp_buf[MAX_DEBUG_VARS * 5];
     uint8_t peri_buf[4];
@@ -271,10 +282,11 @@ static void Debug_SendBulkHighFreqPacket(void) {
         if((debugTable[i].type & FreqType_Msk) != 0) {
             uint8_t var_len = GetTypeSize(debugTable[i].type & DataType_Msk);
 
-            // 防止越界保护
-            if(var_len > 0 && (payload_len + 1 + var_len) <= sizeof(temp_buf)) {
-                // 1. 写入变量 ID
-                temp_buf[payload_len++] = i;
+            // 防止越界保护 (ID 占 2 字节大端序)
+            if(var_len > 0 && (payload_len + 2 + var_len) <= sizeof(temp_buf)) {
+                // 1. 写入变量 ID (2 字节大端序)
+                temp_buf[payload_len++] = (uint8_t)(i >> 8);
+                temp_buf[payload_len++] = (uint8_t)(i);
 
                 // 2. 获取数据源指针（外设变量通过回调读取到 peri_buf）
                 if((debugTable[i].type & PeriType_Msk) != 0) {
@@ -314,7 +326,7 @@ static void Debug_ProcessIncoming(void) {
     uint8_t cmd;
 		uint16_t len;
 		uint8_t i;
-		uint8_t id;
+		uint16_t id;
 		uint8_t vLen;
         volatile uint8_t *ptr;
         DebugPeriDesc_t* desc;
@@ -343,41 +355,47 @@ static void Debug_ProcessIncoming(void) {
             // ---> 握手请求 (Payload: 4 Bytes Magic)
             case CMD_HANDSHAKE:
                 if(len == 4) {
+                    uint8_t was_connected;
+                    g_handshake_cnt++;
+                    was_connected = (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) ? 1 : 0;
+
                     if(xSemaphoreTake(xLogMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
                         Debug_TxCore(0xFD, 0x00, &rxBuf[3], 4);
                         xSemaphoreGive(xLogMutex);
                     }
-                    
-                    // RTOS 事件组：标记连接 (确保 vDebugTask 可以开始发送 value 报文)
-                    xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
-                    
-                    // 【修改点】：移除原有的 if 判断，每次握手都强制遍历并发送所有元数据
-                    vTaskDelay(pdMS_TO_TICKS(10)); // 防止突发
-                    for(i=0; i<debugVarCount; i++) {
-                        Debug_SendMetaPacket(i);
-                        vTaskDelay(pdMS_TO_TICKS(5)); // 防止突发，避免填满串口缓冲区
+
+                    /* 仅在首次连接时启动元数据分批发, 重复握手只回复 0xFD */
+                    if (!was_connected) {
+                        xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
+                        g_meta_send_idx = 0;
+                        g_meta_sending  = 1;
                     }
+
+                    /* 握手排查日志（mutex 外，避免死锁） */
+                    Debug_Log("[HS] %u %s\r\n",
+                        g_handshake_cnt,
+                        was_connected ? "repeat" : "FIRST");
                 }
                 break;
 
-            // ---> 写变量 (Payload: ID, Len, Data...)
+            // ---> 写变量 (Payload: ID(2B), Len(1B), Data...)
             case CMD_WRITE:
                 {
-                    id = rxBuf[3];
-                    vLen = rxBuf[4];
+                    id = ((uint16_t)rxBuf[3] << 8) | rxBuf[4];
+                    vLen = rxBuf[5];
                     if(id < debugVarCount) {
                         if((debugTable[id].type & PeriType_Msk) != 0) {
                             desc = (DebugPeriDesc_t*)debugTable[id].addr;
                             if(desc && desc->write_cb) {
-                                desc->write_cb(desc->peri_addr, &rxBuf[5], vLen);
+                                desc->write_cb(desc->peri_addr, &rxBuf[6], vLen);
                             }
                         } else {
                             taskENTER_CRITICAL();
                             ptr = (uint8_t *)(debugTable[id].addr);
-                            ptr[0] = rxBuf[5];
-                            if(vLen > 1) ptr[1] = rxBuf[6];
-                            if(vLen > 2) ptr[2] = rxBuf[7];
-                            if(vLen > 3) ptr[3] = rxBuf[8];
+                            ptr[0] = rxBuf[6];
+                            if(vLen > 1) ptr[1] = rxBuf[7];
+                            if(vLen > 2) ptr[2] = rxBuf[8];
+                            if(vLen > 3) ptr[3] = rxBuf[9];
                             taskEXIT_CRITICAL();
                         }
                     }
@@ -407,10 +425,10 @@ static void Debug_ProcessIncoming(void) {
                 Debug_OnTextReceived((char*)&rxBuf[3], len);
                 break;
 
-            // ---> 请求刷新静态变量 (Payload: ID)
+            // ---> 请求刷新静态变量 (Payload: ID(2B))
             case CMD_STATIC_REFRESH:
                 {
-                    id = rxBuf[3];
+                    id = ((uint16_t)rxBuf[3] << 8) | rxBuf[4];
                     if(id < debugVarCount) {
                         // 检查是否为静态变量
                         if((debugTable[id].type & StaticType_Msk) != 0) {
@@ -444,7 +462,7 @@ void Debug_Init(debug_port_t* debug_port_initstruct){
 #define HIGH_FREQ 1
 #define LOW_FREQ 10
 void vDebugTask(void *pvParameters) {
-    uint8_t i;
+    uint16_t i;
     //TickType_t xLastWakeTime;
     //TickType_t xLastWakeTimeHighFreq;
     //const TickType_t xFrequency = pdMS_TO_TICKS(100); // 10Hz 发送频率
@@ -468,6 +486,17 @@ void vDebugTask(void *pvParameters) {
             //Receive=0;
         }
         if (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED){
+            /* 元数据分批发: 每 tick 发几包, 不阻塞 HIGH_FREQ */
+            if (g_meta_sending) {
+                uint8_t batch;
+                for (batch = 0; batch < META_BATCH_PER_TICK && g_meta_send_idx < debugVarCount; batch++) {
+                    Debug_SendMetaPacket(g_meta_send_idx);
+                    g_meta_send_idx++;
+                }
+                if (g_meta_send_idx >= debugVarCount) {
+                    g_meta_sending = 0;
+                }
+            }
             if(t%HIGH_FREQ==0){
                 //HighFreqTx=0;
                 Debug_SendBulkHighFreqPacket();
@@ -483,6 +512,7 @@ void vDebugTask(void *pvParameters) {
                     }
                 }
             }
+
         }
     }
 }

@@ -72,29 +72,48 @@ void PWMA_Init(void)
 
     HSPWMA_Disable();                   //关闭高速模式，使用同步方式进行初始化
     PWMA_InternalClockMode();           //选择内部时钟模式
-    PWMA_SetClockDivider(479);         //设置16位预分频
+    PWMA_SetClockDivider(479);          //设置16位预分频
     PWMA_SetReload16(999);              //设置16位重载值
-    PWMA_BufferARR();                   //使能重载值寄存器预装载功能
+    PWMA_UnbufferARR();                 //关闭重载值寄存器预装载功能
     PWMA_SetCounter(0);                 //初始化计数值
+    PWMA_SetDeadTime(0);                //设置死区时间为：无死区
+    PWMA_EdgeAlignMode();               //设置计数器计数为边沿对齐模式
+    PWMA_UpCounter();                   //设置计数方向为向上计数
+    PWMA_ContinueMode();                //设置计数器为连续计数模式
+    PWMA_SetRepeatCounter(0);           //设置重复计数次数
+    PWMA_EnableUpdate();                //使能更新事件
+    PWMA_UpdateRequestMode2();          //更新事件选择模式2
 
     PWMA_CC4PDisable();                 //关闭通道
     PWMA_CC4Output();                   //使能通道输出功能
     PWMA_CC4PEnable();                  //打开通道
-    //PWM_UpdateDuty(PWMA_CH4, 400);      //设置通道的PWM占空比
+   // PWM_UpdateDuty(PWMA_CH4, 500);      //设置通道的PWM占空比
     PWMA_OC4REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
-    PWMA_BufferCCR4();                  //使能CCRn预装载功能
-    PWMA_DisablePWM4POutput();          //关闭正极通道输出
+    PWMA_DisableOC4FastMode();          //关闭通道快速输出
+    PWMA_UnbufferCCR4();                //关闭CCRn预装载功能
+    PWMA_DisableETRFClearOC4REF();      //通道输出不受ETI信号影响
+    PWMA_CC4PNonInverted();             //设置正极通道输出高电平有效
+    PWMA_OC4PIdleLevelLow();            //空闲时正极通道输出低电平
+    PWMA_EnablePWM4POutput();           //使能正极通道输出
     PWMA_CC4NEnable();                  //打开负极通道
-    PWMA_CC4NNonInverted();             //设置负极通道输出高电平有效
+    PWMA_CC4NInverted();                //设置负极通道输出低电平有效
+    PWMA_OC4NIdleLevelLow();            //空闲时负极通道输出低电平
     PWMA_EnablePWM4NOutput();           //使能负极通道输出
 
+    PWMA_StandaloneMode();              //设置PWM定时器为独立模式
+    PWMA_UnbufferCCOC();                //捕获/比较控制位直接改写，不预装载
+    PWMA_DisableTRGI();                 //关闭触发输入信号
+    PWMA_PWM1PToTI();                   //关闭霍尔传感器控制功能
+    PWMA_ResetAsTRGO();                 //软件设置UG产生的复位信号作为TRGO
+    PWMA_DisableExternalClock2();       //禁止外部时钟模式2
+    PWMA_BRKDisable();                  //禁止刹车输入
+    PWMA_DisableAutoOutput();           //禁止自动输出功能（只能软件设置MOE）
+    PWMA_RunInactiveNoOutput();         //运行模式PWM不工作时禁止输出
+    PWMA_IdleInactiveNoOutput();        //空闲模式PWM不工作时禁止输出
     PWMA_EnableMainOutput();            //使能PWM主输出
+    PWMA_SetUnLock();                   //寄存器无写保护
 
     PWMA_Run();                         //PWMA开始运行
-
-    //<<AICUBE_USER_PWM0_INITIAL_BEGIN>>
-    // 在此添加用户初始化代码  
-    //<<AICUBE_USER_PWM0_INITIAL_END>>
 }
 
 

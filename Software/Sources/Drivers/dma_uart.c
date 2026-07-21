@@ -17,7 +17,7 @@ static uint8_t xdata uart2_ring_rx[UART_RxRingBufferLength]; // 运行时 memset
 // DMA 状态标志
 static volatile uint8_t isDmaTxBusy = 0;
 
-#define Baudrate 115200
+#define Baudrate 256000
 
 dma_uart_manager_t uart2_mgr; // 运行时 memset 初始化
 
@@ -119,7 +119,7 @@ void UART2_Init(void) {
     #ifdef BAUDRATE
 #undef BAUDRATE
 #endif
-#define BAUDRATE                (115200)
+#define BAUDRATE                (256000)
 #define T2_RELOAD               (65536 - (SYSCLK / BAUDRATE + 2) / 4)
 
     UART2_SwitchP1011();                //设置串口数据端口: RxD2 (P1.0), TxD2 (P1.1)
