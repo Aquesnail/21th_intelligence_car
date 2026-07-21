@@ -18,6 +18,8 @@
 #include "fan_control.h"
 #pragma warning disable = 174
 
+extern uint8_t g_current_element_u8;  /* element.c 提供的当前元素枚举值 (uint8_t 镜像) */
+
 /* ================================================================
  * 控制管道类型定义
  * ================================================================ */
@@ -71,7 +73,12 @@ typedef struct {
     float   lat_g_l_safe;    /* 左转安全侧g, 超过此值开始减速 */
     float   lat_g_r_max;     /* 右转最大侧g (绝对值) */
     float   lat_g_r_safe;    /* 右转安全侧g, 超过此值开始减速 */
-    float   lat_g_brake_k;   /* 侧g减速系数 (0~1, 越大削得越狠) */
+    float   lat_g_brake_k_spd; /* 侧g→线速度削減系数 (0~1) */
+    float   lat_g_brake_k_yaw; /* 侧g→角速度削減系数 (0~1) */
+    float   err_brake_max;     /* Err绝对值达到此值时减速到最大 */
+    float   err_brake_safe;    /* Err绝对值低于此值不减速 */
+    float   err_brake_k_spd;   /* Err→线速度削減系数 (0~1) */
+    float   err_brake_k_yaw;   /* Err→角速度削減系数 (0~1) */
 } OuterLoopParams_t;
 
 /* 速度输出后处理参数 (每个元素独立配置) */
@@ -106,6 +113,10 @@ typedef struct {
     float   gyro_filtered;
     Lpf_t   lpf_lat_g;       /* v·ω 侧向加速度滤波器 */
     float   lat_g_filtered;   /* v·ω 滤波后侧向加速度 (g) */
+    float   err_brake_spd;        /* Err→线速度制动系数 */
+    float   err_brake_yaw;        /* Err→角速度制动系数 */
+    float   combined_brake_spd;   /* 合并线速度制动系数 = min(侧g, Err) */
+    float   combined_brake_yaw;   /* 合并角速度制动系数 = min(侧g, Err) */
     float   tar_yaw_raw;
     float   target_yaw;
     float   pid_output;
@@ -145,7 +156,11 @@ static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float se
     lpf_reset(&s->lpf_outer, seed_val);
     lpf_reset(&s->lpf_lat_g, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
-    s->lat_g_filtered   = 0.0f;
+    s->lat_g_filtered        = 0.0f;
+    s->err_brake_spd     = 1.0f;
+    s->err_brake_yaw     = 1.0f;
+    s->combined_brake_spd = 1.0f;
+    s->combined_brake_yaw = 1.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = speed_target_l.f;
@@ -451,7 +466,11 @@ static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
     lpf_reset(&s->lpf_gyro,  0.0f);
     lpf_reset(&s->lpf_lat_g, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
-    s->lat_g_filtered   = 0.0f;
+    s->lat_g_filtered        = 0.0f;
+    s->err_brake_spd     = 1.0f;
+    s->err_brake_yaw     = 1.0f;
+    s->combined_brake_spd = 1.0f;
+    s->combined_brake_yaw = 1.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = 0.0f;
@@ -756,7 +775,12 @@ void System_Reset(void){
     Element_ResetOfftrackTimer(NULL);
     Element_ResetTrackIndex(NULL);
     g_ectx.current = ELEMENT_STRAIGHT;
-    g_ectx.exit_lockout_cnt = 0;
+    g_ectx.ring_lockout_cnt   = 0;
+    g_ectx.wall_lockout_cnt   = 0;
+    g_ectx.barrel_lockout_cnt = 0;
+    g_ectx.skip_lockout_cnt   = 0;
+    g_ectx.ra_lockout_cnt     = 0;
+    g_ectx.cross_lockout_cnt  = 0;
     g_ectx.offtrack_active = 0;
     g_ectx.total_frames = 0;
     manual_control_flag = 1;
@@ -793,7 +817,12 @@ void Change_Maunal(){
         Element_ResetOfftrackTimer(NULL);
         Element_ResetTrackIndex(NULL);
         g_ectx.current = ELEMENT_STRAIGHT;
-        g_ectx.exit_lockout_cnt = 0;
+        g_ectx.ring_lockout_cnt   = 0;
+        g_ectx.wall_lockout_cnt   = 0;
+        g_ectx.barrel_lockout_cnt = 0;
+        g_ectx.skip_lockout_cnt   = 0;
+        g_ectx.ra_lockout_cnt     = 0;
+        g_ectx.cross_lockout_cnt  = 0;
         g_ectx.offtrack_active = 0;
         /* total_frames 由电机激活时清零, 不在此处提前设置 */
     }else{
@@ -849,6 +878,31 @@ static float CalcLatGBrakeFactor(float lat_g, float max_g, float safe_g, float b
 
     /* 超出比例: 0.0 (刚到safe) → 1.0 (达到或超过max) */
     over_ratio = (lat_g_abs - safe_g) / (max_g - safe_g);
+    if (over_ratio > 1.0f) over_ratio = 1.0f;
+
+    /* brake_k 控制削减力度: 0=不削减, 1=到max时减到0 */
+    return 1.0f - (over_ratio * brake_k);
+}
+/* ================================================================
+ * CalcErrBrakeFactor — Err幅值减速系数 (与侧g逻辑对称)
+ *   err_abs = |err_filtered|, 超出 safe 后按比例削减速度
+ * ================================================================ */
+static float CalcErrBrakeFactor(float err_abs, float max_err, float safe_err, float brake_k)
+{
+    float over_ratio;
+
+    /* 未超过安全阈值, 不干预 */
+    if (err_abs <= safe_err) {
+        return 1.0f;
+    }
+
+    /* 参数不合理 (max <= safe), 不干预 */
+    if (max_err <= safe_err) {
+        return 1.0f;
+    }
+
+    /* 超出比例: 0.0 (刚到safe) → 1.0 (达到或超过max) */
+    over_ratio = (err_abs - safe_err) / (max_err - safe_err);
     if (over_ratio > 1.0f) over_ratio = 1.0f;
 
     /* brake_k 控制削减力度: 0=不削减, 1=到max时减到0 */
@@ -1037,8 +1091,6 @@ void Main_Control_Task(void *pvParameters)
     const ElementProp_t *prop;              /* 当前元素属性 (每 tick 查一次) */
     ControlStrategy_t    ctrl;              /* 当前有效控制策略 */
     uint16_t elem_fan_d;                    /* 元素切换时查表的有效风扇占空比 */
-    float    lat_g_brake_factor;            /* 侧g制动系数, 同步缩减线速度和角速度 */
-
     (void)pvParameters;
 
     Element_Init(&g_ectx);  /* 初始化元素状态机上下文 */
@@ -1212,28 +1264,54 @@ void Main_Control_Task(void *pvParameters)
 
 
                 /* 速度查表 (基于最新状态机输出) */
-                if (prop != NULL && prop->speed_ptr != NULL) {
+                if (current_element == ELEMENT_SAFETY_STOP) {
+                    common_speed = 0.0f;
+                } else if (prop != NULL && prop->speed_ptr != NULL) {
                     common_speed = *(prop->speed_ptr);
                 }
 
-                /* 侧g 制动系数 (左右不对称, 根据侧g方向选参, 同步缩减线速度和角速度) */
+                /* 制动系数 (线速度/角速度独立, 侧g+Err各算各的再取min合并) */
                 {
                     const ControlParams_t *p = GetActiveParams(current_element);
                     float max_g, safe_g;
+                    float lat_g_brake_spd, lat_g_brake_yaw;
+                    float err_abs;
 
                     if (g_state.lat_g_filtered > 0.0f) {
-                        /* 右转侧g为正 */
                         max_g  = p->outer.lat_g_r_max;
                         safe_g = p->outer.lat_g_r_safe;
                     } else {
-                        /* 左转侧g为负 */
                         max_g  = p->outer.lat_g_l_max;
                         safe_g = p->outer.lat_g_l_safe;
                     }
-                    lat_g_brake_factor = CalcLatGBrakeFactor(g_state.lat_g_filtered,
+
+                    /* 侧g: 线速度和角速度用各自系数独立计算 */
+                    lat_g_brake_spd = CalcLatGBrakeFactor(g_state.lat_g_filtered,
                                               max_g, safe_g,
-                                              p->outer.lat_g_brake_k);
-                    common_speed *= lat_g_brake_factor;
+                                              p->outer.lat_g_brake_k_spd);
+                    lat_g_brake_yaw = CalcLatGBrakeFactor(g_state.lat_g_filtered,
+                                              max_g, safe_g,
+                                              p->outer.lat_g_brake_k_yaw);
+
+                    /* Err: 线速度和角速度用各自系数独立计算 */
+                    err_abs = (g_state.err_filtered > 0.0f) ? g_state.err_filtered : -g_state.err_filtered;
+                    g_state.err_brake_spd = CalcErrBrakeFactor(err_abs,
+                                              p->outer.err_brake_max,
+                                              p->outer.err_brake_safe,
+                                              p->outer.err_brake_k_spd);
+                    g_state.err_brake_yaw = CalcErrBrakeFactor(err_abs,
+                                              p->outer.err_brake_max,
+                                              p->outer.err_brake_safe,
+                                              p->outer.err_brake_k_yaw);
+
+                    /* 合并线速度: min(侧g, Err) */
+                    g_state.combined_brake_spd = (lat_g_brake_spd < g_state.err_brake_spd)
+                                               ? lat_g_brake_spd : g_state.err_brake_spd;
+                    /* 合并角速度: min(侧g, Err) */
+                    g_state.combined_brake_yaw = (lat_g_brake_yaw < g_state.err_brake_yaw)
+                                               ? lat_g_brake_yaw : g_state.err_brake_yaw;
+
+                    common_speed *= g_state.combined_brake_spd;
                 }
 
                 /* ===== Block 2: �⻷ȫ���� �� tar_yaw_raw ===== */
@@ -1249,7 +1327,7 @@ void Main_Control_Task(void *pvParameters)
 
                 g_ectx.yawrate = g_state.tar_yaw_raw;
                 g_state.target_yaw = SelectTargetYaw(ctrl, prop, &g_ectx);
-                g_state.target_yaw *= lat_g_brake_factor;
+                g_state.target_yaw *= g_state.combined_brake_yaw;
 
 
 /***************   状态机插入 ****************** */
@@ -1409,14 +1487,16 @@ void Main_Control_Task_Init(void)
     Debug_Register("adc1",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[1]);
     Debug_Register("adc2",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[2]);
     Debug_Register("adc3",   DBG_FLOAT | HIGH_FREQ_TYPE, &adc_normalized[3]);
-    Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adc13);
-    Debug_Register("adcsum", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adcsum);
+    //Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adc13);
+    //Debug_Register("adcsum", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adcsum);
     /* 姿态 */
     Debug_Register("yaw",    DBG_FLOAT | HIGH_FREQ_TYPE, &yaw);
     Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_filtered);
     Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_fb);
     Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_ectx.tilt_lr);
-    Debug_Register("LatG_VW",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_filtered);
+   // Debug_Register("LatG_VW",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_filtered);
+   // Debug_Register("ErrB_Fac_Spd", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_brake_spd);
+   // Debug_Register("ErrB_Fac_Yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_brake_yaw);
     /* 电机 */
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_l.f));
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, &(speed_target_r_nagtive));
@@ -1484,7 +1564,12 @@ void Main_Control_Task_Init(void)
     g_params.outer.lat_g_l_safe = 0.8f;
     g_params.outer.lat_g_r_max  = 1.5f;
     g_params.outer.lat_g_r_safe = 0.8f;
-    g_params.outer.lat_g_brake_k = 0.6f;
+    g_params.outer.lat_g_brake_k_spd = 0.6f;
+    g_params.outer.lat_g_brake_k_yaw = 0.6f;
+    g_params.outer.err_brake_max  = 120.0f;
+    g_params.outer.err_brake_safe = 60.0f;
+    g_params.outer.err_brake_k_spd = 0.5f;
+    g_params.outer.err_brake_k_yaw = 0.5f;
     Debug_Register("OutSlew",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_slew_max);
    // Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
    // Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
@@ -1501,7 +1586,12 @@ void Main_Control_Task_Init(void)
     Debug_Register("LatG_L_Saf", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_l_safe);
     Debug_Register("LatG_R_Max", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_r_max);
     Debug_Register("LatG_R_Saf", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_r_safe);
-    Debug_Register("LatG_BrkK", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_brake_k);
+    Debug_Register("LatG_BrkSpd", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_brake_k_spd);
+    Debug_Register("LatG_BrkYaw", DBG_FLOAT | STATIC_TYPE, &g_params.outer.lat_g_brake_k_yaw);
+    Debug_Register("ErrB_Max",  DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_max);
+    Debug_Register("ErrB_Safe", DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_safe);
+    Debug_Register("ErrB_BrkSpd", DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_k_spd);
+    Debug_Register("ErrB_BrkYaw", DBG_FLOAT | STATIC_TYPE, &g_params.outer.err_brake_k_yaw);
 
     /* 十字专用外环参数 (g_params_cross.outer, 上位机独立调参) */
     Debug_Register("Cr_Slew",   DBG_FLOAT | STATIC_TYPE, &g_params_cross.outer.outer_slew_max);
@@ -1551,7 +1641,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("TgtYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.pid_output);
    // Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
     Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.gyro_filtered);
-    Debug_Register("OutITrm", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.i_term);
+    Debug_Register("YawITrm", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.inner.error_sum);
 
     /* ================================================================
      * 5. 内环 PI — 默认值 & Debug 注册
@@ -1690,7 +1780,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("Fan_D",     DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_fan_d);
     Debug_Register("SS_Step",   DBG_FLOAT  | STATIC_TYPE, &g_ss_step);
     Debug_Register("Manual",    DBG_UINT8  | STATIC_TYPE, &manual_control_flag);
-    Debug_Register("stat",      DBG_UINT16,                &g_ectx.current);
+    Debug_Register("stat",      DBG_UINT8 | HIGH_FREQ_TYPE, &g_current_element_u8);
 
     /* 侧向加速度 LPF 截止频率 (PERI_TYPE → 上位机可读写) */
   //  Debug_Register("LatG_VW_Fc",  DBG_FLOAT | STATIC_TYPE | PERI_TYPE, &g_lat_g_vw_lpf_desc);
@@ -1714,6 +1804,20 @@ void Main_Control_Task_Init(void)
     copy_params(&g_params_wall, &g_params);
     g_params_cross.adc.err_B_K = 0.0f;
     g_params_cross.adc.err_D_K = 0.0f;
+
+    /* 非直道元素旁路所有制动 (只调直道, 后续逐元素放开) */
+    g_params_cross.outer.lat_g_brake_k_spd = 0.0f;
+    g_params_cross.outer.lat_g_brake_k_yaw = 0.0f;
+    g_params_cross.outer.err_brake_k_spd   = 0.0f;
+    g_params_cross.outer.err_brake_k_yaw   = 0.0f;
+    g_params_ring.outer.lat_g_brake_k_spd  = 0.0f;
+    g_params_ring.outer.lat_g_brake_k_yaw  = 0.0f;
+    g_params_ring.outer.err_brake_k_spd    = 0.0f;
+    g_params_ring.outer.err_brake_k_yaw    = 0.0f;
+    g_params_wall.outer.lat_g_brake_k_spd  = 0.0f;
+    g_params_wall.outer.lat_g_brake_k_yaw  = 0.0f;
+    g_params_wall.outer.err_brake_k_spd    = 0.0f;
+    g_params_wall.outer.err_brake_k_yaw    = 0.0f;
 
     /* 环岛专用模糊 PID 固化 (来自 改一下环岛.json 调参结果, 9档插值) */
     g_params_ring.fuzzy.Kp0 = 0.10000000149011612f;

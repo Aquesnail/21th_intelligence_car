@@ -262,6 +262,10 @@ void IMU_Init() {
     g_imu_filter.bias_gz = 0.0f;
     g_imu_filter.is_calibrated = 0;
 
+    /* Mahony Kp/Ki: 上位机在线可调 */
+    Debug_Register("IMU_Kp", DBG_FLOAT | STATIC_TYPE, &g_imu_filter.Kp);
+    Debug_Register("IMU_Ki", DBG_FLOAT | STATIC_TYPE, &g_imu_filter.Ki);
+
     /* 诊断: 重力向量 (本文件直接注册, 对照 element.c 的 GXv/GYv/GZv) */
   //  Debug_Register("IGXv", DBG_FLOAT | HIGH_FREQ_TYPE, &g_imu_gx);
    // Debug_Register("IGYv", DBG_FLOAT | HIGH_FREQ_TYPE, &g_imu_gy);
@@ -277,11 +281,9 @@ void IMU_Init() {
     //Debug_Register("pitch", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->pitch));
     //Debug_Register("roll", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->roll));
   //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
-  //  Debug_Register("Kp", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Kp));
-   // Debug_Register("Ki", DBG_FLOAT | STATIC_TYPE, &(IMU_Filter_Data->Ki));
-  //  Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
- //   Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
- //   Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
+   Debug_Register("az", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.az));
+   Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
+   Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));
  //   Debug_Register("gz", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gz));
  //   Debug_Register("gx", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gx));
  //   Debug_Register("gy", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.gy));

@@ -114,8 +114,13 @@ typedef struct {
     /* ---- 环岛专用状态 ---- */
     unsigned char  ring_side;           /* 0=左环, 1=右环 */
     float          ring_entry_yaw;
-    unsigned short exit_lockout_cnt;    /* 出元素锁存倒计时 (全局) */
-    unsigned short cross_lockout_cnt;   /* 十字退出锁存倒计时 (CROSS 专用) */
+    unsigned short ring_lockout_cnt;    /* 环岛退出锁存倒计时 */
+    unsigned short wall_lockout_cnt;    /* 上墙退出锁存倒计时 */
+    unsigned short barrel_lockout_cnt;  /* 滚筒退出锁存倒计时 */
+    unsigned short skip_lockout_cnt;    /* 跷跷板退出锁存倒计时 */
+    unsigned short ra_lockout_cnt;      /* 直角转弯退出锁存倒计时 */
+    unsigned short cross_lockout_cnt;   /* 十字退出锁存倒计时 */
+    unsigned short global_exit_lockout_cnt; /* 全局退出锁存: 退赛道元素后禁止立即进入新赛道元素 */
     unsigned short ring_frame_cnt;      /* 环岛链总帧计数 (ENTRANCE→PASS→IN_RING 超时兜底) */
 
     /* ---- 直角转弯专用状态 ---- */

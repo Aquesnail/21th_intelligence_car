@@ -170,7 +170,7 @@ uint8_t ICM42688_Init(void) {
     ret = icm_write_reg(0, ICM42688_ACCEL_CONFIG1, ACCEL_UI_FILT_ORD_2ND | ACCEL_DEC2_M2_ORD_3RD);
     if (ret != ICM_OK) return ret;
     ret = icm_write_reg(0, ICM42688_GYRO_ACCEL_CONFIG0,
-                        GYRO_UI_FILT_BW_LOW_LATENCY_400HZ | ACCEL_UI_FILT_BW_LOW_LATENCY_400HZ);
+                        GYRO_UI_FILT_BW_LOW_LATENCY_200HZ | ACCEL_UI_FILT_BW_LOW_LATENCY_200HZ);
     if (ret != ICM_OK) return ret;
 
     ret = configure_aaf(1, accel_delt, accel_delt_sqr, accel_bitshift);
