@@ -27,8 +27,6 @@ typedef enum ElementType {
     ELEMENT_BARREL_VERTICAL_PEAK,  /* 滚筒子状态: 下行阶段的垂直角度峰值 */
     ELEMENT_BARREL_DESCEND,        /* 滚筒子状态: 下行阶段 */
 
-    ELEMENT_SKIP_AIRBORNE,         /* 跷跷板子状态: 腾空阶段 */
-
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
     /* 以下保留，暂未使用 */
     ELEMENT_RING_LEFT_EXIT,
@@ -37,7 +35,7 @@ typedef enum ElementType {
   //  ELEMENT_TIMER,                  /* 定时器元素: 每次开始起跑时清零，以秒为单位计时，计时到了若发现倾角正常则自动停车*/
 } element_t;
 
-#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 19 个活跃元素 (含 WALL 3 子状态 + BARREL 3 子状态) */
+#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 18 个活跃元素 (含 WALL 3 子状态 + BARREL 3 子状态) */
 
 /* ================================================================
  * 控制策略枚举

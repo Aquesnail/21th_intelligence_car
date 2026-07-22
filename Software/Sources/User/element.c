@@ -85,9 +85,7 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
     { ELEMENT_BARREL_VERTICAL_PEAK, "BAR_PEAK", &g_speed_barrel, &g_fan_d_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
     /* [17] ELEMENT_BARREL_DESCEND */
     { ELEMENT_BARREL_DESCEND, "BAR_DESC", &g_speed_barrel, &g_fan_d_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
-    /* [18] ELEMENT_SKIP_AIRBORNE */
-    { ELEMENT_SKIP_AIRBORNE, "SKIP_AIR", &g_speed_skip, &g_fan_d_skip, 128, 128, 128, CTRL_NORMAL, NULL, 0 }, /* 灰 */
-    /* [19] ELEMENT_SAFETY_STOP */
+    /* [18] ELEMENT_SAFETY_STOP */
     { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 0, 255, 0, 0, CTRL_BRAKE, NULL, 0 }, /* 红 */
 };
 
@@ -245,7 +243,6 @@ static const char* Element_Name(element_t e)
     case ELEMENT_RING_LEFT_EXIT:     return "RING_L_EXIT";
     case ELEMENT_RING_RIGHT_EXIT:    return "RING_R_EXIT";
     case ELEMENT_SKIP:               return "SKIP";
-    case ELEMENT_SKIP_AIRBORNE:      return "SKIP_AIR";
     default:                         return "UNKNOWN";
     }
 }
@@ -681,10 +678,11 @@ static void Enter_CrossTimeout(ElementCtx_t *ctx)
 
 /* ================================================================
  * SECTION 7 — 跷跷板 SKIP
- *   子状态链: STRAIGHT → SKIP → SKIP_AIRBORNE → STRAIGHT
+ *   子状态链: STRAIGHT → SKIP → STRAIGHT
  *   进入: tilt_fb < skip_entry_tilt (负值, 上坡低头)
- *   腾空: adc[0]+adc[1]+adc[2]+adc[3] < skip_exit_sum (四轮离地)
- *   落地: |tilt_fb| < skip_airborne_exit_tilt (车身回平)
+ *         && adc[0]+adc[1]+adc[2]+adc[3] < skip_entry_adc_sum (四轮离地,ADC骤降)
+ *   退出: |tilt_fb| < skip_airborne_exit_tilt (车身回平)
+ *         && adc_sum > skip_landing_adc_min && adc_sum < skip_landing_adc_max (车轮着地)
  * ================================================================ */
 
 /* ---- 跷跷板参数 ---- */
@@ -692,7 +690,7 @@ static unsigned char xdata skip_vote_buf[SKIP_WIN_MAX];
 static VoteWindow_t vote_win_skip;
 static float   skip_entry_tilt;                  /* 进入阈值: tilt_fb < 此值(负值) → 进入跷跷板 */
 static float   skip_entry_tilt_lr;              /* 进入防误判: |tilt_lr| > 此值 → 否决进入 (真跷跷板只前后倾) */
-static float   skip_exit_sum;                    /* 腾空阈值: 四通道ADC之和 < 此值 → 判定腾空 */
+static float   skip_entry_adc_sum;              /* 进入阈值: 四通道ADC之和 < 此值 → 判定车轮离地 */
 static float   skip_airborne_exit_tilt;          /* 落地阈值: |tilt_fb| < 此值 → 判定落地回平 */
 static float   skip_landing_adc_min;            /* 落地阈值: 四通道ADC之和 > 此值 */
 static float   skip_landing_adc_max;            /* 落地阈值: 四通道ADC之和 < 此值 */
@@ -703,6 +701,7 @@ static unsigned short g_skip_exit_lockout_frames = 200;    /* 退出后锁存帧
 static unsigned char Check_SkipEntry(ElementCtx_t *ctx)
 {
     float tilt_lr_abs;
+    float skip_adc_sum;
     if (ctx->skip_lockout_cnt > 0) return 0;
     if (!Track_CheckExpected(ctx, ELEMENT_SKIP)) return 0;
 
@@ -710,24 +709,16 @@ static unsigned char Check_SkipEntry(ElementCtx_t *ctx)
     tilt_lr_abs = FABS(ctx->tilt_lr);
     if (tilt_lr_abs > skip_entry_tilt_lr) return 0;
 
+    skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
+
     if (ctx->vote_skip.len == 0) {
-        return (ctx->tilt_fb < skip_entry_tilt) ? 1 : 0;
+        return (ctx->tilt_fb < skip_entry_tilt
+                && skip_adc_sum < skip_entry_adc_sum) ? 1 : 0;
     }
     return VoteWin_Reached(&ctx->vote_skip, ctx->vote_skip.entry_thresh);
 }
 
-static unsigned char Check_SkipToAirborne(ElementCtx_t *ctx)
-{
-    float skip_adc_sum;
-    skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
-
-    if (ctx->vote_skip.len == 0) {
-        return (skip_adc_sum < skip_exit_sum) ? 1 : 0;
-    }
-    return VoteWin_Reached(&ctx->vote_skip, ctx->vote_skip.exit_thresh);
-}
-
-static unsigned char Check_SkipAirborneExit(ElementCtx_t *ctx)
+static unsigned char Check_SkipExit(ElementCtx_t *ctx)
 {
     float tilt_fb_abs;
     float skip_adc_sum;
@@ -739,7 +730,7 @@ static unsigned char Check_SkipAirborneExit(ElementCtx_t *ctx)
                 && skip_adc_sum > skip_landing_adc_min
                 && skip_adc_sum < skip_landing_adc_max) ? 1 : 0;
     }
-    return VoteWin_Reached(&ctx->vote_skip, ctx->vote_skip.entry_thresh);
+    return VoteWin_Reached(&ctx->vote_skip, ctx->vote_skip.exit_thresh);
 }
 
 static unsigned char Check_SkipTimeout(ElementCtx_t *ctx)
@@ -754,12 +745,7 @@ static void Enter_Skip(ElementCtx_t *ctx)
     VoteWin_Reset(&ctx->vote_skip);
 }
 
-static void Enter_SkipAirborne(ElementCtx_t *ctx)
-{
-    VoteWin_Reset(&ctx->vote_skip);
-}
-
-static void Enter_SkipAirborneExit(ElementCtx_t *ctx)
+static void Enter_SkipExit(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_skip);
     ctx->skip_lockout_cnt = g_skip_exit_lockout_frames;
@@ -770,12 +756,7 @@ static void Enter_SkipAirborneExit(ElementCtx_t *ctx)
 static void Enter_SkipTimeout(ElementCtx_t *ctx)
 {
     VoteWin_Reset(&ctx->vote_skip);
-    /* 只有经过腾空阶段(AIRBORNE)的超时才推进元素表;
-     * 直接从 SKIP 超时 → 行驶震动误触发, 不推进表索引,
-     * 全局退出锁存会防止立即重入, 等锁存过后下一帧可重新检测进入 */
-    if (ctx->prev == ELEMENT_SKIP_AIRBORNE) {
-        Enter_ExitToStraight(ctx);
-    }
+    Enter_ExitToStraight(ctx);
 }
 
 /* ---- 十字 → 跷跷板 纠错 (误触 CROSS 后跳回 SKIP, 放此处因 C89 需 skip_entry_tilt 先声明) ---- */
@@ -928,7 +909,6 @@ static unsigned short GetGlobalExitLockFrames(element_t e)
     case ELEMENT_BARREL_DESCEND:
         return g_barrel_global_lock;
     case ELEMENT_SKIP:
-    case ELEMENT_SKIP_AIRBORNE:
         return g_skip_global_lock;
     default:
         return 0;  /* Cross / RightAngle / 其他: 不触发全局锁 */
@@ -1007,11 +987,9 @@ static const Transition_t g_transitions[] = {
     { ELEMENT_BARREL_CLIMB,   ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout },
     { ELEMENT_BARREL_DESCEND, ELEMENT_STRAIGHT, 1, Check_BarrelTimeout, Enter_BarrelTimeout },
 
-    /* 跷跷板子状态链: SKIP → SKIP_AIRBORNE → STRAIGHT */
-    { ELEMENT_SKIP,           ELEMENT_SKIP_AIRBORNE, 0, Check_SkipToAirborne,    Enter_SkipAirborne },
-    { ELEMENT_SKIP,           ELEMENT_STRAIGHT,       1, Check_SkipTimeout,       Enter_SkipTimeout },
-    { ELEMENT_SKIP_AIRBORNE,  ELEMENT_STRAIGHT,       0, Check_SkipAirborneExit,  Enter_SkipAirborneExit },
-    { ELEMENT_SKIP_AIRBORNE,  ELEMENT_STRAIGHT,       1, Check_SkipTimeout,       Enter_SkipTimeout },
+    /* 跷跷板子状态链: SKIP → STRAIGHT */
+    { ELEMENT_SKIP, ELEMENT_STRAIGHT, 0, Check_SkipExit,    Enter_SkipExit },
+    { ELEMENT_SKIP, ELEMENT_STRAIGHT, 1, Check_SkipTimeout, Enter_SkipTimeout },
 
     /* 十字 → STRAIGHT (prio 0=倾角超限, 1=超时, 2=正常退出) */
     /* 十字 → 跷跷板 纠错 (prio 0: 最高, 误触 CROSS 后跳回 SKIP) */
@@ -1298,19 +1276,19 @@ void Element_Init(ElementCtx_t *ctx)
     /* ================================================================
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
      * ================================================================ */
-    /* 进入: tilt_fb < -15° 且 |tilt_lr| <= 20°, 腾空: ADC和 < 500, 落地: |tilt| < 10° + ADC和在600~1000 */
+    /* 进入: tilt_fb < -16° && |tilt_lr| <= 10° && ADC和 < 500, 退出: |tilt| < 10° + ADC和在600~1000 */
     skip_entry_tilt          = -16.0f;
     skip_entry_tilt_lr       = 10.0f;   /* 左右倾角上限: 超过此值否决进入, 防颠簸/十字误判 */
-    skip_exit_sum            = 500.0f;
+    skip_entry_adc_sum       = 500.0f;  /* 进入ADC和阈值: 四通道之和 < 此值 → 判定车轮离地 */
     skip_airborne_exit_tilt  = 10.0f;
     skip_landing_adc_min     = 600.0f;
     skip_landing_adc_max     = 1000.0f;
     vote_win_skip.len          = 20;    /* 投票窗滤波, 20帧窗口抑制噪声 */
     vote_win_skip.entry_thresh = 19;
-    vote_win_skip.exit_thresh  = 3;
+    vote_win_skip.exit_thresh  = 19;    /* 落地退出严格投票 */
     Debug_Register("El_SkpEnTilt",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt);
     Debug_Register("El_SkpEnTltLR", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt_lr);
-    Debug_Register("El_SkpExSum",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_exit_sum);
+    Debug_Register("El_SkpEnAdc",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_adc_sum);
     Debug_Register("El_SkpAirTlt",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_airborne_exit_tilt);
     Debug_Register("El_SkpLdMin",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_landing_adc_min);
     Debug_Register("El_SkpLdMax",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_landing_adc_max);
@@ -1397,7 +1375,7 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_cross_tilt.len    = 0;
     vote_win_skip.len          = 20;
     vote_win_skip.entry_thresh = 19;
-    vote_win_skip.exit_thresh  = 3;
+    vote_win_skip.exit_thresh  = 19;
 
     if (ctx != NULL) {
         ctx->vote_ring         = vote_win_ring;
@@ -1747,13 +1725,13 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
     VoteWin_Push(&ctx->vote_right_angle, ra_vote);
 
-    /* 跷跷板投票: STRAIGHT→SKIP (tilt + 防左右倾误判); SKIP→AIRBORNE (ADC和); AIRBORNE→STRAIGHT (|tilt|) */
+    /* 跷跷板投票: STRAIGHT→SKIP (tilt + ADC和 + 防左右倾误判); SKIP→STRAIGHT (落地: |tilt|回平 + ADC恢复) */
     if (ctx->current == ELEMENT_STRAIGHT) {
-        skip_vote = (ctx->tilt_fb < skip_entry_tilt && tilt_lr_abs <= skip_entry_tilt_lr) ? 1 : 0;
-    } else if (ctx->current == ELEMENT_SKIP) {
         skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
-        skip_vote = (skip_adc_sum < skip_exit_sum) ? 1 : 0;
-    } else if (ctx->current == ELEMENT_SKIP_AIRBORNE) {
+        skip_vote = (ctx->tilt_fb < skip_entry_tilt
+                  && tilt_lr_abs <= skip_entry_tilt_lr
+                  && skip_adc_sum < skip_entry_adc_sum) ? 1 : 0;
+    } else if (ctx->current == ELEMENT_SKIP) {
         skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
         skip_vote = (tilt_fb_abs < skip_airborne_exit_tilt
                   && skip_adc_sum > skip_landing_adc_min
