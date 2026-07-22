@@ -5,8 +5,8 @@
 /* 定义缓冲区大小 */
 #define UART_DMATxBufferLength 512
 #define UART_DMARxBufferLength 512
-#define UART_TxRingBufferLength 2048
-#define UART_RxRingBufferLength 2048
+#define UART_TxRingBufferLength 1024*10
+#define UART_RxRingBufferLength 1024*10
 
 /* 物理与逻辑缓冲区 (必须在 XDATA 或 EDATA) */
 static uint8_t xdata uart2_dma_tx[UART_DMATxBufferLength];   // 运行时 memset 初始化

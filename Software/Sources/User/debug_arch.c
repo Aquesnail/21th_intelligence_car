@@ -18,7 +18,7 @@
 debug_port_t* debug_init_struct = NULL;
 // 协议常量
 #define CMD_HANDSHAKE       0x00
-#define CMD_WRITE           0x55
+#define CMD_WRITE           0x5A
 #define CMD_REGISTER        0x56
 #define CMD_TEXT            0x57
 #define CMD_STATIC_REFRESH  0x58
@@ -114,7 +114,7 @@ static uint8_t GetTypeSize(uint8_t type) {
  */
 static void Debug_TxCore(uint16_t id, uint8_t type, uint8_t *payload, uint8_t len) {
     uint16_t crc;
-    uint8_t pktLen = 5 + len; // Head(1)+ID(2)+Type(1)+Len(1) + Payload(n)
+    uint8_t pktLen;
 
     // 1. 组包头 (ID 大端序)
     txPkt[0] = 0xAA;
@@ -123,23 +123,27 @@ static void Debug_TxCore(uint16_t id, uint8_t type, uint8_t *payload, uint8_t le
     txPkt[3] = type;
     txPkt[4] = len;
 
-    // 2. 拷贝负载
+    // 2. 截断超长负载（必须在拷贝前）
+    if(len > (TX_BUF_SIZE - 7)){
+        len = TX_BUF_SIZE - 7;
+    }
+    txPkt[4] = len;  // 更新为截断后的真实长度
+
+    // 3. 拷贝负载
     if(len > 0 && payload != NULL) {
         memcpy(&txPkt[5], payload, len);
     }
 
-    if(len > (TX_BUF_SIZE - 7)){
-        len = TX_BUF_SIZE - 7;
-    }
+    pktLen = 5 + len; // Head(1)+ID(2)+Type(1)+Len(1) + Payload(n)
 		
-    // 3. 计算 CRC (范围: ID ~ Payload结束)
+    // 4. 计算 CRC (范围: ID ~ Payload结束)
     crc = Debug_Arch_CRC16(&txPkt[1], pktLen - 1);
 
-    // 4. 填充 CRC
+    // 5. 填充 CRC
     txPkt[pktLen]     = (uint8_t)(crc >> 8);
     txPkt[pktLen + 1] = (uint8_t)(crc & 0xFF);
 
-    // 5. 发送
+    // 6. 发送
     Debug_Arch_Write(txPkt, pktLen + 2);
 }
 

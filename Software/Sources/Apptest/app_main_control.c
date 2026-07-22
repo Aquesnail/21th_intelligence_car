@@ -407,6 +407,7 @@ static float adc_avg = 0.0f;
 static uint16_t adc_avg_count = 0;
 static uint8_t display_adc_original = 0;
 static float adc_normalized[4]; // 运行时 memset 初始化
+static float adc_feed_display[4]; /* 重排后的逻辑值, 供 HIGH_FREQ 上传, 与状态机 adc[0]~[3] 一一对应 */
 static void NormalizeADC(uint32_t peri_addr,void *pData,uint8_t len){
     uint8_t* ptr = (uint8_t *)pData;
     (void)peri_addr;
@@ -421,28 +422,26 @@ static void NormalizeADC(uint32_t peri_addr,void *pData,uint8_t len){
 }
 
 uint8_t ADC_NormalizeCommand(const char* cmd) {
+    uint8_t phys_idx;
     if (strcmp(cmd, "norm0") == 0) {
-        normalize_index = 0;
-        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
-        Debug_Log("ADC_NORM_0");
-        return 1;
+        phys_idx = 0;
     } else if (strcmp(cmd, "norm1") == 0) {
-        normalize_index = 1;
-        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
-        Debug_Log("ADC_NORM_1");
-        return 1;
+        phys_idx = 1;
     } else if (strcmp(cmd, "norm2") == 0) {
-        normalize_index = 2;
-        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
-        Debug_Log("ADC_NORM_2");
-        return 1;
+        phys_idx = 2;
     } else if (strcmp(cmd, "norm3") == 0) {
-        normalize_index = 3;
-        NormalizeADC(0, &normalize_index, sizeof(normalize_index));
-        Debug_Log("ADC_NORM_3");
-        return 1;
+        phys_idx = 3;
+    } else {
+        return 0;
     }
-    return 0; // 未识别
+    /* ch=0 时物理 0↔1, 2↔3, 用户看到逻辑 adcX 输 normX 应校准正确的物理通道 */
+    if (change_inductor == 0) {
+        phys_idx ^= 1;
+    }
+    normalize_index = phys_idx;
+    NormalizeADC(0, &normalize_index, sizeof(normalize_index));
+    Debug_Log("ADC_NORM");
+    return 1;
 }
 
 /* ================================================================
@@ -665,6 +664,7 @@ uint8_t TiltCalib_HandleCommand(const char* cmd) {
 }
 
 static float tmp_adc13;
+static float tmp_adc13_logical; /* 逻辑通道1+3和, 与状态机 cross_sum_cache 一致 */
 static float tmp_adcsum;
 
 #define spd_limit 150.0f
@@ -1181,7 +1181,12 @@ void Main_Control_Task(void *pvParameters)
                     adc_feed[2] = adc_normalized[3];
                     adc_feed[3] = adc_normalized[2];
                 }
-                /* 下面全部基于逻辑排列计算, 不再出现 change_inductor */
+                /* 拷到全局数组供 HIGH_FREQ 上传, 与状态机 adc[0]~[3] 一一对应 */
+                adc_feed_display[0] = adc_feed[0];
+                adc_feed_display[1] = adc_feed[1];
+                adc_feed_display[2] = adc_feed[2];
+                adc_feed_display[3] = adc_feed[3];
+                tmp_adc13_logical = adc_feed[1] + adc_feed[3];
                 /* 第二级: 用户个性化校准 (循迹控制用), 元素判断用 adc_feed 不受影响 */
                 adc_calib[0] = adc_feed[0] * user_calib_k[0];  /* 横向左 */
                 adc_calib[1] = adc_feed[1] * user_calib_k[1];  /* 竖直左 */
@@ -1491,12 +1496,12 @@ void Main_Control_Task_Init(void)
      * 1. 实时观测 (HIGH_FREQ) — 只看不改
      * ================================================================ */
     /* ADC */
-    Debug_Register("adc0",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[0]);
-    Debug_Register("adc1",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[1]);
-    Debug_Register("adc2",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[2]);
-    Debug_Register("adc3",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_normalized[3]);
-    //Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adc13);
-    //Debug_Register("adcsum", DBG_FLOAT | HIGH_FREQ_TYPE, &tmp_adcsum);
+    Debug_Register("adc0",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_feed_display[0]);
+    Debug_Register("adc1",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_feed_display[1]);
+    Debug_Register("adc2",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_feed_display[2]);
+    Debug_Register("adc3",   DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &adc_feed_display[3]);
+    Debug_Register("adc1+3", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &tmp_adc13_logical);
+    Debug_Register("adcsum", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &tmp_adcsum);
     /* 姿态 */
     Debug_Register("yaw",    DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &yaw);
     Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.err_filtered);

@@ -17,6 +17,14 @@ extern unsigned char manual_control_flag;
 /* ---- 车身水平倾角阈值 (多元素共用) ---- */
 static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
 
+/* ---- 倾角校准零偏 (上电放平自动归零, STATIC_TYPE 供上位机保存) ---- */
+static float g_tilt_fb_offset   = 0.0f;
+static float g_tilt_lr_offset   = 0.0f;
+static unsigned char  g_tilt_calibrated = 0;
+static unsigned short g_tilt_calib_cnt  = 0;
+static float g_tilt_fb_acc      = 0.0f;
+static float g_tilt_lr_acc      = 0.0f;
+
 /* ---- 推车调试 ---- */
 
 /* ================================================================
@@ -672,7 +680,7 @@ static void Enter_CrossTimeout(ElementCtx_t *ctx)
     ctx->cross_lockout_cnt = g_cross_exit_lockout_frames;
     VoteWin_Reset(&ctx->vote_cross);
     VoteWin_Reset(&ctx->vote_cross_tilt);
-    Enter_ExitToStraight(ctx);
+    /* 不推进 track_idx: CROSS 不在赛道表中, 与 Enter_CrossExit 保持一致 */
 }
 
 
@@ -691,6 +699,7 @@ static VoteWindow_t vote_win_skip;
 static float   skip_entry_tilt;                  /* 进入阈值: tilt_fb < 此值(负值) → 进入跷跷板 */
 static float   skip_entry_tilt_lr;              /* 进入防误判: |tilt_lr| > 此值 → 否决进入 (真跷跷板只前后倾) */
 static float   skip_entry_adc_sum;              /* 进入阈值: 四通道ADC之和 < 此值 → 判定车轮离地 */
+static float   skip_entry_adc13_sum;            /* 进入防误判: adc[1]+adc[3] < 此值 → 否决进入 (十字竖向电感高) */
 static float   skip_airborne_exit_tilt;          /* 落地阈值: |tilt_fb| < 此值 → 判定落地回平 */
 static float   skip_landing_adc_min;            /* 落地阈值: 四通道ADC之和 > 此值 */
 static float   skip_landing_adc_max;            /* 落地阈值: 四通道ADC之和 < 此值 */
@@ -702,12 +711,17 @@ static unsigned char Check_SkipEntry(ElementCtx_t *ctx)
 {
     float tilt_lr_abs;
     float skip_adc_sum;
+    float skip_adc13_sum;
     if (ctx->skip_lockout_cnt > 0) return 0;
     if (!Track_CheckExpected(ctx, ELEMENT_SKIP)) return 0;
 
     /* 防误判: 真跷跷板只有前后倾, 左右倾必须小 */
     tilt_lr_abs = FABS(ctx->tilt_lr);
     if (tilt_lr_abs > skip_entry_tilt_lr) return 0;
+
+    /* 防误判: 十字竖向电感高, 跷跷板四轮离地竖向电感低 */
+    skip_adc13_sum = ctx->adc[1] + ctx->adc[3];
+    if (skip_adc13_sum > skip_entry_adc13_sum) return 0;
 
     skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
 
@@ -1017,10 +1031,13 @@ static void Element_EvaluateTransitions(ElementCtx_t *ctx)
         t = &g_transitions[i];
         if (t->from != ctx->current) continue;
 
-        /* 全局退出锁存: STRAIGHT 下禁止进入赛道表元素 (Cross/RA 放行) */
+        /* 全局退出锁存: STRAIGHT 下禁止进入赛道表元素 (Cross/RA 放行)
+         * 例外: 如果目标元素正好是赛道表中下一个期望元素, 放行.
+         * 防止 RING→SKIP 紧密衔接时全局锁误拦正确进入. */
         if (t->from == ELEMENT_STRAIGHT
             && ctx->global_exit_lockout_cnt > 0
-            && IsBlockedByGlobalLock(t->to)) {
+            && IsBlockedByGlobalLock(t->to)
+            && !Track_CheckExpected(ctx, t->to)) {
             continue;
         }
 
@@ -1112,12 +1129,6 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->prev    = ELEMENT_STRAIGHT;
         ctx->tilt_fb      = 0.0f;
         ctx->tilt_lr      = 0.0f;
-        ctx->tilt_fb_offset   = 0.0f;
-        ctx->tilt_lr_offset   = 0.0f;
-        ctx->tilt_calibrated  = 0;
-        ctx->tilt_calib_cnt   = 0;
-        ctx->tilt_fb_acc      = 0.0f;
-        ctx->tilt_lr_acc      = 0.0f;
         ctx->cross_sum_cache = 0.0f;
         ctx->cross_all_cache = 0.0f;
         tilt_lpf_ready = 0;      /* 下次 CalcTilt 重新初始化滤波器 */
@@ -1139,7 +1150,9 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_TblEnable",DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->track_table_enabled);
     Debug_Register("El_DbgElem",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_single_element_debug);
     Debug_Register("El_PushMode", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->push_mode);
-    Debug_Register("Index",    DBG_UINT8 , VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &ctx->track_idx);
+    Debug_Register("Index",    DBG_UINT8 | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &ctx->track_idx);
+    Debug_Register("El_TiltOffFB", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_tilt_fb_offset);
+    Debug_Register("El_TiltOffLR", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_tilt_lr_offset);
     /* ================================================================
      * 2. 速度变量 — Debug 注册
      * ================================================================ */
@@ -1276,10 +1289,11 @@ void Element_Init(ElementCtx_t *ctx)
     /* ================================================================
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
      * ================================================================ */
-    /* 进入: tilt_fb < -16° && |tilt_lr| <= 10° && ADC和 < 500, 退出: |tilt| < 10° + ADC和在600~1000 */
+    /* 进入: tilt_fb < -16° && |tilt_lr| <= 10° && adc[1]+adc[3] < 300 && ADC和 < 500 */
     skip_entry_tilt          = -16.0f;
     skip_entry_tilt_lr       = 10.0f;   /* 左右倾角上限: 超过此值否决进入, 防颠簸/十字误判 */
     skip_entry_adc_sum       = 500.0f;  /* 进入ADC和阈值: 四通道之和 < 此值 → 判定车轮离地 */
+    skip_entry_adc13_sum     = 300.0f;  /* 进入竖向电感和阈值: adc[1]+adc[3] < 此值 → 防十字误判 (十字竖向电感高) */
     skip_airborne_exit_tilt  = 10.0f;
     skip_landing_adc_min     = 600.0f;
     skip_landing_adc_max     = 1000.0f;
@@ -1289,6 +1303,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_SkpEnTilt",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt);
     Debug_Register("El_SkpEnTltLR", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt_lr);
     Debug_Register("El_SkpEnAdc",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_adc_sum);
+    Debug_Register("El_SkpEnAdc13", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_adc13_sum);
     Debug_Register("El_SkpAirTlt",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_airborne_exit_tilt);
     Debug_Register("El_SkpLdMin",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_landing_adc_min);
     Debug_Register("El_SkpLdMax",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_landing_adc_max);
@@ -1409,13 +1424,13 @@ void Element_ResetTrackIndex(ElementCtx_t *ctx)
 /* ---- 手动触发倾角校准 (上位机命令 "tcalib") ---- */
 void Element_TriggerTiltCalib(ElementCtx_t *ctx)
 {
-    if (ctx == NULL) return;
-    ctx->tilt_calibrated = 0;
-    ctx->tilt_calib_cnt  = 0;
-    ctx->tilt_fb_offset  = 0.0f;
-    ctx->tilt_lr_offset  = 0.0f;
-    ctx->tilt_fb_acc     = 0.0f;
-    ctx->tilt_lr_acc     = 0.0f;
+    (void)ctx;
+    g_tilt_calibrated = 0;
+    g_tilt_calib_cnt  = 0;
+    g_tilt_fb_offset  = 0.0f;
+    g_tilt_lr_offset  = 0.0f;
+    g_tilt_fb_acc     = 0.0f;
+    g_tilt_lr_acc     = 0.0f;
     Debug_Log("TILT_CALIB_TRIG");
 }
 
@@ -1477,31 +1492,31 @@ void Element_CalcTilt(ElementCtx_t *ctx, float gx_body, float gy_body, float gz_
     /* ---- 上电放平自动校准归零 ----
      * 检测条件: |raw_fb| < 10° 且 |raw_lr| < 10° 持续 1500 帧 (3s)
      * 校准动作: 3 秒内所有 raw 值的平均值作为零偏, 重置 LPF, 后续每帧减去零偏 */
-    if (!ctx->tilt_calibrated) {
+    if (!g_tilt_calibrated) {
         tilt_fb_abs = FABS(raw_fb);
         tilt_lr_abs = FABS(raw_lr);
         if (tilt_fb_abs < 10.0f && tilt_lr_abs < 10.0f) {
-            ctx->tilt_fb_acc += raw_fb;
-            ctx->tilt_lr_acc += raw_lr;
-            ctx->tilt_calib_cnt++;
-            if (ctx->tilt_calib_cnt >= 1500) {
-                ctx->tilt_fb_offset = ctx->tilt_fb_acc / 1500.0f;
-                ctx->tilt_lr_offset = ctx->tilt_lr_acc / 1500.0f;
-                ctx->tilt_calibrated = 1;
+            g_tilt_fb_acc += raw_fb;
+            g_tilt_lr_acc += raw_lr;
+            g_tilt_calib_cnt++;
+            if (g_tilt_calib_cnt >= 1500) {
+                g_tilt_fb_offset = g_tilt_fb_acc / 1500.0f;
+                g_tilt_lr_offset = g_tilt_lr_acc / 1500.0f;
+                g_tilt_calibrated = 1;
                 /* 校准后重置 LPF, 用归零后的值初始化, 消除历史积累 */
                 lpf_reset(&g_lpf_tilt_fb, 0.0f);
                 lpf_reset(&g_lpf_tilt_lr, 0.0f);
             }
         } else {
-            ctx->tilt_calib_cnt = 0;
-            ctx->tilt_fb_acc = 0.0f;
-            ctx->tilt_lr_acc = 0.0f;
+            g_tilt_calib_cnt = 0;
+            g_tilt_fb_acc = 0.0f;
+            g_tilt_lr_acc = 0.0f;
         }
     }
 
     /* 应用零偏 (未校准时 offset=0 无影响, 校准后 raw - offset ≈ 0) */
-    raw_fb -= ctx->tilt_fb_offset;
-    raw_lr -= ctx->tilt_lr_offset;
+    raw_fb -= g_tilt_fb_offset;
+    raw_lr -= g_tilt_lr_offset;
 
     /* 共用 LPF 模块滤波 — 抑制高速行驶高频振动噪声 */
     if (!tilt_lpf_ready) {
@@ -1541,6 +1556,7 @@ element_t Element_Update(ElementCtx_t *ctx)
     float err_abs;
     float tilt_lr_abs;
     float skip_adc_sum;
+    float skip_adc13_sum;
 
 
     /* ---- 0. 安全检测层 (最高优先级) ---- */
@@ -1725,11 +1741,13 @@ element_t Element_Update(ElementCtx_t *ctx)
     }
     VoteWin_Push(&ctx->vote_right_angle, ra_vote);
 
-    /* 跷跷板投票: STRAIGHT→SKIP (tilt + ADC和 + 防左右倾误判); SKIP→STRAIGHT (落地: |tilt|回平 + ADC恢复) */
+    /* 跷跷板投票: STRAIGHT→SKIP (tilt + ADC和 + 防左右倾误判 + 防十字竖向电感); SKIP→STRAIGHT (落地: |tilt|回平 + ADC恢复) */
     if (ctx->current == ELEMENT_STRAIGHT) {
         skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
+        skip_adc13_sum = ctx->adc[1] + ctx->adc[3];
         skip_vote = (ctx->tilt_fb < skip_entry_tilt
                   && tilt_lr_abs <= skip_entry_tilt_lr
+                  && skip_adc13_sum < skip_entry_adc13_sum
                   && skip_adc_sum < skip_entry_adc_sum) ? 1 : 0;
     } else if (ctx->current == ELEMENT_SKIP) {
         skip_adc_sum = ctx->adc[0] + ctx->adc[1] + ctx->adc[2] + ctx->adc[3];
