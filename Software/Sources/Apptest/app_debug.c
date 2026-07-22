@@ -79,6 +79,7 @@ void vDebugTaskDelayedStart(void *pvParameters)
 extern uint8_t CPUStatus_HandleCommand(const char* cmd);
 extern uint8_t Motor_HandleCommand(const char* cmd);
 extern uint8_t ADC_NormalizeCommand(const char* cmd);
+extern uint8_t TiltCalib_HandleCommand(const char* cmd);
 
 void Debug_OnTextReceived(char* str, uint8_t len)
 {
@@ -89,6 +90,9 @@ void Debug_OnTextReceived(char* str, uint8_t len)
         return;
     }
     if(ADC_NormalizeCommand(str)){
+        return;
+    }
+    if(TiltCalib_HandleCommand(str)){
         return;
     }
     

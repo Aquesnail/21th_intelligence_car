@@ -97,6 +97,12 @@ typedef struct {
     /* ---- 计算中间量 ---- */
     float tilt_fb;                /* 前后倾角(度), 四元数重力向量版 */
     float tilt_lr;                /* 侧倾角(度),   四元数重力向量版 */
+    float tilt_fb_offset;         /* TiltB 校准零偏 (上电放平后自动归零) */
+    float tilt_lr_offset;         /* TiltR 校准零偏 (上电放平后自动归零) */
+    unsigned char  tilt_calibrated;   /* 0=未校准, 1=已完成 */
+    unsigned short tilt_calib_cnt;    /* 放平稳定帧计数 */
+    float tilt_fb_acc;           /* TiltB 校准累加器 (3s 平均) */
+    float tilt_lr_acc;           /* TiltR 校准累加器 (3s 平均) */
 
     /* ---- 投票窗（4 个实例共享同一 VoteWin_Push 逻辑） ---- */
     VoteWindow_t vote_ring;
@@ -172,6 +178,7 @@ const ElementProp_t* Element_GetProp(element_t e);
 ControlStrategy_t Element_GetEffectiveCtrl(element_t e, ElementCtx_t *ctx);
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx);
 void Element_ResetTrackIndex(ElementCtx_t *ctx);
+void Element_TriggerTiltCalib(ElementCtx_t *ctx);
 void Element_FeedSensors(ElementCtx_t *ctx,
     const float adc[4], float ax, float ay, float az,
     float yaw, float err_raw, float err_filtered);

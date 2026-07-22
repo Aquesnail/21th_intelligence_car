@@ -656,6 +656,14 @@ static ControlStrategy_t prev_ctrl = CTRL_NORMAL;     /* 上一次控制策略, 
 
 static ElementCtx_t g_ectx;  /* 元素状态机上下文 */
 
+uint8_t TiltCalib_HandleCommand(const char* cmd) {
+    if (strcmp(cmd, "tcalib") == 0) {
+        Element_TriggerTiltCalib(&g_ectx);
+        return 1;
+    }
+    return 0;
+}
+
 static float tmp_adc13;
 static float tmp_adcsum;
 

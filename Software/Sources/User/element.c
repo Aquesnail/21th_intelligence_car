@@ -1134,6 +1134,12 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->prev    = ELEMENT_STRAIGHT;
         ctx->tilt_fb      = 0.0f;
         ctx->tilt_lr      = 0.0f;
+        ctx->tilt_fb_offset   = 0.0f;
+        ctx->tilt_lr_offset   = 0.0f;
+        ctx->tilt_calibrated  = 0;
+        ctx->tilt_calib_cnt   = 0;
+        ctx->tilt_fb_acc      = 0.0f;
+        ctx->tilt_lr_acc      = 0.0f;
         ctx->cross_sum_cache = 0.0f;
         ctx->cross_all_cache = 0.0f;
         tilt_lpf_ready = 0;      /* 下次 CalcTilt 重新初始化滤波器 */
@@ -1422,6 +1428,19 @@ void Element_ResetTrackIndex(ElementCtx_t *ctx)
     ctx->track_idx = 0;
 }
 
+/* ---- 手动触发倾角校准 (上位机命令 "tcalib") ---- */
+void Element_TriggerTiltCalib(ElementCtx_t *ctx)
+{
+    if (ctx == NULL) return;
+    ctx->tilt_calibrated = 0;
+    ctx->tilt_calib_cnt  = 0;
+    ctx->tilt_fb_offset  = 0.0f;
+    ctx->tilt_lr_offset  = 0.0f;
+    ctx->tilt_fb_acc     = 0.0f;
+    ctx->tilt_lr_acc     = 0.0f;
+    Debug_Log("TILT_CALIB_TRIG");
+}
+
 
 /* ================================================================
  * SECTION 10.5 — 传感器灌入 & 倾角计算 (每帧由主循环调用)
@@ -1455,6 +1474,8 @@ void Element_CalcTilt(ElementCtx_t *ctx, float gx_body, float gy_body, float gz_
     float inv_horiz;
     float raw_fb;
     float raw_lr;
+    float tilt_fb_abs;
+    float tilt_lr_abs;
 
     if (ctx == NULL) return;
 
@@ -1474,6 +1495,35 @@ void Element_CalcTilt(ElementCtx_t *ctx, float gx_body, float gy_body, float gz_
         raw_fb = 0.0f;
         raw_lr = 0.0f;
     }
+
+    /* ---- 上电放平自动校准归零 ----
+     * 检测条件: |raw_fb| < 10° 且 |raw_lr| < 10° 持续 1500 帧 (3s)
+     * 校准动作: 3 秒内所有 raw 值的平均值作为零偏, 重置 LPF, 后续每帧减去零偏 */
+    if (!ctx->tilt_calibrated) {
+        tilt_fb_abs = FABS(raw_fb);
+        tilt_lr_abs = FABS(raw_lr);
+        if (tilt_fb_abs < 10.0f && tilt_lr_abs < 10.0f) {
+            ctx->tilt_fb_acc += raw_fb;
+            ctx->tilt_lr_acc += raw_lr;
+            ctx->tilt_calib_cnt++;
+            if (ctx->tilt_calib_cnt >= 1500) {
+                ctx->tilt_fb_offset = ctx->tilt_fb_acc / 1500.0f;
+                ctx->tilt_lr_offset = ctx->tilt_lr_acc / 1500.0f;
+                ctx->tilt_calibrated = 1;
+                /* 校准后重置 LPF, 用归零后的值初始化, 消除历史积累 */
+                lpf_reset(&g_lpf_tilt_fb, 0.0f);
+                lpf_reset(&g_lpf_tilt_lr, 0.0f);
+            }
+        } else {
+            ctx->tilt_calib_cnt = 0;
+            ctx->tilt_fb_acc = 0.0f;
+            ctx->tilt_lr_acc = 0.0f;
+        }
+    }
+
+    /* 应用零偏 (未校准时 offset=0 无影响, 校准后 raw - offset ≈ 0) */
+    raw_fb -= ctx->tilt_fb_offset;
+    raw_lr -= ctx->tilt_lr_offset;
 
     /* 共用 LPF 模块滤波 — 抑制高速行驶高频振动噪声 */
     if (!tilt_lpf_ready) {

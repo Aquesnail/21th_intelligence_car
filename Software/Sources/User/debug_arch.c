@@ -24,6 +24,10 @@ debug_port_t* debug_init_struct = NULL;
 #define CMD_STATIC_REFRESH  0x58
 #define CMD_BULK_HFREQ      0xFC
 
+/* ── ID 地址空间划分 ── */
+/* 0x0000~0x00FF : 协议控制帧 (256个) 永久保留 */
+/* 0x0100~0xFFFF : 变量 ID   (65280个)            */
+#define VAR_ID_BASE         256
 
 // RTOS 事件位
 #define EVT_CONNECTED   (1 << 0) // Bit 0: 上位机已连接
@@ -144,10 +148,12 @@ static void Debug_TxCore(uint16_t id, uint8_t type, uint8_t *payload, uint8_t le
 // 发送元数据 (ID=0xFE)
 static void Debug_SendMetaPacket(uint16_t id) {
     uint8_t buf[25]; // [ID:2][Type:1][Addr:4][Category:1][Element:1][Name:16]
+    uint16_t wireId;
     if(id >= debugVarCount) return;
 
-    buf[0] = (uint8_t)(id >> 8);
-    buf[1] = (uint8_t)(id);
+    wireId = id + VAR_ID_BASE;
+    buf[0] = (uint8_t)(wireId >> 8);
+    buf[1] = (uint8_t)(wireId);
     buf[2] = debugTable[id].type;
     memcpy(&buf[3], &debugTable[id].addr, 4); // C251 4字节指针拷贝
     buf[7] = debugTable[id].category;   /* 新增 */
@@ -183,7 +189,7 @@ static void Debug_SendValuePacket(uint16_t id) {
         }
 
         if(xSemaphoreTake(xLogMutex,pdMS_TO_TICKS(10)) == pdTRUE){
-            Debug_TxCore(id, debugTable[id].type, pData, len);
+            Debug_TxCore(id + VAR_ID_BASE, debugTable[id].type, pData, len);
             xSemaphoreGive(xLogMutex);
         }
     }
@@ -262,7 +268,7 @@ void Debug_LogLongString(char *buffer) {
 
 /* ================= 注册与接收逻辑 ================= */
 
-// 注册变量
+// 注册变量 (ID = VAR_ID_BASE + 表索引)
 void Debug_Register(char* name, uint8_t type, uint8_t category, uint8_t element, void* addr) {
     if(debugVarCount < MAX_DEBUG_VARS) {
         memset(debugTable[debugVarCount].name, 0, 17);
@@ -290,9 +296,9 @@ static void Debug_SendBulkHighFreqPacket(void) {
 
             // 防止越界保护 (ID 占 2 字节大端序)
             if(var_len > 0 && (payload_len + 2 + var_len) <= sizeof(temp_buf)) {
-                // 1. 写入变量 ID (2 字节大端序)
-                temp_buf[payload_len++] = (uint8_t)(i >> 8);
-                temp_buf[payload_len++] = (uint8_t)(i);
+                // 1. 写入变量 ID (2 字节大端序, 含 VAR_ID_BASE 偏移)
+                temp_buf[payload_len++] = (uint8_t)((uint16_t)(i + VAR_ID_BASE) >> 8);
+                temp_buf[payload_len++] = (uint8_t)(i + VAR_ID_BASE);
 
                 // 2. 获取数据源指针（外设变量通过回调读取到 peri_buf）
                 if((debugTable[i].type & PeriType_Msk) != 0) {
@@ -361,26 +367,20 @@ static void Debug_ProcessIncoming(void) {
             // ---> 握手请求 (Payload: 4 Bytes Magic)
             case CMD_HANDSHAKE:
                 if(len == 4) {
-                    uint8_t was_connected;
                     g_handshake_cnt++;
-                    was_connected = (xEventGroupGetBits(xDebugEventGroup) & EVT_CONNECTED) ? 1 : 0;
 
                     if(xSemaphoreTake(xLogMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
                         Debug_TxCore(0xFD, 0x00, &rxBuf[3], 4);
                         xSemaphoreGive(xLogMutex);
                     }
 
-                    /* 仅在首次连接时启动元数据分批发, 重复握手只回复 0xFD */
-                    if (!was_connected) {
-                        xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
-                        g_meta_send_idx = 0;
-                        g_meta_sending  = 1;
-                    }
+                    /* 每次握手都重启元数据分批发, 支持上位机重连/状态恢复 */
+                    xEventGroupSetBits(xDebugEventGroup, EVT_CONNECTED);
+                    g_meta_send_idx = 0;
+                    g_meta_sending  = 1;
 
                     /* 握手排查日志（mutex 外，避免死锁） */
-                    Debug_Log("[HS] %u %s\r\n",
-                        g_handshake_cnt,
-                        was_connected ? "repeat" : "FIRST");
+                    Debug_Log("[HS] %u\r\n", g_handshake_cnt);
                 }
                 break;
 
@@ -389,26 +389,29 @@ static void Debug_ProcessIncoming(void) {
                 {
                     id = ((uint16_t)rxBuf[3] << 8) | rxBuf[4];
                     vLen = rxBuf[5];
-                    if(id < debugVarCount) {
-                        if((debugTable[id].type & PeriType_Msk) != 0) {
-                            desc = (DebugPeriDesc_t*)debugTable[id].addr;
-                            if(desc && desc->write_cb) {
-                                desc->write_cb(desc->peri_addr, &rxBuf[6], vLen);
+                    if(id >= VAR_ID_BASE) {
+                        id -= VAR_ID_BASE;
+                        if(id < debugVarCount) {
+                            if((debugTable[id].type & PeriType_Msk) != 0) {
+                                desc = (DebugPeriDesc_t*)debugTable[id].addr;
+                                if(desc && desc->write_cb) {
+                                    desc->write_cb(desc->peri_addr, &rxBuf[6], vLen);
+                                }
+                            } else {
+                                taskENTER_CRITICAL();
+                                ptr = (uint8_t *)(debugTable[id].addr);
+                                ptr[0] = rxBuf[6];
+                                if(vLen > 1) ptr[1] = rxBuf[7];
+                                if(vLen > 2) ptr[2] = rxBuf[8];
+                                if(vLen > 3) ptr[3] = rxBuf[9];
+                                taskEXIT_CRITICAL();
                             }
-                        } else {
-                            taskENTER_CRITICAL();
-                            ptr = (uint8_t *)(debugTable[id].addr);
-                            ptr[0] = rxBuf[6];
-                            if(vLen > 1) ptr[1] = rxBuf[7];
-                            if(vLen > 2) ptr[2] = rxBuf[8];
-                            if(vLen > 3) ptr[3] = rxBuf[9];
-                            taskEXIT_CRITICAL();
                         }
                     }
                 }
                 break;
 
-            // ---> 动态注册 (Payload: Type, Addr4, Name10)
+            // ---> 动态注册 (Payload: Type, Addr4, Category, Element, Name16)
             case CMD_REGISTER:
                 if(len == 23 && debugVarCount < MAX_DEBUG_VARS) {
                     debugTable[debugVarCount].type     = rxBuf[3];
@@ -418,12 +421,9 @@ static void Debug_ProcessIncoming(void) {
                     memset(debugTable[debugVarCount].name, 0, 17);
                     strncpy(debugTable[debugVarCount].name, (char*)&rxBuf[10], 16);
 
-                    // 注册成功，补发 Meta
-                    //delay_ms(2);
+                    // 注册成功，补发 Meta (内部自动加 VAR_ID_BASE)
                     debugVarCount++;//先增加计数器
                     Debug_SendMetaPacket(debugVarCount-1);
-                    //delay_ms(2);
-
                 }
                 break;
 
@@ -437,14 +437,17 @@ static void Debug_ProcessIncoming(void) {
             case CMD_STATIC_REFRESH:
                 {
                     id = ((uint16_t)rxBuf[3] << 8) | rxBuf[4];
-                    if(id < debugVarCount) {
-                        // 检查是否为静态变量
-                        if((debugTable[id].type & StaticType_Msk) != 0) {
-                            Debug_SendValuePacket(id);
+                    if(id >= VAR_ID_BASE) {
+                        id -= VAR_ID_BASE;
+                        if(id < debugVarCount) {
+                            // 检查是否为静态变量
+                            if((debugTable[id].type & StaticType_Msk) != 0) {
+                                Debug_SendValuePacket(id);
+                            }
+                        }
                     }
                 }
-            }
-            break;
+                break;
 
         }
     }
