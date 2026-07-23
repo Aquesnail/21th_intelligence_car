@@ -783,12 +783,7 @@ void System_Reset(void){
     Element_ResetOfftrackTimer(NULL);
     Element_ResetTrackIndex(NULL);
     g_ectx.current = ELEMENT_STRAIGHT;
-    g_ectx.ring_lockout_cnt   = 0;
-    g_ectx.wall_lockout_cnt   = 0;
-    g_ectx.barrel_lockout_cnt = 0;
-    g_ectx.skip_lockout_cnt   = 0;
-    g_ectx.ra_lockout_cnt     = 0;
-    g_ectx.cross_lockout_cnt  = 0;
+    g_ectx.global_exit_lockout_cnt = 0;
     g_ectx.offtrack_active = 0;
     g_ectx.total_frames = 0;
     manual_control_flag = 1;
@@ -825,12 +820,7 @@ void Change_Maunal(){
         Element_ResetOfftrackTimer(NULL);
         Element_ResetTrackIndex(NULL);
         g_ectx.current = ELEMENT_STRAIGHT;
-        g_ectx.ring_lockout_cnt   = 0;
-        g_ectx.wall_lockout_cnt   = 0;
-        g_ectx.barrel_lockout_cnt = 0;
-        g_ectx.skip_lockout_cnt   = 0;
-        g_ectx.ra_lockout_cnt     = 0;
-        g_ectx.cross_lockout_cnt  = 0;
+        g_ectx.global_exit_lockout_cnt = 0;
         g_ectx.offtrack_active = 0;
         /* total_frames 由电机激活时清零, 不在此处提前设置 */
     }else{

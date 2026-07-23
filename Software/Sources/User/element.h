@@ -24,7 +24,6 @@ typedef enum ElementType {
     ELEMENT_RIGHT_ANGLE_RIGHT,    /* 右直角转弯: 传感器极性反转屏蔽 */
 
     ELEMENT_BARREL_CLIMB,          /* 滚筒子状态: 上爬 */
-    ELEMENT_BARREL_VERTICAL_PEAK,  /* 滚筒子状态: 下行阶段的垂直角度峰值 */
     ELEMENT_BARREL_DESCEND,        /* 滚筒子状态: 下行阶段 */
 
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
@@ -118,12 +117,6 @@ typedef struct {
     /* ---- 环岛专用状态 ---- */
     unsigned char  ring_side;           /* 0=左环, 1=右环 */
     float          ring_entry_yaw;
-    unsigned short ring_lockout_cnt;    /* 环岛退出锁存倒计时 */
-    unsigned short wall_lockout_cnt;    /* 上墙退出锁存倒计时 */
-    unsigned short barrel_lockout_cnt;  /* 滚筒退出锁存倒计时 */
-    unsigned short skip_lockout_cnt;    /* 跷跷板退出锁存倒计时 */
-    unsigned short ra_lockout_cnt;      /* 直角转弯退出锁存倒计时 */
-    unsigned short cross_lockout_cnt;   /* 十字退出锁存倒计时 */
     unsigned short global_exit_lockout_cnt; /* 全局退出锁存: 退赛道元素后禁止立即进入新赛道元素 */
     unsigned short ring_frame_cnt;      /* 环岛链总帧计数 (ENTRANCE→PASS→IN_RING 超时兜底) */
 
