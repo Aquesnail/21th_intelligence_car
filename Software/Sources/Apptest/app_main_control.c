@@ -402,6 +402,17 @@ static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
 static uint8_t change_inductor = 0;
 static float roll=0.0f, pitch=0.0f, yaw=0.0f;
+/* ================================================================
+ * 打滑率观测: 通过编码器+陀螺仪反算真实轮速, 定量评估打滑程度
+ *   gyro 符号约定: 右转 ω<0, 左转 ω>0
+ *   右转(ω<0): 左轮(外侧)打滑 → slip = (L_Act - R_Act + ω·b/k) / L_Act
+ *   左转(ω>0): 右轮(外侧)打滑 → slip = (R_Act - L_Act - ω·b/k) / R_Act
+ *   直行(|ω|≤0.05): slip = 0
+ *   k = 1.7 * 0.032 = 0.0544 m/s per encoder unit
+ *   b/k = 0.115 / 0.0544 ≈ 2.114
+ * ================================================================ */
+static float g_slip_ratio = 0.0f;   /* 打滑率 (0~1, LPF滤波后, 500Hz上传) */
+static Lpf_t g_lpf_slip;            /* 打滑率低通滤波器 (20Hz截止, 平衡响应与平滑) */
 static float adc_avg_sum = 0.0f;
 static float adc_avg = 0.0f;
 static uint16_t adc_avg_count = 0;
@@ -1148,6 +1159,43 @@ void Main_Control_Task(void *pvParameters)
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
 
+                /* ===== 打滑率计算: 编码器 + 陀螺仪运动学一致性检验 ===== */
+                {
+                    float vL, vR, omega, omega_b_over_k, slip_denom;
+                    float slip_raw;
+                    vL = g_left_speed_actual;
+                    vR = g_right_speed_actual;
+                    omega = IMU_Get_Gyro_Z();
+                    omega_b_over_k = omega * 2.114f;  /* b/k = 0.115/(1.7*0.032) */
+
+                    if (omega < -0.05f) {
+                        /* 右转 (gyro ω<0): 左轮(外侧)打滑, 右轮(内侧)为运动学基准 */
+                        slip_denom = (vL > 0.0f) ? vL : -vL;
+                        if (slip_denom > 0.5f) {
+                            slip_raw = (vL - vR + omega_b_over_k) / vL;
+                        } else {
+                            slip_raw = 0.0f;
+                        }
+                    } else if (omega > 0.05f) {
+                        /* 左转 (gyro ω>0): 右轮(外侧)打滑, 左轮(内侧)为运动学基准 */
+                        slip_denom = (vR > 0.0f) ? vR : -vR;
+                        if (slip_denom > 0.5f) {
+                            slip_raw = (vR - vL - omega_b_over_k) / vR;
+                        } else {
+                            slip_raw = 0.0f;
+                        }
+                    } else {
+                        /* 直行 (|ω| ≤ 0.05 rad/s): 不计算打滑 */
+                        slip_raw = 0.0f;
+                    }
+
+                    /* 限幅到 [0, 1] */
+                    if (slip_raw < 0.0f) slip_raw = 0.0f;
+                    if (slip_raw > 1.0f) slip_raw = 1.0f;
+
+                    g_slip_ratio = lpf_update(&g_lpf_slip, slip_raw);
+                }
+
                 if(adc_start_normalize){
                     adc_avg_sum += adc_values[normalize_index];
                     adc_avg_count++;
@@ -1523,6 +1571,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_r.f));
     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_left_speed_actual);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_right_speed_actual);
+    Debug_Register("SlipRat", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_slip_ratio);
 
     /* ================================================================
      * 2. ADC 误差权重 & 归一化 — 默认值 & Debug 注册
@@ -1838,6 +1887,7 @@ void Main_Control_Task_Init(void)
     lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
     lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
     lpf_init_fc(&g_state.lpf_lat_g, 200.0f, 0.002f);      /* v·ω 侧向加速度滤波 */
+    lpf_init_fc(&g_lpf_slip, 20.0f, 0.002f);              /* 打滑率观测 (20Hz: 平衡响应速度与平滑度) */
     ma_init(&g_state.d_ma, g_params.outer.d_ma_window);
 
     /* ================================================================
