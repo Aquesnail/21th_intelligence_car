@@ -85,7 +85,8 @@ typedef struct {
 typedef struct {
     float max_output;    /* 单轮最大输出限幅 (绝对值)               */
     float min_output;    /* 单轮最小输出限幅 (死区, 低于此值置零)    */
-    float slew_rate;     /* 输出斜率限制 (每 tick 最大变化量)         */
+    float slew_rate_up;   /* 上升斜率限制 (加速每 tick 最大变化量)   */
+    float slew_rate_down; /* 下降斜率限制 (减速每 tick 最大变化量)   */
     float max_reverse;   /* 内侧轮最大反转速度 (正值, 0=禁止反转)     */
     float max_overdrive; /* 外侧轮最大超速幅值 (相对 common_speed)    */
 } SpeedOutputParams_t;
@@ -233,6 +234,14 @@ static uint32_t g_mech_state         = 0;
 /* 低通滤波器实例 (左右轮速度) */
 static Lpf_t g_lpf_left;
 static Lpf_t g_lpf_right;
+
+/* 打滑率观测: 编码器+陀螺仪运动学一致性检验 */
+static float g_slip_ratio = 0.0f;       /* 打滑率 (0~1, LPF滤波后, 500Hz上传) */
+static Lpf_t g_lpf_slip;                /* 打滑率输出低通滤波器 (20Hz截止) */
+static float g_slip_input_fc = 40.0f;   /* 输入滤波截止频率 (上位机可调, 默认40Hz) */
+static Lpf_t g_slip_lpf_vL;             /* 左轮速度输入滤波 */
+static Lpf_t g_slip_lpf_vR;             /* 右轮速度输入滤波 */
+static Lpf_t g_slip_lpf_omega;          /* 陀螺仪角速度输入滤波 */
 
 /* 速度目标 & 误差 */
 static motor_data_t g_left_speed_target;  // 运行时 memset 初始化
@@ -402,17 +411,6 @@ static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
 static uint8_t change_inductor = 0;
 static float roll=0.0f, pitch=0.0f, yaw=0.0f;
-/* ================================================================
- * 打滑率观测: 通过编码器+陀螺仪反算真实轮速, 定量评估打滑程度
- *   gyro 符号约定: 右转 ω<0, 左转 ω>0
- *   右转(ω<0): 左轮(外侧)打滑 → slip = (L_Act - R_Act + ω·b/k) / L_Act
- *   左转(ω>0): 右轮(外侧)打滑 → slip = (R_Act - L_Act - ω·b/k) / R_Act
- *   直行(|ω|≤0.05): slip = 0
- *   k = 1.7 * 0.032 = 0.0544 m/s per encoder unit
- *   b/k = 0.115 / 0.0544 ≈ 2.114
- * ================================================================ */
-static float g_slip_ratio = 0.0f;   /* 打滑率 (0~1, LPF滤波后, 500Hz上传) */
-static Lpf_t g_lpf_slip;            /* 打滑率低通滤波器 (20Hz截止, 平衡响应与平滑) */
 static float adc_avg_sum = 0.0f;
 static float adc_avg = 0.0f;
 static uint16_t adc_avg_count = 0;
@@ -735,10 +733,10 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
     diff_l = tgt_l - s->last_spd_l;
     diff_r = tgt_r - s->last_spd_r;
 
-    if (diff_l >  p->slew_rate)      tgt_l = s->last_spd_l + p->slew_rate;
-    if (diff_l < -p->slew_rate)      tgt_l = s->last_spd_l - p->slew_rate;
-    if (diff_r >  p->slew_rate)      tgt_r = s->last_spd_r + p->slew_rate;
-    if (diff_r < -p->slew_rate)      tgt_r = s->last_spd_r - p->slew_rate;
+    if (diff_l >  p->slew_rate_up)        tgt_l = s->last_spd_l + p->slew_rate_up;
+    if (diff_l < -p->slew_rate_down)      tgt_l = s->last_spd_l - p->slew_rate_down;
+    if (diff_r >  p->slew_rate_up)        tgt_r = s->last_spd_r + p->slew_rate_up;
+    if (diff_r < -p->slew_rate_down)      tgt_r = s->last_spd_r - p->slew_rate_down;
 
     /* ---- 5. 防零死区: 避免写入 0.0f 导致电机驱动停转失扭矩 ---- */
     #define SPD_ZERO_FLOOR  0.2f
@@ -1096,6 +1094,66 @@ static float RunInnerLoop(const PIParams_t *p, PIState_t *s,
     return PI_Step(p, s, target_yaw, actual_yaw);
 }
 
+/* ================================================================
+ * SlipObserver — 打滑率观测模块
+ *   通过编码器+陀螺仪运动学一致性检验, 定量评估打滑程度
+ *   gyro 符号约定: 右转 ω<0, 左转 ω>0
+ *   右转(ω<0): 左轮(外侧)打滑 → slip = (L_Act - R_Act + ω·b/k) / L_Act
+ *   左转(ω>0): 右轮(外侧)打滑 → slip = (R_Act - L_Act - ω·b/k) / R_Act
+ *   直行(|ω|≤0.05): slip = 0
+ *   k = 1.7 * 0.032 = 0.0544 m/s per encoder unit
+ *   b/k = 0.115 / 0.0544 ≈ 2.114
+ * ================================================================ */
+static void SlipObserver_Init(void)
+{
+    lpf_init_fc(&g_lpf_slip,        40.0f, 0.002f);
+    lpf_init_fc(&g_slip_lpf_vL,     g_slip_input_fc, 0.002f);
+    lpf_init_fc(&g_slip_lpf_vR,     g_slip_input_fc, 0.002f);
+    lpf_init_fc(&g_slip_lpf_omega,  g_slip_input_fc, 0.002f);
+}
+
+static void SlipObserver_Update(float vL, float vR, float omega)
+{
+    float omega_b_over_k;
+    float slip_denom;
+    float slip_raw;
+    float vL_f, vR_f, omega_f;
+
+    /* 输入低通滤波 (40Hz截止, 上位机可调) */
+    vL_f    = lpf_update(&g_slip_lpf_vL,    vL);
+    vR_f    = lpf_update(&g_slip_lpf_vR,    vR);
+    omega_f = lpf_update(&g_slip_lpf_omega, omega);
+
+    omega_b_over_k = omega_f * 2.114f;  /* b/k = 0.115/(1.7*0.032) */
+
+    if (omega_f < -0.05f) {
+        /* 右转 (gyro ω<0): 左轮(外侧)打滑, 右轮(内侧)为运动学基准 */
+        slip_denom = (vL_f > 0.0f) ? vL_f : -vL_f;
+        if (slip_denom > 0.5f) {
+            slip_raw = (vL_f - vR_f + omega_b_over_k) / vL_f;
+        } else {
+            slip_raw = 0.0f;
+        }
+    } else if (omega_f > 0.05f) {
+        /* 左转 (gyro ω>0): 右轮(外侧)打滑, 左轮(内侧)为运动学基准 */
+        slip_denom = (vR_f > 0.0f) ? vR_f : -vR_f;
+        if (slip_denom > 0.5f) {
+            slip_raw = (vR_f - vL_f - omega_b_over_k) / vR_f;
+        } else {
+            slip_raw = 0.0f;
+        }
+    } else {
+        /* 直行 (|ω| ≤ 0.05 rad/s): 不计算打滑 */
+        slip_raw = 0.0f;
+    }
+
+    /* 限幅到 [0, 1] */
+    if (slip_raw < 0.0f) slip_raw = 0.0f;
+    if (slip_raw > 1.0f) slip_raw = 1.0f;
+
+    g_slip_ratio = lpf_update(&g_lpf_slip, slip_raw);
+}
+
 /* 速度变量已迁移至 element.c, 通过 Element_GetProp 查表获取 */
 void Main_Control_Task(void *pvParameters)
 {
@@ -1159,42 +1217,7 @@ void Main_Control_Task(void *pvParameters)
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
 
-                /* ===== 打滑率计算: 编码器 + 陀螺仪运动学一致性检验 ===== */
-                {
-                    float vL, vR, omega, omega_b_over_k, slip_denom;
-                    float slip_raw;
-                    vL = g_left_speed_actual;
-                    vR = g_right_speed_actual;
-                    omega = IMU_Get_Gyro_Z();
-                    omega_b_over_k = omega * 2.114f;  /* b/k = 0.115/(1.7*0.032) */
-
-                    if (omega < -0.05f) {
-                        /* 右转 (gyro ω<0): 左轮(外侧)打滑, 右轮(内侧)为运动学基准 */
-                        slip_denom = (vL > 0.0f) ? vL : -vL;
-                        if (slip_denom > 0.5f) {
-                            slip_raw = (vL - vR + omega_b_over_k) / vL;
-                        } else {
-                            slip_raw = 0.0f;
-                        }
-                    } else if (omega > 0.05f) {
-                        /* 左转 (gyro ω>0): 右轮(外侧)打滑, 左轮(内侧)为运动学基准 */
-                        slip_denom = (vR > 0.0f) ? vR : -vR;
-                        if (slip_denom > 0.5f) {
-                            slip_raw = (vR - vL - omega_b_over_k) / vR;
-                        } else {
-                            slip_raw = 0.0f;
-                        }
-                    } else {
-                        /* 直行 (|ω| ≤ 0.05 rad/s): 不计算打滑 */
-                        slip_raw = 0.0f;
-                    }
-
-                    /* 限幅到 [0, 1] */
-                    if (slip_raw < 0.0f) slip_raw = 0.0f;
-                    if (slip_raw > 1.0f) slip_raw = 1.0f;
-
-                    g_slip_ratio = lpf_update(&g_lpf_slip, slip_raw);
-                }
+                SlipObserver_Update(g_left_speed_actual, g_right_speed_actual, IMU_Get_Gyro_Z());
 
                 if(adc_start_normalize){
                     adc_avg_sum += adc_values[normalize_index];
@@ -1572,6 +1595,7 @@ void Main_Control_Task_Init(void)
     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_left_speed_actual);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_right_speed_actual);
     Debug_Register("SlipRat", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_slip_ratio);
+    Debug_Register("SlipInFc", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_slip_input_fc);
 
     /* ================================================================
      * 2. ADC 误差权重 & 归一化 — 默认值 & Debug 注册
@@ -1754,35 +1778,40 @@ void Main_Control_Task_Init(void)
      * ================================================================ */
     g_params.speed_out.max_output = 250.0f;
     g_params.speed_out.min_output = 2.0f;
-    g_params.speed_out.slew_rate  = 40.0f;
+    g_params.speed_out.slew_rate_up   = 40.0f;
+    g_params.speed_out.slew_rate_down = 40.0f;
     g_params.speed_out.max_reverse  = 20.0f;  /* 内侧轮最大反转速度, 0=禁止反转 */
     g_params.speed_out.max_overdrive = 80.0f;  /* 外侧轮最大超速幅值 */
     g_state.last_spd_l = 0.0f;
     g_state.last_spd_r = 0.0f;
     Debug_Register("Str_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_output);
     Debug_Register("Str_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.min_output);
-    Debug_Register("Str_Spd_Slew", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.slew_rate);
+    Debug_Register("Str_Spd_SlewUp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.slew_rate_up);
+    Debug_Register("Str_Spd_SlewDn",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.slew_rate_down);
     Debug_Register("Str_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_reverse);
     Debug_Register("Str_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_overdrive);
 
     /* 墙面专用速度输出后处理 (g_params_wall.speed_out) */
     Debug_Register("Wal_Spd_MaxOut", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_output);
     Debug_Register("Wal_Spd_MinOut", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.min_output);
-    Debug_Register("Wal_Spd_Slew", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.slew_rate);
+    Debug_Register("Wal_Spd_SlewUp",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.slew_rate_up);
+    Debug_Register("Wal_Spd_SlewDn",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.slew_rate_down);
     Debug_Register("Wal_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_reverse);
     Debug_Register("Wal_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_overdrive);
 
     /* 十字专用速度输出后处理 (g_params_cross.speed_out) */
     Debug_Register("Crs_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_output);
     Debug_Register("Crs_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.min_output);
-    Debug_Register("Crs_Spd_Slew",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.slew_rate);
+    Debug_Register("Crs_Spd_SlewUp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.slew_rate_up);
+    Debug_Register("Crs_Spd_SlewDn", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.slew_rate_down);
     Debug_Register("Crs_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_reverse);
     Debug_Register("Crs_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_overdrive);
 
     /* 环岛专用速度输出后处理 (g_params_ring.speed_out) */
     Debug_Register("Rng_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_output);
     Debug_Register("Rng_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.min_output);
-    Debug_Register("Rng_Spd_Slew",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.slew_rate);
+    Debug_Register("Rng_Spd_SlewUp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.slew_rate_up);
+    Debug_Register("Rng_Spd_SlewDn", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.slew_rate_down);
     Debug_Register("Rng_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_reverse);
     Debug_Register("Rng_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_overdrive);
 
@@ -1887,7 +1916,7 @@ void Main_Control_Task_Init(void)
     lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
     lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
     lpf_init_fc(&g_state.lpf_lat_g, 200.0f, 0.002f);      /* v·ω 侧向加速度滤波 */
-    lpf_init_fc(&g_lpf_slip, 20.0f, 0.002f);              /* 打滑率观测 (20Hz: 平衡响应速度与平滑度) */
+    SlipObserver_Init();
     ma_init(&g_state.d_ma, g_params.outer.d_ma_window);
 
     /* ================================================================
