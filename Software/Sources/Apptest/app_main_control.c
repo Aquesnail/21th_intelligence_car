@@ -83,11 +83,11 @@ typedef struct {
 
 /* 速度输出后处理参数 (每个元素独立配置) */
 typedef struct {
-    float max_output;   /* 单轮最大输出限幅 (绝对值)               */
-    float min_output;   /* 单轮最小输出限幅 (死区, 低于此值置零)    */
-    float max_diff;     /* 最大差速限幅 (自动 ≤ common_speed 防反转) */
-    float min_diff;     /* 最小差速限幅 (死区, |diff| 低于此值置零)  */
-    float slew_rate;    /* 输出斜率限制 (每 tick 最大变化量)         */
+    float max_output;    /* 单轮最大输出限幅 (绝对值)               */
+    float min_output;    /* 单轮最小输出限幅 (死区, 低于此值置零)    */
+    float slew_rate;     /* 输出斜率限制 (每 tick 最大变化量)         */
+    float max_reverse;   /* 内侧轮最大反转速度 (正值, 0=禁止反转)     */
+    float max_overdrive; /* 外侧轮最大超速幅值 (相对 common_speed)    */
 } SpeedOutputParams_t;
 
 /* 完整控制参数集 (一个元素配一套, 上位机在线调参) */
@@ -408,6 +408,7 @@ static uint16_t adc_avg_count = 0;
 static uint8_t display_adc_original = 0;
 static float adc_normalized[4]; // 运行时 memset 初始化
 static float adc_feed_display[4]; /* 重排后的逻辑值, 供 HIGH_FREQ 上传, 与状态机 adc[0]~[3] 一一对应 */
+
 static void NormalizeADC(uint32_t peri_addr,void *pData,uint8_t len){
     uint8_t* ptr = (uint8_t *)pData;
     (void)peri_addr;
@@ -647,7 +648,6 @@ static float common_speed=70.0f;
 /* 外环带宽限制: 斜率限制 + 低通滤波 — 参数g_params + 状态g_state */
 
 /* PI 已移入 g_params.inner + g_state.inner */
-static float speed_target_r_nagtive=0.0f;
 static float err_max = 120.0f;
 static element_t current_element = ELEMENT_STRAIGHT;
 static element_t prev_element    = ELEMENT_STRAIGHT;  /* 上一次元素, 用于检测切换 */
@@ -684,7 +684,7 @@ static float g_ss_step      = 2.0f;
 /* ================================================================
  * ApplySpeedOutputParams — 速度输出后处理
  *   输入: common_speed (查表速度), diff_speed (内环PI输出)
- *   处理: 差速死区 → 差速限幅 → 速度合成 → 单轮限幅 → 斜率限制
+ *   处理: 速度合成 → 内外侧钳位 → 单轮限幅 → 死区 → 斜率限制
  *   输出: 写入全局 speed_target_l.f / speed_target_r.f
  * ================================================================ */
 static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t *s,
@@ -693,26 +693,22 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
     float raw_l, raw_r;
     float tgt_l, tgt_r;
     float diff_l, diff_r;
-    float eff_max_diff;
+    (void)diff_speed;  /* diff_speed 在函数内不再直接钳位, 保留参数以兼容调用 */
 
-    /* ---- 1. 差速死区 ---- */
-  //  if (*diff_speed < p->min_diff && *diff_speed > -p->min_diff) {
-  //      *diff_speed = 0.0f;
-   // }
-
-    /* ---- 2. 差速限幅 ---- */
-    eff_max_diff = p->max_diff;
-    // if (eff_max_diff > common_speed) {
-    //     eff_max_diff = common_speed;
-    // }
-    if (*diff_speed >  eff_max_diff) *diff_speed =  eff_max_diff;
-    if (*diff_speed < -eff_max_diff) *diff_speed = -eff_max_diff;
-
-    /* ---- 3. 速度合成 ---- */
+    /* ---- 1. 速度合成 ---- */
+    /* 左右统一约定: 正值=车轮前进, 负值=反转. 物理方向差异由 SPD_WR_SIGN 统一处理 */
     raw_l = common_speed - *diff_speed;
-    raw_r = -(common_speed + *diff_speed); //后面都是对称的判断，所以这里取负号没有问题
+    raw_r = common_speed + *diff_speed;
 
-    /* ---- 4. 单轮输出限幅 ---- */
+    /* ---- 2. 内外侧轮速度钳位 ---- */
+    /* 内侧轮反转上限: 允许反转不超过 max_reverse */
+    if (raw_l < -p->max_reverse) raw_l = -p->max_reverse;
+    if (raw_r < -p->max_reverse) raw_r = -p->max_reverse;
+    /* 外侧轮超速上限: 允许超出 common_speed 不超过 max_overdrive */
+    if (raw_l > common_speed + p->max_overdrive) raw_l = common_speed + p->max_overdrive;
+    if (raw_r > common_speed + p->max_overdrive) raw_r = common_speed + p->max_overdrive;
+
+    /* ---- 3. 单轮输出限幅 ---- */
     if (raw_l >  p->max_output) raw_l =  p->max_output;
     if (raw_l < -p->max_output) raw_l = -p->max_output;
     if (raw_r >  p->max_output) raw_r =  p->max_output;
@@ -722,7 +718,7 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
     if (raw_l < p->min_output && raw_l > -p->min_output) raw_l = 0.0f;
     if (raw_r < p->min_output && raw_r > -p->min_output) raw_r = 0.0f;
 
-    /* ---- 5. 斜率限制 ---- */
+    /* ---- 4. 斜率限制 ---- */
     tgt_l = raw_l;
     tgt_r = raw_r;
     diff_l = tgt_l - s->last_spd_l;
@@ -732,6 +728,19 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
     if (diff_l < -p->slew_rate)      tgt_l = s->last_spd_l - p->slew_rate;
     if (diff_r >  p->slew_rate)      tgt_r = s->last_spd_r + p->slew_rate;
     if (diff_r < -p->slew_rate)      tgt_r = s->last_spd_r - p->slew_rate;
+
+    /* ---- 5. 防零死区: 避免写入 0.0f 导致电机驱动停转失扭矩 ---- */
+    #define SPD_ZERO_FLOOR  0.2f
+    if (tgt_l > 0.0f && tgt_l <  SPD_ZERO_FLOOR) tgt_l =  SPD_ZERO_FLOOR;
+    if (tgt_l < 0.0f && tgt_l > -SPD_ZERO_FLOOR) tgt_l = -SPD_ZERO_FLOOR;
+    if (tgt_r > 0.0f && tgt_r <  SPD_ZERO_FLOOR) tgt_r =  SPD_ZERO_FLOOR;
+    if (tgt_r < 0.0f && tgt_r > -SPD_ZERO_FLOOR) tgt_r = -SPD_ZERO_FLOOR;
+
+    /* ---- 6. 最终限幅: slew / 死区处理后重新钳位, 防止元素切换/在线调参导致溢出 ---- */
+    if (tgt_l >  p->max_output) tgt_l =  p->max_output;
+    if (tgt_l < -p->max_output) tgt_l = -p->max_output;
+    if (tgt_r >  p->max_output) tgt_r =  p->max_output;
+    if (tgt_r < -p->max_output) tgt_r = -p->max_output;
 
     /* 存储状态 */
     s->last_spd_l = tgt_l;
@@ -745,14 +754,22 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
 
 /* 统一速度写入包装: 传入逻辑速度, 内部用 WR_SIGN 适配下位机方向 */
 /* ================================================================
- * 速度方向适配宏 (下位机方向约定变更时只需改这 4 个宏)
- *   WR_SIGN: 写入下位机的最终符号
- *   RD_SIGN: 上位机读取/显示的符号
+ * 电机物理方向配置 (电机装反时只需修改对应的 WR/RD 宏)
+ *
+ *   约定: speed_target 域内 正值=车轮前进 (左右统一)
+ *
+ *   【电机装反修改指南】
+ *   若某电机前进时实际倒退 → 将该电机的 WR_SIGN 和 RD_SIGN 同时取反:
+ *     - 右轮装反: SPD_WR_SIGN_R → -1,  SPD_RD_SIGN_R → -1
+ *     - 左轮装反: SPD_WR_SIGN_L → +1,  SPD_RD_SIGN_L → +1
+ *     - 两轮都反: 四个宏全部取反
+ *
+ *   注意: 只改这里即可, 速度合成公式和手动模式都无需再改。
  * ================================================================ */
-#define SPD_WR_SIGN_R  (-1)   /* 右电机 (REG_A) 写入符号 */
+#define SPD_WR_SIGN_R  (+1)   /* 右电机 (REG_A) 写入符号 */
 #define SPD_WR_SIGN_L  (-1)   /* 左电机 (REG_B) 写入符号 */
-#define SPD_RD_SIGN_R  (1)   /* 右电机 读取/显示符号 */
-#define SPD_RD_SIGN_L  (-1)    /* 左电机 读取/显示符号 */
+#define SPD_RD_SIGN_R  (1)    /* 右电机 读取/显示符号 */
+#define SPD_RD_SIGN_L  (-1)   /* 左电机 读取/显示符号 */
 static void Motor_Write_Speeds(float spd_r, float spd_l)
 {
     motor_data_t dr, dl;
@@ -1344,7 +1361,7 @@ void Main_Control_Task(void *pvParameters)
                     ApplySpeedOutputParams(&p->speed_out, &g_state,
                                             common_speed, &differential_speed);
                 }
-                speed_target_r_nagtive = -speed_target_r.f;
+
 
                 /* 处理 Debug 系统延迟的 PID 参数写入 / 手动模式超时保护 / 驾驶指令 */
                 if(manual_control_flag){
@@ -1367,19 +1384,20 @@ void Main_Control_Task(void *pvParameters)
                     }
 
                     /* 执行驾驶指令 (标志位 -> 电机写入) */
+                    /* 约定: speed_a/speed_b 正值=车轮前进 (左右统一), WR_SIGN 负责适配寄存器 */
                     if (g_drive_direction != DRIVE_STOP) {
                         if (g_drive_direction == DRIVE_FORWARD) {
-                            speed_a.f = -g_ss_magnitude;
-                            speed_b.f = g_ss_magnitude;
+                            speed_a.f =  g_ss_magnitude;
+                            speed_b.f =  g_ss_magnitude;
                         } else if (g_drive_direction == DRIVE_BACKWARD) {
-                            speed_a.f = g_ss_magnitude;
+                            speed_a.f = -g_ss_magnitude;
                             speed_b.f = -g_ss_magnitude;
                         } else if (g_drive_direction == DRIVE_LEFT) {
-                            speed_a.f = -g_ss_magnitude;
+                            speed_a.f =  g_ss_magnitude;   /* 右前+左后=原地左转 */
                             speed_b.f = -g_ss_magnitude;
                         } else if (g_drive_direction == DRIVE_RIGHT) {
-                            speed_a.f = g_ss_magnitude;
-                            speed_b.f = g_ss_magnitude;
+                            speed_a.f = -g_ss_magnitude;   /* 右后+左前=原地右转 */
+                            speed_b.f =  g_ss_magnitude;
                         }
                         Motor_Write_Speeds(speed_a.f, speed_b.f);
                     }else{
@@ -1502,7 +1520,7 @@ void Main_Control_Task_Init(void)
    // Debug_Register("ErrB_Fac_Yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_brake_yaw);
     /* 电机 */
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_l.f));
-    Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_r_nagtive));
+    Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_r.f));
     Debug_Register("L_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_left_speed_actual);
     Debug_Register("R_Act", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_right_speed_actual);
 
@@ -1687,37 +1705,37 @@ void Main_Control_Task_Init(void)
      * ================================================================ */
     g_params.speed_out.max_output = 250.0f;
     g_params.speed_out.min_output = 2.0f;
-    g_params.speed_out.max_diff   = 200.0f;
-    g_params.speed_out.min_diff   = 1.0f;
     g_params.speed_out.slew_rate  = 40.0f;
+    g_params.speed_out.max_reverse  = 20.0f;  /* 内侧轮最大反转速度, 0=禁止反转 */
+    g_params.speed_out.max_overdrive = 80.0f;  /* 外侧轮最大超速幅值 */
     g_state.last_spd_l = 0.0f;
     g_state.last_spd_r = 0.0f;
     Debug_Register("Str_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_output);
     Debug_Register("Str_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.min_output);
-    Debug_Register("Str_Spd_DiffMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_diff);
-    Debug_Register("Str_Spd_DiffMin", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.min_diff);
     Debug_Register("Str_Spd_Slew", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.slew_rate);
+    Debug_Register("Str_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_reverse);
+    Debug_Register("Str_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_overdrive);
 
     /* 墙面专用速度输出后处理 (g_params_wall.speed_out) */
     Debug_Register("Wal_Spd_MaxOut", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_output);
     Debug_Register("Wal_Spd_MinOut", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.min_output);
-    Debug_Register("Wal_Spd_DiffMx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_diff);
-    Debug_Register("Wal_Spd_DiffMn",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.min_diff);
     Debug_Register("Wal_Spd_Slew", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.slew_rate);
+    Debug_Register("Wal_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_reverse);
+    Debug_Register("Wal_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_WALL, &g_params_wall.speed_out.max_overdrive);
 
     /* 十字专用速度输出后处理 (g_params_cross.speed_out) */
     Debug_Register("Crs_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_output);
     Debug_Register("Crs_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.min_output);
-    Debug_Register("Crs_Spd_DiffMx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_diff);
-    Debug_Register("Crs_Spd_DiffMn",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.min_diff);
     Debug_Register("Crs_Spd_Slew",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.slew_rate);
+    Debug_Register("Crs_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_reverse);
+    Debug_Register("Crs_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_CROSS, &g_params_cross.speed_out.max_overdrive);
 
     /* 环岛专用速度输出后处理 (g_params_ring.speed_out) */
     Debug_Register("Rng_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_output);
     Debug_Register("Rng_Spd_MinOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.min_output);
-    Debug_Register("Rng_Spd_DiffMx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_diff);
-    Debug_Register("Rng_Spd_DiffMn",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.min_diff);
     Debug_Register("Rng_Spd_Slew",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.slew_rate);
+    Debug_Register("Rng_Spd_RevMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_reverse);
+    Debug_Register("Rng_Spd_OvrDrv", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_RING, &g_params_ring.speed_out.max_overdrive);
 
     /* ================================================================
      * 6. 模糊 PID — 默认值 & Debug 注册 (三套独立: 默认 / 十字 / 环岛)

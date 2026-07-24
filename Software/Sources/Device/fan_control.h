@@ -5,8 +5,10 @@
 
 /* ================================================================
  * 风扇缓启动 (Fan Soft-Start) 参数宏
- *   启动时从 FAN_SS_START_DUTY 线性插值到目标占空比
- *   总时长(s) = FAN_SS_BASE_TIME + (target - FAN_SS_DUTY_MIN) / FAN_SS_STEP_DUTY * FAN_SS_STEP_TIME
+ *   启动后先在 FAN_SS_START_DUTY 保持 FAN_SS_HOLD_TIME_SEC 秒,
+ *   再从 FAN_SS_START_DUTY 线性插值到目标占空比
+ *   总时长(s) = FAN_SS_HOLD_TIME_SEC + FAN_SS_BASE_TIME
+ *             + (target - FAN_SS_DUTY_MIN) / FAN_SS_STEP_DUTY * FAN_SS_STEP_TIME
  *   启动完成后直接写入, 不再限斜率 (无感无刷已进闭环)
  * ================================================================ */
 #define FAN_SS_DUTY_MIN      250     /* 占空比下限 (钳位)               */
@@ -15,6 +17,7 @@
 #define FAN_SS_STEP_DUTY     40      /* 每步占空比增量 (用于计算时长)   */
 #define FAN_SS_STEP_TIME_SEC 1.0f    /* 每步对应时间 (秒)               */
 #define FAN_SS_BASE_TIME_SEC 1.0f    /* 保底启动时间 (秒)               */
+#define FAN_SS_HOLD_TIME_SEC 4.0f    /* 启动后保持起始占空比时长 (秒)    */
 
 /* 风扇占空比变量 (上位机可读写, 缓启动以此为目标值) */
 extern uint16_t fan_D;

@@ -97,6 +97,7 @@ void Fan_SoftStart_Step(void)
 {
     TickType_t now;
     TickType_t elapsed;
+    TickType_t hold_ticks;
     float progress;
     float duty_f;
     uint16_t duty;
@@ -105,14 +106,18 @@ void Fan_SoftStart_Step(void)
 
     now     = xTaskGetTickCount();
     elapsed = now - g_fan_ss_start_tick;
+    hold_ticks = pdMS_TO_TICKS((TickType_t)(FAN_SS_HOLD_TIME_SEC * 1000.0f));
 
-    if (elapsed >= g_fan_ss_ramp_ticks) {
+    if (elapsed < hold_ticks) {
+        /* 保持起始占空比, 等待风扇稳定后再开始爬升 */
+        Fan_PWM_Write(FAN_SS_START_DUTY);
+    } else if (elapsed >= hold_ticks + g_fan_ss_ramp_ticks) {
         /* 缓启动完成, 之后直接写入 */
         Fan_PWM_Write(g_fan_ss_target);
         g_fan_ss_active = 0;
     } else {
-        /* 浮点线性插值: 起始 → 目标 */
-        progress = (float)elapsed / (float)g_fan_ss_ramp_ticks;
+        /* 浮点线性插值: 起始 → 目标 (扣除保持时间后按进度计算) */
+        progress = (float)(elapsed - hold_ticks) / (float)g_fan_ss_ramp_ticks;
         duty_f   = (float)FAN_SS_START_DUTY
                  + progress * (float)((int)g_fan_ss_target - FAN_SS_START_DUTY);
         duty = (uint16_t)duty_f;
