@@ -58,7 +58,8 @@ typedef struct {
 /* 劫持点1→劫持点3: 外环控制参数 (不含 Kd_diff, 它在 RunOuterLoop 内作为局部变量) */
 typedef struct {
     float   outer_slew_max;
-    float   outer_lpf_fc;
+    float   outer_lpf_fc;     /* 第一节 LPF 截止频率 (Hz) */
+    float   outer_lpf_fc2;    /* 第二节 LPF 截止频率 (Hz) */
     float   gyro_lpf_fc;
     float   Kd_diff_high;
     float   Kd_diff_low;
@@ -97,7 +98,8 @@ typedef struct {
 typedef struct {
     float   err_slewed;
     float   err_filtered;
-    Lpf_t   lpf_outer;
+    Lpf_t   lpf_outer;       /* 第一节 LPF: 40Hz */
+    Lpf_t   lpf_outer2;      /* 第二节 LPF: 60Hz */
     float   last_err;
     MovingAvg_t d_ma;
     float   filtered_d_term;
@@ -145,6 +147,7 @@ static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float se
     s->i_term          = 0.0f;
     s->filtered_d_term = 0.0f;
     lpf_reset(&s->lpf_outer, seed_val);
+    lpf_reset(&s->lpf_outer2, seed_val);
     lpf_reset(&s->lpf_lat_g, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
     s->lat_g_filtered        = 0.0f;
@@ -170,6 +173,8 @@ static const ControlParams_t* GetActiveParams(element_t e)
     case ELEMENT_RING_LEFT_PASS:
     case ELEMENT_RING_RIGHT_PASS:
     case ELEMENT_IN_RING:
+    case ELEMENT_RING_LEFT_EXIT:
+    case ELEMENT_RING_RIGHT_EXIT:
         return &g_params_ring;
     case ELEMENT_WALL:
     case ELEMENT_WALL_CLIMB:
@@ -412,7 +417,7 @@ static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     *(char *)(peri_addr) = (char)count;
 }
 static float normalized_adc_k[4] = {0.7416725158691406f, 0.8736371397972107f, 0.9320777058601379f, 0.9962461590766907f}; // ADC 归一化系数数组
-static float user_calib_k[4] = {1.0f, 1.0f, 1.0f, 1.0f};  /* 用户个性化校准系数 [横左,竖左,横右,竖右] 逻辑位置索引 */
+float user_calib_k[4] = {1.0f, 1.0f, 1.0f, 1.0f};  /* 用户个性化校准系数 [横左,竖左,横右,竖右] 逻辑位置索引 */
 static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
 static uint8_t change_inductor = 0;
@@ -478,6 +483,7 @@ static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
     s->target_yaw      = 0.0f;
     s->gyro_filtered   = 0.0f;
     lpf_reset(&s->lpf_outer, 0.0f);
+    lpf_reset(&s->lpf_outer2, 0.0f);
     lpf_reset(&s->lpf_gyro,  0.0f);
     lpf_reset(&s->lpf_lat_g, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
@@ -525,6 +531,33 @@ static void OuterLpf_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     g_state.lpf_outer.freq = new_fc;
     /* 不重置 output, 保持滤波连续性 */
 }
+
+/* 外环 LPF 第二节截止频率读写回调 (上位机在线调参) */
+static void OuterLpf2_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float val;
+    (void)len;
+    (void)peri_addr;
+    val = g_params.outer.outer_lpf_fc2;
+    memcpy(pData, &val, sizeof(float));
+}
+
+static void OuterLpf2_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
+{
+    float new_fc;
+    float alpha;
+    (void)len;
+    (void)peri_addr;
+    memcpy(&new_fc, pData, sizeof(float));
+    if (new_fc < 1.0f)  new_fc = 1.0f;
+    if (new_fc > 400.0f) new_fc = 400.0f;
+    g_params.outer.outer_lpf_fc2 = new_fc;
+    alpha = 1.0f - (float)exp(-6.2831853f * new_fc * 0.002f);
+    g_state.lpf_outer2.alpha = alpha;
+    g_state.lpf_outer2.freq = new_fc;
+    /* 不重置 output, 保持滤波连续性 */
+}
+
 /* 微分移动平均窗口读写回调 (上位机在线调参) */
 static void D_MA_Win_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
@@ -589,7 +622,8 @@ static DebugPeriDesc_t g_right_speed_desc = {REG_A_SPEED_TARGET, Motor_Reg_Read_
 static DebugPeriDesc_t g_left_speed_desc  = {REG_B_SPEED_TARGET,Motor_Reg_Read_Cb, Motor_Reg_Write_Cb}; // 只写当前左轮速度
 static DebugPeriDesc_t g_ec_ma_count_desc = {0, EC_MA_Read_Cb, EC_MA_Write_Cb}; /* EC移动平均窗口大小 */
 
-static DebugPeriDesc_t g_outer_lpf_fc_desc = {0, OuterLpf_Read_Cb, OuterLpf_Write_Cb}; /* 外环LPF截止频率 */
+static DebugPeriDesc_t g_outer_lpf_fc_desc  = {0, OuterLpf_Read_Cb,  OuterLpf_Write_Cb};  /* 外环LPF第一节截止频率 */
+static DebugPeriDesc_t g_outer_lpf_fc2_desc = {0, OuterLpf2_Read_Cb, OuterLpf2_Write_Cb}; /* 外环LPF第二节截止频率 */
 static DebugPeriDesc_t g_d_ma_win_desc     = {0, D_MA_Win_Read_Cb, D_MA_Win_Write_Cb}; /* 微分MA窗口 */
 extern IMU_Filter_t *IMU_Filter_Data;
 
@@ -1015,6 +1049,7 @@ static float RunOuterLoop(const OuterLoopParams_t *p, ControlState_t *s,
     float slew_diff;
     float err_diff;
     float raw_d_term;
+    float err_lpf1;  /* 第一节 LPF 输出, 级联给第二节 */
     /* 1. 斜率限制 → 2. 低通滤波 */
     slew_diff = err_angle - s->err_slewed;
     if (slew_diff > p->outer_slew_max) {
@@ -1024,7 +1059,9 @@ static float RunOuterLoop(const OuterLoopParams_t *p, ControlState_t *s,
     } else {
         s->err_slewed = err_angle;
     }
-    s->err_filtered = lpf_update(&s->lpf_outer, s->err_slewed);
+    /* 两节一阶 LPF 级联: 40Hz → 60Hz */
+    err_lpf1       = lpf_update(&s->lpf_outer,  s->err_slewed);
+    s->err_filtered = lpf_update(&s->lpf_outer2, err_lpf1);
 
     /* 3. 模糊 PID */
     s->pid_output = FuzzyPID_Step(pid, s->err_filtered);
@@ -1592,7 +1629,8 @@ void Main_Control_Task_Init(void)
      * 3. 外环控制参数 (OuterLoop) — 默认值 & Debug 注册
      * ================================================================ */
     g_params.outer.outer_slew_max  = 100.0f;
-    g_params.outer.outer_lpf_fc    = 100.0f;
+    g_params.outer.outer_lpf_fc    = 40.0f;   /* 第一节 40Hz */
+    g_params.outer.outer_lpf_fc2   = 60.0f;   /* 第二节 60Hz */
     g_params.outer.gyro_lpf_fc     = 100.0f;
     g_params.outer.Kd_diff_thresh  = 100.0f;
     g_params.outer.Kd_diff_high  = 0.0f;
@@ -1607,12 +1645,9 @@ void Main_Control_Task_Init(void)
     g_params.outer.err_brake_safe = 55.0f;
     g_params.outer.outer_brake_k_err  = 0.0f;
     Debug_Register("Str_Out_SlewMax",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_slew_max);
-   // Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
-   // Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
-    //Debug_Register("KdDifLo",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_low);
-    //Debug_Register("KdDifTh",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_thresh);
-    //Debug_Register("DiffDead",  DBG_FLOAT  | STATIC_TYPE, &g_params.outer.diff_deadband);
-   // Debug_Register("D_MA_Win",  DBG_UINT16 | STATIC_TYPE | PERI_TYPE, &g_d_ma_win_desc);
+    /* 外环两节 LPF 截止频率 (PERI_TYPE: 写时自动更新滤波器 alpha) */
+    Debug_Register("Str_Out_LPFc1",   DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_outer_lpf_fc_desc);
+    Debug_Register("Str_Out_LPFc2",   DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_outer_lpf_fc2_desc);
     //Debug_Register("Out_Ki",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_Ki);
     //Debug_Register("OutILim",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_limit);
     //Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
@@ -1833,8 +1868,9 @@ void Main_Control_Task_Init(void)
      * ================================================================ */
     lpf_init_fc(&g_lpf_left,              400.0f, 0.002f);
     lpf_init_fc(&g_lpf_right,             400.0f, 0.002f);
-    lpf_init_fc(&g_state.lpf_outer, g_params.outer.outer_lpf_fc, 0.002f);
-    lpf_init_fc(&g_state.lpf_gyro,  g_params.outer.gyro_lpf_fc,  0.002f);
+    lpf_init_fc(&g_state.lpf_outer,  g_params.outer.outer_lpf_fc,  0.002f);
+    lpf_init_fc(&g_state.lpf_outer2, g_params.outer.outer_lpf_fc2, 0.002f);
+    lpf_init_fc(&g_state.lpf_gyro,   g_params.outer.gyro_lpf_fc,   0.002f);
     lpf_init_fc(&g_state.lpf_lat_g, 200.0f, 0.002f);      /* v·ω 侧向加速度滤波 */
     SlipObserver_Init();
     ma_init(&g_state.d_ma, g_params.outer.d_ma_window);

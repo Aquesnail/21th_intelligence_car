@@ -26,10 +26,10 @@ typedef enum ElementType {
     ELEMENT_BARREL_CLIMB,          /* 滚筒子状态: 上爬 */
     ELEMENT_BARREL_DESCEND,        /* 滚筒子状态: 下行阶段 */
 
+    ELEMENT_RING_LEFT_EXIT,       /* 左环出环矫正 */
+    ELEMENT_RING_RIGHT_EXIT,      /* 右环出环矫正 */
+
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
-    /* 以下保留，暂未使用 */
-    ELEMENT_RING_LEFT_EXIT,
-    ELEMENT_RING_RIGHT_EXIT,
     
   //  ELEMENT_TIMER,                  /* 定时器元素: 每次开始起跑时清零，以秒为单位计时，计时到了若发现倾角正常则自动停车*/
 } element_t;

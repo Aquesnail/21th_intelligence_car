@@ -7,6 +7,7 @@
 #include "lpf.h"
 #include <string.h>
 extern unsigned char manual_control_flag;
+extern float user_calib_k[4];  /* app_main_control.c 中定义, 用户校准系数 [横左,竖左,横右,竖右] */
 
 #define FABS(x) ((x) > 0.0f ? (x) : -(x))
 
@@ -91,7 +92,11 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
     { ELEMENT_BARREL_CLIMB, "BAR_CLIMB", &g_speed_barrel, &g_fan_d_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
     /* [16] ELEMENT_BARREL_DESCEND */
     { ELEMENT_BARREL_DESCEND, "BAR_DESC", &g_speed_barrel, &g_fan_d_barrel, 255, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 品红 */
-    /* [18] ELEMENT_SAFETY_STOP */
+    /* [17] ELEMENT_RING_LEFT_EXIT */
+    { ELEMENT_RING_LEFT_EXIT,  "RING_L_EXIT", &g_speed_ring, &g_fan_d_ring, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
+    /* [18] ELEMENT_RING_RIGHT_EXIT */
+    { ELEMENT_RING_RIGHT_EXIT, "RING_R_EXIT", &g_speed_ring, &g_fan_d_ring, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
+    /* [19] ELEMENT_SAFETY_STOP */
     { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 0, 255, 0, 0, CTRL_BRAKE, NULL, 0 }, /* 红 */
 };
 
@@ -296,6 +301,12 @@ static float    g_ring_exit_yaw_thresh  = 300.0f;  /* 退环所需 yaw 累计角
 static unsigned short g_ring_timeout_frames   = 400;  /* 环岛总超时 (帧, ≈0.8s) */
 static float    g_ring_veto_vertical_sum = 600.0f;  /* 竖向电感和否决阈值: adc[1]+adc[3] > 此值 → 十字特征, 否决进环 */
 
+/* ---- 环岛出环矫正参数 ---- */
+static float    g_ring_exit_corr_k0   = 2.0f;   /* 左环出环: CalibK[0] 临时放大系数 (横左电感) */
+static float    g_ring_exit_corr_k2   = 2.0f;   /* 右环出环: CalibK[2] 临时放大系数 (横右电感) */
+static unsigned short g_ring_exit_corr_frames = 100; /* 出环矫正持续帧数 (默认100帧=200ms) */
+static float    g_ring_exit_corr_k_saved = 1.0f; /* 进入矫正前保存的原始 CalibK 值 */
+
 /* ---- 环岛 Check ---- */
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
 {
@@ -350,6 +361,53 @@ static unsigned char Check_RingExit(ElementCtx_t *ctx)
 static unsigned char Check_RingTimeout(ElementCtx_t *ctx)
 {
     return (ctx->ring_frame_cnt >= g_ring_timeout_frames) ? 1 : 0;
+}
+
+/* ---- 出环矫正 Check (按 ring_side 分流) ---- */
+static unsigned char Check_RingLeftExit(ElementCtx_t *ctx)
+{
+    if (ctx->ring_side != 0) return 0;
+    return Check_RingExit(ctx);
+}
+
+static unsigned char Check_RingRightExit(ElementCtx_t *ctx)
+{
+    if (ctx->ring_side != 1) return 0;
+    return Check_RingExit(ctx);
+}
+
+static unsigned char Check_RingExitCorrTimeout(ElementCtx_t *ctx)
+{
+    return (ctx->elem_frame_cnt >= g_ring_exit_corr_frames) ? 1 : 0;
+}
+
+/* ---- 出环矫正 Enter ---- */
+static void Enter_RingLeftExit(ElementCtx_t *ctx)
+{
+    ctx->elem_frame_cnt = 0;
+    /* 保存并放大左环出环: CalibK[0] (横左电感) */
+    g_ring_exit_corr_k_saved = user_calib_k[0];
+    user_calib_k[0] = g_ring_exit_corr_k0;
+}
+
+static void Enter_RingRightExit(ElementCtx_t *ctx)
+{
+    ctx->elem_frame_cnt = 0;
+    /* 保存并放大右环出环: CalibK[2] (横右电感) */
+    g_ring_exit_corr_k_saved = user_calib_k[2];
+    user_calib_k[2] = g_ring_exit_corr_k2;
+}
+
+static void Enter_RingExitCorrToStraight(ElementCtx_t *ctx)
+{
+    /* 恢复被修改的 CalibK 通道 */
+    if (ctx->ring_side == 0) {
+        user_calib_k[0] = g_ring_exit_corr_k_saved;
+    } else {
+        user_calib_k[2] = g_ring_exit_corr_k_saved;
+    }
+    VoteWin_Reset(&ctx->vote_ring);
+    Enter_ExitToStraight(ctx);
 }
 
 /* ---- 环岛 Enter ---- */
@@ -889,6 +947,8 @@ static unsigned short g_skip_global_lock  = 30;  /* 跷跷板退出后全局锁�
 static unsigned short GetGlobalExitLockFrames(element_t e)
 {
     switch (e) {
+    case ELEMENT_RING_LEFT_EXIT:
+    case ELEMENT_RING_RIGHT_EXIT:
     case ELEMENT_IN_RING:
         return g_ring_global_lock;
     case ELEMENT_WALL_CLIMB:
@@ -957,7 +1017,12 @@ static const Transition_t g_transitions[] = {
     /* 环岛 */
     { ELEMENT_RING_LEFT_PASS,  ELEMENT_IN_RING, 0, Check_PassTimeout, Enter_InRing },
     { ELEMENT_RING_RIGHT_PASS, ELEMENT_IN_RING, 0, Check_PassTimeout, Enter_InRing },
-    { ELEMENT_IN_RING, ELEMENT_STRAIGHT, 0, Check_RingExit, Enter_RingExit },
+    /* IN_RING 出环按 ring_side 分流到矫正状态 */
+    { ELEMENT_IN_RING, ELEMENT_RING_LEFT_EXIT,  0, Check_RingLeftExit,  Enter_RingLeftExit },
+    { ELEMENT_IN_RING, ELEMENT_RING_RIGHT_EXIT, 0, Check_RingRightExit, Enter_RingRightExit },
+    /* 出环矫正 → STRAIGHT (超时) */
+    { ELEMENT_RING_LEFT_EXIT,  ELEMENT_STRAIGHT, 0, Check_RingExitCorrTimeout, Enter_RingExitCorrToStraight },
+    { ELEMENT_RING_RIGHT_EXIT, ELEMENT_STRAIGHT, 0, Check_RingExitCorrTimeout, Enter_RingExitCorrToStraight },
     { ELEMENT_IN_RING, ELEMENT_STRAIGHT, 1, Check_RingTimeout, Enter_RingTimeout },
 
     /* 上墙线性子状态链: WALL → CLIMB → HORIZONTAL → DESCEND → STRAIGHT */
@@ -1177,6 +1242,10 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_RingTimeout",DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_timeout_frames);
     Debug_Register("El_RingOLAng", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ol_ring_angle);
     Debug_Register("El_RingVetoVt", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_veto_vertical_sum);
+    /* 出环矫正 */
+    Debug_Register("El_RingExCorrK0", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_corr_k0);
+    Debug_Register("El_RingExCorrK2", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_corr_k2);
+    Debug_Register("El_RingExCorrTO", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_corr_frames);
 
     /* ================================================================
      * 4. 上墙 WALL — 默认值 & Debug 注册
