@@ -110,14 +110,14 @@ uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜�
 #define TRACK_TABLE_LEN  8
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
-    ELEMENT_BARREL,
-    ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_SKIP,
+    ELEMENT_BARREL,
+    ELEMENT_RING_RIGHT_ENTRANCE,
     ELEMENT_WALL,
-    
-    ELEMENT_BARREL,
-    ELEMENT_RING_LEFT_ENTRANCE,
+
     ELEMENT_SKIP,
+    ELEMENT_BARREL,
+    ELEMENT_RING_RIGHT_ENTRANCE,
     ELEMENT_WALL,
     
     
@@ -1301,9 +1301,9 @@ void Element_Init(ElementCtx_t *ctx)
      *    需要恢复时取消注释即可
      * ================================================================ */
     /* 环岛 */
-    // Debug_Register("Ring_WinLen", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.len);
-    // Debug_Register("Ring_EntThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.entry_thresh);
-    // Debug_Register("Ring_ExtThr", DBG_UINT8 | STATIC_TYPE, &vote_win_ring.exit_thresh);
+    Debug_Register("Ring_WinLen", DBG_UINT8 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_ring.len);
+    Debug_Register("Ring_EntThr", DBG_UINT8 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_ring.entry_thresh);
+    Debug_Register("Ring_ExtThr", DBG_UINT8 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &vote_win_ring.exit_thresh);
     /* 上墙 */
     // Debug_Register("Wall_WinLen",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.len);
     // Debug_Register("Wall_EntThr",  DBG_UINT8 | STATIC_TYPE, &vote_win_wall.entry_thresh);

@@ -30,8 +30,8 @@ typedef struct {
     float Ki;
     float Kd;
     float error_sum_max;
-    float min_sep;
-    float max_sep;
+    float Kc;        /* 反算跟踪增益 (0=旁路抗饱和)      */
+    float out_max;   /* 差速输出上限 (0=不限幅)          */
 } PIParams_t;
 
 /* 内环 PI 状态 */
@@ -69,16 +69,9 @@ typedef struct {
     float   outer_i_limit;
     float   outer_i_sep_hi;
     float   outer_i_sep_lo;
-    float   lat_g_l_max;     /* 左转最大侧g (绝对值) */
-    float   lat_g_l_safe;    /* 左转安全侧g, 超过此值开始减速 */
-    float   lat_g_r_max;     /* 右转最大侧g (绝对值) */
-    float   lat_g_r_safe;    /* 右转安全侧g, 超过此值开始减速 */
-    float   lat_g_brake_k_spd; /* 侧g→线速度削減系数 (0~1) */
-    float   lat_g_brake_k_yaw; /* 侧g→角速度削減系数 (0~1) */
     float   err_brake_max;     /* Err绝对值达到此值时减速到最大 */
     float   err_brake_safe;    /* Err绝对值低于此值不减速 */
-    float   err_brake_k_spd;   /* Err→线速度削減系数 (0~1) */
-    float   err_brake_k_yaw;   /* Err→角速度削減系数 (0~1) */
+    float   outer_brake_k_err;  /* 外侧轮减速系数—偏差 (0~1, 0=不减速) */
 } OuterLoopParams_t;
 
 /* 速度输出后处理参数 (每个元素独立配置) */
@@ -114,10 +107,7 @@ typedef struct {
     float   gyro_filtered;
     Lpf_t   lpf_lat_g;       /* v·ω 侧向加速度滤波器 */
     float   lat_g_filtered;   /* v·ω 滤波后侧向加速度 (g) */
-    float   err_brake_spd;        /* Err→线速度制动系数 */
-    float   err_brake_yaw;        /* Err→角速度制动系数 */
-    float   combined_brake_spd;   /* 合并线速度制动系数 = min(侧g, Err) */
-    float   combined_brake_yaw;   /* 合并角速度制动系数 = min(侧g, Err) */
+    float   outer_brake_factor;   /* 外侧轮减速系数 (1.0=不减速) */
     float   tar_yaw_raw;
     float   target_yaw;
     float   pid_output;
@@ -158,10 +148,7 @@ static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float se
     lpf_reset(&s->lpf_lat_g, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
     s->lat_g_filtered        = 0.0f;
-    s->err_brake_spd     = 1.0f;
-    s->err_brake_yaw     = 1.0f;
-    s->combined_brake_spd = 1.0f;
-    s->combined_brake_yaw = 1.0f;
+    s->outer_brake_factor = 1.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = speed_target_l.f;
@@ -366,25 +353,44 @@ static void Motor_Reg_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 }
 
 /* ================================================================
- * 内环 PI 控制器 (角速度)
+ * 内环 PI 控制器 (角速度) — 带输出钳位 + 反算抗饱和
+ *   Kc = 0 旁路反算, out_max = 0 旁路输出限幅
  * ================================================================ */
 float PI_Step(const PIParams_t *params, PIState_t *state, float setpoint, float actual)
 {
     float error;
+    float raw_output;
     float output;
     float d_term;
+    float sat_err;
     error = setpoint - actual;
     state->error_sum += params->Ki * error;
     if (state->error_sum > params->error_sum_max)  state->error_sum = params->error_sum_max;
     if (state->error_sum < -params->error_sum_max) state->error_sum = -params->error_sum_max;
-   // if (error < params->min_sep && error > -params->min_sep) state->error_sum = 0;
-    //if (error > params->max_sep || error < -params->max_sep) state->error_sum = 0;
     d_term = params->Kd * (error - state->last_error);
     state->last_error = error;
-    output = params->Kp * error + state->error_sum + d_term;
+    raw_output = params->Kp * error + state->error_sum + d_term;
+    /* 输出钳位 + 反算抗饱和 (Kc=0 旁路, out_max=0 旁路) */
+    if (params->out_max > 0.0f) {
+        if (raw_output > params->out_max) {
+            sat_err = raw_output - params->out_max;
+            state->error_sum -= params->Kc * sat_err;
+            output = params->out_max;
+        } else if (raw_output < -params->out_max) {
+            sat_err = raw_output + params->out_max;
+            state->error_sum -= params->Kc * sat_err;
+            output = -params->out_max;
+        } else {
+            output = raw_output;
+        }
+    } else {
+        output = raw_output;
+    }
+    /* 反算后重做积分上限钳位 */
+    if (state->error_sum > params->error_sum_max)  state->error_sum = params->error_sum_max;
+    if (state->error_sum < -params->error_sum_max) state->error_sum = -params->error_sum_max;
     return output;
 }
-
 /*服务于上位机的EC移动平均窗口调整器*/
 static void EC_MA_Read_Cb(uint32_t peri_addr, void *pData, uint8_t len)
 {
@@ -476,10 +482,7 @@ static void CtrlState_Reset(ControlState_t *s, const ControlParams_t *p)
     lpf_reset(&s->lpf_lat_g, 0.0f);
     ma_reset(&s->d_ma, 0.0f);
     s->lat_g_filtered        = 0.0f;
-    s->err_brake_spd     = 1.0f;
-    s->err_brake_yaw     = 1.0f;
-    s->combined_brake_spd = 1.0f;
-    s->combined_brake_yaw = 1.0f;
+    s->outer_brake_factor = 1.0f;
     s->inner.error_sum  = 0.0f;
     s->inner.last_error = 0.0f;
     s->last_spd_l       = 0.0f;
@@ -709,6 +712,15 @@ static void ApplySpeedOutputParams(const SpeedOutputParams_t *p, ControlState_t 
     raw_l = common_speed - *diff_speed;
     raw_r = common_speed + *diff_speed;
 
+    /* ---- 1b. 外侧轮减速 (侧g + 偏差合并, 独立于 common_speed 削减) ---- */
+    if (s->outer_brake_factor < 1.0f) {
+        if (*diff_speed > 0.0f) {
+            raw_r *= s->outer_brake_factor;  /* 左转: 右轮为外侧 */
+        } else if (*diff_speed < 0.0f) {
+            raw_l *= s->outer_brake_factor;  /* 右转: 左轮为外侧 */
+        }
+    }
+
     /* ---- 2. 内外侧轮速度钳位 ---- */
     /* 内侧轮反转上限: 允许反转不超过 max_reverse */
     if (raw_l < -p->max_reverse) raw_l = -p->max_reverse;
@@ -878,35 +890,6 @@ static float abs_f(float t){
     }
 }
 
-/* ================================================================
- * ApplyLatGSpeedLimit — 侧向加速度速度限制
- *   根据当前侧g超限程度, 动态削减基础速度
- *   lat_g > 0 → 左转, 用左转参数; lat_g < 0 → 右转, 用右转参数
- * ================================================================ */
-static float CalcLatGBrakeFactor(float lat_g, float max_g, float safe_g, float brake_k)
-{
-    float lat_g_abs;
-    float over_ratio;
-
-    lat_g_abs = (lat_g > 0.0f) ? lat_g : -lat_g;
-
-    /* 未超过安全阈值, 不干预 */
-    if (lat_g_abs <= safe_g) {
-        return 1.0f;
-    }
-
-    /* 参数不合理 (max <= safe), 不干预 */
-    if (max_g <= safe_g) {
-        return 1.0f;
-    }
-
-    /* 超出比例: 0.0 (刚到safe) → 1.0 (达到或超过max) */
-    over_ratio = (lat_g_abs - safe_g) / (max_g - safe_g);
-    if (over_ratio > 1.0f) over_ratio = 1.0f;
-
-    /* brake_k 控制削减力度: 0=不削减, 1=到max时减到0 */
-    return 1.0f - (over_ratio * brake_k);
-}
 /* ================================================================
  * CalcErrBrakeFactor — Err幅值减速系数 (与侧g逻辑对称)
  *   err_abs = |err_filtered|, 超出 safe 后按比例削减速度
@@ -1361,48 +1344,16 @@ void Main_Control_Task(void *pvParameters)
                     common_speed = *(prop->speed_ptr);
                 }
 
-                /* 制动系数 (线速度/角速度独立, 侧g+Err各算各的再取min合并) */
+                /* 外侧轮减速 (基于偏差) */
                 {
                     const ControlParams_t *p = GetActiveParams(current_element);
-                    float max_g, safe_g;
-                    float lat_g_brake_spd, lat_g_brake_yaw;
                     float err_abs;
 
-                    if (g_state.lat_g_filtered > 0.0f) {
-                        max_g  = p->outer.lat_g_r_max;
-                        safe_g = p->outer.lat_g_r_safe;
-                    } else {
-                        max_g  = p->outer.lat_g_l_max;
-                        safe_g = p->outer.lat_g_l_safe;
-                    }
-
-                    /* 侧g: 线速度和角速度用各自系数独立计算 */
-                    lat_g_brake_spd = CalcLatGBrakeFactor(g_state.lat_g_filtered,
-                                              max_g, safe_g,
-                                              p->outer.lat_g_brake_k_spd);
-                    lat_g_brake_yaw = CalcLatGBrakeFactor(g_state.lat_g_filtered,
-                                              max_g, safe_g,
-                                              p->outer.lat_g_brake_k_yaw);
-
-                    /* Err: 线速度和角速度用各自系数独立计算 */
                     err_abs = (g_state.err_filtered > 0.0f) ? g_state.err_filtered : -g_state.err_filtered;
-                    g_state.err_brake_spd = CalcErrBrakeFactor(err_abs,
-                                              p->outer.err_brake_max,
-                                              p->outer.err_brake_safe,
-                                              p->outer.err_brake_k_spd);
-                    g_state.err_brake_yaw = CalcErrBrakeFactor(err_abs,
-                                              p->outer.err_brake_max,
-                                              p->outer.err_brake_safe,
-                                              p->outer.err_brake_k_yaw);
-
-                    /* 合并线速度: min(侧g, Err) */
-                    g_state.combined_brake_spd = (lat_g_brake_spd < g_state.err_brake_spd)
-                                               ? lat_g_brake_spd : g_state.err_brake_spd;
-                    /* 合并角速度: min(侧g, Err) */
-                    g_state.combined_brake_yaw = (lat_g_brake_yaw < g_state.err_brake_yaw)
-                                               ? lat_g_brake_yaw : g_state.err_brake_yaw;
-
-                    common_speed *= g_state.combined_brake_spd;
+                    g_state.outer_brake_factor = CalcErrBrakeFactor(err_abs,
+                                                  p->outer.err_brake_max,
+                                                  p->outer.err_brake_safe,
+                                                  p->outer.outer_brake_k_err);
                 }
 
                 /* ===== Block 2: �⻷ȫ���� �� tar_yaw_raw ===== */
@@ -1418,7 +1369,6 @@ void Main_Control_Task(void *pvParameters)
 
                 g_ectx.yawrate = g_state.tar_yaw_raw;
                 g_state.target_yaw = SelectTargetYaw(ctrl, prop, &g_ectx);
-                g_state.target_yaw *= g_state.combined_brake_yaw;
 
 
 /***************   状态机插入 ****************** */
@@ -1586,9 +1536,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("ErrFil", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.err_filtered);
     Debug_Register("TiltFB", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_ectx.tilt_fb);
     Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_ectx.tilt_lr);
+
    // Debug_Register("LatG_VW",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_filtered);
-   // Debug_Register("ErrB_Fac_Spd", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_brake_spd);
-   // Debug_Register("ErrB_Fac_Yaw", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.err_brake_yaw);
     /* 电机 */
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_l.f));
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_r.f));
@@ -1654,16 +1603,9 @@ void Main_Control_Task_Init(void)
     g_params.outer.outer_i_limit   = 0.0f;
     g_params.outer.outer_i_sep_hi  = 10000.0f;
     g_params.outer.outer_i_sep_lo  = 30.0f;
-    g_params.outer.lat_g_l_max  = 2.7f;
-    g_params.outer.lat_g_l_safe = 1.6f;
-    g_params.outer.lat_g_r_max  = 2.6f;
-    g_params.outer.lat_g_r_safe = 1.5f;
-    g_params.outer.lat_g_brake_k_spd = 0.5f;
-    g_params.outer.lat_g_brake_k_yaw = 0.5f;
     g_params.outer.err_brake_max  = 75.0f;
     g_params.outer.err_brake_safe = 55.0f;
-    g_params.outer.err_brake_k_spd = 0.0f;
-    g_params.outer.err_brake_k_yaw = 0.0f;
+    g_params.outer.outer_brake_k_err  = 0.0f;
     Debug_Register("Str_Out_SlewMax",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_slew_max);
    // Debug_Register("OutLPFFc",  DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, &g_outer_lpf_fc_desc);
    // Debug_Register("KdDifHi",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.Kd_diff_high);
@@ -1676,58 +1618,30 @@ void Main_Control_Task_Init(void)
     //Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
    // Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
     Debug_Register("Str_Out_GyroFc", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.gyro_lpf_fc);
-    Debug_Register("Str_Out_LG_LMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_l_max);
-    Debug_Register("Str_Out_LG_LSaf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_l_safe);
-    Debug_Register("Str_Out_LG_RMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_r_max);
-    Debug_Register("Str_Out_LG_RSaf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_r_safe);
-    Debug_Register("Str_Out_LGBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_brake_k_spd);
-    Debug_Register("Str_Out_LGBrkYw", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.lat_g_brake_k_yaw);
     Debug_Register("Str_Out_EBMax",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_max);
     Debug_Register("Str_Out_EBSafe", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_safe);
-    Debug_Register("Str_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_k_spd);
-    Debug_Register("Str_Out_EBrkYw", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_k_yaw);
+    Debug_Register("Str_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_brake_k_err);
 
     /* 十字专用外环参数 (g_params_cross.outer, 上位机独立调参) */
     Debug_Register("Crs_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_slew_max);
     Debug_Register("Crs_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.gyro_lpf_fc);
-    Debug_Register("Crs_Out_LG_LMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_l_max);
-    Debug_Register("Crs_Out_LG_LSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_l_safe);
-    Debug_Register("Crs_Out_LG_RMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_r_max);
-    Debug_Register("Crs_Out_LG_RSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_r_safe);
-    Debug_Register("Crs_Out_LGBrkS", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_brake_k_spd);
-    Debug_Register("Crs_Out_LGBrkY", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.lat_g_brake_k_yaw);
     Debug_Register("Crs_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_max);
     Debug_Register("Crs_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_safe);
-    Debug_Register("Crs_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_k_spd);
-    Debug_Register("Crs_Out_EBrkYa", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_k_yaw);
+    Debug_Register("Crs_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_brake_k_err);
 
     /* 环岛专用外环参数 (g_params_ring.outer, 上位机独立调参) */
     Debug_Register("Rng_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_slew_max);
     Debug_Register("Rng_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.gyro_lpf_fc);
-    Debug_Register("Rng_Out_LG_LMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_l_max);
-    Debug_Register("Rng_Out_LG_LSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_l_safe);
-    Debug_Register("Rng_Out_LG_RMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_r_max);
-    Debug_Register("Rng_Out_LG_RSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_r_safe);
-    Debug_Register("Rng_Out_LGBrkS", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_brake_k_spd);
-    Debug_Register("Rng_Out_LGBrkY", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.lat_g_brake_k_yaw);
     Debug_Register("Rng_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_max);
     Debug_Register("Rng_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_safe);
-    Debug_Register("Rng_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_k_spd);
-    Debug_Register("Rng_Out_EBrkYa", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_k_yaw);
+    Debug_Register("Rng_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_brake_k_err);
 
     /* 墙面专用外环参数 (g_params_wall.outer, 上位机独立调参) */
     Debug_Register("Wal_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_slew_max);
     Debug_Register("Wal_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.gyro_lpf_fc);
-    Debug_Register("Wal_Out_LG_LMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_l_max);
-    Debug_Register("Wal_Out_LG_LSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_l_safe);
-    Debug_Register("Wal_Out_LG_RMx", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_r_max);
-    Debug_Register("Wal_Out_LG_RSf", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_r_safe);
-    Debug_Register("Wal_Out_LGBrkS", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_brake_k_spd);
-    Debug_Register("Wal_Out_LGBrkY", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.lat_g_brake_k_yaw);
     Debug_Register("Wal_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_max);
     Debug_Register("Wal_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_safe);
-    Debug_Register("Wal_Out_EBrkSp", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_k_spd);
-    Debug_Register("Wal_Out_EBrkYa", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_k_yaw);
+    Debug_Register("Wal_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_brake_k_err);
 
     /* ================================================================
      * 4. 外环观测 (HIGH_FREQ) — 只看不改
@@ -1744,34 +1658,40 @@ void Main_Control_Task_Init(void)
     g_params.inner.Ki = 0.12999999523162842f;
     g_params.inner.Kd = 0.10000000149011612f;
     g_params.inner.error_sum_max = 24.0f;    /* 内环积分上限 */
-    g_params.inner.max_sep = 100000.0f;
-    g_params.inner.min_sep = 0.0f;
+    g_params.inner.Kc = 0.0f;   /* 反算跟踪增益 (0=旁路) */
+    g_params.inner.out_max = 0.0f;  /* 差速输出上限 (0=不限幅, 调参时配 ~100) */
     g_state.inner.error_sum  = 0.0f;
     g_state.inner.last_error = 0.0f;
     Debug_Register("Str_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.Kp);
     Debug_Register("Str_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.Ki);
     Debug_Register("Str_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.Kd);
     Debug_Register("Str_In_ILim", DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.error_sum_max);
-    Debug_Register("Str_In_SepHi",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.max_sep);
-    Debug_Register("Str_In_SepLo",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.min_sep);
+    Debug_Register("Str_In_Kc",     DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.Kc);
+    Debug_Register("Str_In_OutMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_STRAIGHT, &g_params.inner.out_max);
 
     /* 十字专用内环 PI 参数 (g_params_cross.inner) */
     Debug_Register("Crs_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.Kp);
     Debug_Register("Crs_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.Ki);
     Debug_Register("Crs_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.Kd);
     Debug_Register("Crs_In_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.error_sum_max);
+    Debug_Register("Crs_In_Kc",     DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.Kc);
+    Debug_Register("Crs_In_OutMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_CROSS, &g_params_cross.inner.out_max);
 
     /* 环岛专用内环 PI 参数 (g_params_ring.inner) */
     Debug_Register("Rng_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.Kp);
     Debug_Register("Rng_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.Ki);
     Debug_Register("Rng_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.Kd);
     Debug_Register("Rng_In_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.error_sum_max);
+    Debug_Register("Rng_In_Kc",     DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.Kc);
+    Debug_Register("Rng_In_OutMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_RING, &g_params_ring.inner.out_max);
 
     /* 墙面专用内环 PI 参数 (g_params_wall.inner) */
     Debug_Register("Wal_In_Kp",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.Kp);
     Debug_Register("Wal_In_Ki",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.Ki);
     Debug_Register("Wal_In_Kd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.Kd);
     Debug_Register("Wal_In_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.error_sum_max);
+    Debug_Register("Wal_In_Kc",     DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.Kc);
+    Debug_Register("Wal_In_OutMax", DBG_FLOAT | STATIC_TYPE, VAR_CAT_INNER_PI, VAR_ELEM_WALL, &g_params_wall.inner.out_max);
 
     /* ================================================================
      * 5b. 速度输出后处理 — 默认值 & Debug 注册
@@ -1930,19 +1850,10 @@ void Main_Control_Task_Init(void)
     g_params_cross.adc.err_B_K = 0.0f;
     g_params_cross.adc.err_D_K = 0.0f;
 
-    /* 非直道元素旁路所有制动 (只调直道, 后续逐元素放开) */
-    g_params_cross.outer.lat_g_brake_k_spd = 0.0f;
-    g_params_cross.outer.lat_g_brake_k_yaw = 0.0f;
-    g_params_cross.outer.err_brake_k_spd   = 0.0f;
-    g_params_cross.outer.err_brake_k_yaw   = 0.0f;
-    g_params_ring.outer.lat_g_brake_k_spd  = 0.0f;
-    g_params_ring.outer.lat_g_brake_k_yaw  = 0.0f;
-    g_params_ring.outer.err_brake_k_spd    = 0.0f;
-    g_params_ring.outer.err_brake_k_yaw    = 0.0f;
-    g_params_wall.outer.lat_g_brake_k_spd  = 0.0f;
-    g_params_wall.outer.lat_g_brake_k_yaw  = 0.0f;
-    g_params_wall.outer.err_brake_k_spd    = 0.0f;
-    g_params_wall.outer.err_brake_k_yaw    = 0.0f;
+    /* 非直道元素旁路外侧轮制动 (只调直道, 后续逐元素放开) */
+    g_params_cross.outer.outer_brake_k_err  = 0.0f;
+    g_params_ring.outer.outer_brake_k_err   = 0.0f;
+    g_params_wall.outer.outer_brake_k_err   = 0.0f;
 
     /* 十字/环岛/上墙 继承固化前的环路参数, 不做改动 */
     g_params_cross.inner.Kp = 5.800000190734863f;
