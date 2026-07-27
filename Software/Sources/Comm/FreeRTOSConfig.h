@@ -161,17 +161,18 @@ extern uint32_t GetRunTimeCounterValue(void);
 
 
 
-/* �жϹ���ģʽ���أ�1 Ϊ RTOS �ӹܣ�0 Ϊ���ģʽ */
+/* 中断接管模式开关：1 为 RTOS 接管，0 为裸机模式 */
 #define configUSE_RTOS_DMA_ADC2    0
 #define configUSE_RTOS_DMA_SPI1    1
 #define configUSE_RTOS_DMA_SPI2    1
 #define configUSE_RTOS_DMA_SPI3    0
-#define configUSE_RTOS_P1          1  /* ʾ����P1 ʹ�����ģʽ */
-#define configUSE_RTOS_P4          1
-#define configUSE_RTOS_P6          1
-#define configUSE_RTOS_P8          1
-#define configUSE_RTOS_P5          1
-#define configUSE_RTOS_P2          1
+#define configUSE_RTOS_P1          0  /* 全高阻 */
+#define configUSE_RTOS_P2          0  /* 全高阻 */
+#define configUSE_RTOS_P3          1  /* IMU_INT1/2 + MOTOR_INT1/2 */
+#define configUSE_RTOS_P4          0  /* 全高阻 */
+#define configUSE_RTOS_P5          1  /* P5.4 按键 */
+#define configUSE_RTOS_P6          0  /* SPI 功能, 无中断 */
+#define configUSE_RTOS_P8          0  /* 全高阻 */
 
 
 #define SIGNAL_SPI_DMA_DONE    (1 << 1) /* λ 1��SPI DMA������� */

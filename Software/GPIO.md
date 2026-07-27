@@ -1,24 +1,26 @@
-P5.0 -> ICM_INT2 推挽
-P3.4 -> ICM_MOSI 推挽 高速度 高驱动能力
-P3.5 -> ICM_CS   推挽
-P5.1 -> ICM_INT1 开启上拉，开启数字输入
-P3.3 -> ICM_MISO 准双向口，开启数字输入
-P3.2 -> ICM_SCK  推挽 高速度 高驱动能力
-P6.4 -> LED_PWM  推挽 高速度 高驱动能力
-
-P2.0 -> SPI_CTR_INT1 准双向
-P2.1 -> SPI_CTR_INT2 准双向
-P2.2 -> SPI_CTR_CS 推挽
-P2.3 -> SPI_MOSI 推挽 高速度 高驱动能力
-P2.4 -> SPI_MISO 准双向口，开启数字输入
-P2.5 -> SPI_SCK  推挽 高速度 高驱动能力
-
-P1.1 -> TX 推挽 高速度 高驱动能力
-P1.0 -> RX 准双向，数字输入
-
-P6.0 -> BUZZER 推挽 高速度 高驱动能力
-
-P0.0 ~ P0.3 ADC，全部开成高阻输入
-P1.6,P1.7 按照原先配置不变
+P3.6 SPI_MOTOR_INT2  开漏，弱上拉
+P3.7 SPI_MOTOR_INT1  开漏，弱上拉
+P7.0 SPI_MOTOR_CS    推挽
+P7.1 SPI_MOTOR_MOSI  推挽，驱动能力和io速度拉高
+P7.2 SPI_MOTOR_MISO  开漏，弱上拉
+P7.3 SPI_MOTOR_CLK   推挽，驱动能力和io速度拉高
 
 
+P3.4 SPI_IMU_INT1   开漏，弱上拉
+P3.3 SPI_IMU_INT2   开漏，弱上拉
+P6.7 SPI_IMU_CLK    推挽，驱动能力和io速度拉高
+P6.6 SPI_IMU_MISO   开漏，弱上拉
+P6.5 SPI_IMU_MOSI   推挽，驱动能力和io速度拉高
+P6.4 SPI_IMU_CS     推挽, 弱上拉
+
+P1.6 ELECT_OUT_2    高阻输入
+P1.5 ELECT_OUT_1    高阻输入
+P1.4 ELECT_OUT_4    高阻输入
+P1.0 ELECT_OUT_3    高阻输入
+
+P0.0 RX      开漏，弱上拉
+P0.1 TX      推挽，驱动能力和io速度拉高
+
+P5.0 PWM_LED_WS2812     推挽，驱动能力和io速度拉高
+
+其余io全部高阻

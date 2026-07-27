@@ -183,6 +183,7 @@ extern void P6_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 extern void P8_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 extern void P5_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 extern void P2_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
+extern void P3_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 /* 中断包装宏定义 */
 #define INSTALL_ISR_WRAPPER(__NAME, __HANDLE, __CONFIG) \
 void __NAME##_ISR(void) { \
@@ -216,6 +217,7 @@ INSTALL_ISR_WRAPPER(P6,       P6_ISR_Handle,       configUSE_RTOS_P6)
 INSTALL_ISR_WRAPPER(P8,       P8_ISR_Handle,       configUSE_RTOS_P8)
 INSTALL_ISR_WRAPPER(P5,       P5_ISR_Handle,       configUSE_RTOS_P5)
 INSTALL_ISR_WRAPPER(P2,       P2_ISR_Handle,       configUSE_RTOS_P2)
+INSTALL_ISR_WRAPPER(P3,       P3_ISR_Handle,       configUSE_RTOS_P3)
 /*-----------------------------------------------------------*/
 /* 硬件中断向量重定向 (汇编部分) */
 /*-----------------------------------------------------------*/
@@ -234,6 +236,14 @@ __asm { CSEG AT 027BH }
     __asm { JMP DMA_SPI2_ISR?_ }
 #else
     __asm { JMP DMA_SPI2_ISR?? }
+#endif
+
+// P3 中断 (Vector 0143H)
+__asm { CSEG AT 0143H }
+#if ( configUSE_ROMHUGE == 0 )
+    __asm { JMP P3_ISR?_ }
+#else
+    __asm { JMP P3_ISR?? }
 #endif
 
 // P4 中断 (Vector 014BH)

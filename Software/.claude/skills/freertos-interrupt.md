@@ -34,16 +34,17 @@
 为每个外设中断定义一个 `configUSE_RTOS_xxx` 宏：
 
 ```c
-#define configUSE_RTOS_DMA_ADC2    0   // 0 = 裸机模式，RTOS 不接管
-#define configUSE_RTOS_DMA_SPI1    1   // 1 = RTOS 接管
+#define configUSE_RTOS_DMA_ADC2    0   // 裸机模式
+#define configUSE_RTOS_DMA_SPI1    1   // RTOS 接管
 #define configUSE_RTOS_DMA_SPI2    1
 #define configUSE_RTOS_DMA_SPI3    0
-#define configUSE_RTOS_P1          1
-#define configUSE_RTOS_P4          1
-#define configUSE_RTOS_P6          1
-#define configUSE_RTOS_P8          1
-#define configUSE_RTOS_P5          1
-#define configUSE_RTOS_P2          1
+#define configUSE_RTOS_P1          0   // 全高阻, 禁用
+#define configUSE_RTOS_P2          0   // 全高阻, 禁用
+#define configUSE_RTOS_P3          1   // IMU_INT1/2 + MOTOR_INT1/2
+#define configUSE_RTOS_P4          0   // 全高阻, 禁用
+#define configUSE_RTOS_P5          1   // P5.4 按键
+#define configUSE_RTOS_P6          0   // 全高阻, 禁用
+#define configUSE_RTOS_P8          0   // 全高阻, 禁用
 ```
 
 - **值为 1**：中断由 FreeRTOS 完全接管，ISR 中可以安全调用 `xSemaphoreGiveFromISR()`、`xTaskNotifyFromISR()` 等 FreeRTOS API
@@ -74,18 +75,19 @@ __asm { CSEG AT 0BH }
 
 ### 已配置的中断向量对照表
 
-| 外设      | 向量地址 | ISR 包装函数    |
-|-----------|----------|-----------------|
-| Timer0    | 0BH      | vTimer0ISR      |
-| DMA_SPI2  | 027BH    | DMA_SPI2_ISR    |
-| P4        | 014BH    | P4_ISR          |
-| DMA_SPI1  | 018BH    | DMA_SPI1_ISR    |
-| DMA_SPI3  | 0283H    | DMA_SPI3_ISR    |
-| P5        | 0153H    | P5_ISR          |
-| P6        | 015BH    | P6_ISR          |
-| P8        | 016BH    | P8_ISR          |
-| P1        | 0133H    | P1_ISR          |
-| P2        | 013BH    | P2_ISR          |
+| 外设      | 向量地址 | ISR 包装函数    | RTOS接管 | 用途 |
+|-----------|----------|-----------------|----------|------|
+| Timer0    | 0BH      | vTimer0ISR      | 1 | 系统 Tick |
+| DMA_SPI1  | 018BH    | DMA_SPI1_ISR    | 1 | SPI1 DMA |
+| DMA_SPI2  | 027BH    | DMA_SPI2_ISR    | 1 | SPI2 DMA |
+| DMA_SPI3  | 0283H    | DMA_SPI3_ISR    | 0 | 裸机模式 |
+| **P3**    | **0143H**| **P3_ISR**      | **1** | **IMU INT1/2 + MOTOR INT1/2** |
+| P1        | 0133H    | P1_ISR          | 0 | 全高阻 (禁用) |
+| P2        | 013BH    | P2_ISR          | 0 | 全高阻 (禁用) |
+| P4        | 014BH    | P4_ISR          | 0 | 全高阻 (禁用) |
+| P5        | 0153H    | P5_ISR          | 1 | P5.4 按键 |
+| P6        | 015BH    | P6_ISR          | 0 | 全高阻 (禁用) |
+| P8        | 016BH    | P8_ISR          | 0 | 全高阻 (禁用) |
 
 ---
 
@@ -224,7 +226,12 @@ extern void DMA_SPI1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 INSTALL_ISR_WRAPPER(DMA_SPI2, DMA_SPI2_ISR_Handle, configUSE_RTOS_DMA_SPI2)
 INSTALL_ISR_WRAPPER(DMA_SPI1, DMA_SPI1_ISR_Handle, configUSE_RTOS_DMA_SPI1)
 INSTALL_ISR_WRAPPER(P1,       P1_ISR_Handle,       configUSE_RTOS_P1)
-// ...
+INSTALL_ISR_WRAPPER(P2,       P2_ISR_Handle,       configUSE_RTOS_P2)
+INSTALL_ISR_WRAPPER(P3,       P3_ISR_Handle,       configUSE_RTOS_P3)
+INSTALL_ISR_WRAPPER(P4,       P4_ISR_Handle,       configUSE_RTOS_P4)
+INSTALL_ISR_WRAPPER(P5,       P5_ISR_Handle,       configUSE_RTOS_P5)
+INSTALL_ISR_WRAPPER(P6,       P6_ISR_Handle,       configUSE_RTOS_P6)
+INSTALL_ISR_WRAPPER(P8,       P8_ISR_Handle,       configUSE_RTOS_P8)
 ```
 
 ---
