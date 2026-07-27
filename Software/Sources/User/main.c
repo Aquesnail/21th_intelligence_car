@@ -32,9 +32,9 @@ void main(){
 		P5M0=0x00;        P5M1=0x00;
 		P6M0=0x00;        P6M1=0x00;
 		P7M0=0x00;        P7M1=0x00;
-		sys_init();
+		//sys_init();
 		//WDT_Clear();
-		app_init();
+		//app_init();
 		//WDT_Clear();
 		while(1){}
 }
