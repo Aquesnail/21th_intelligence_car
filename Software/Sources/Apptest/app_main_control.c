@@ -19,6 +19,7 @@
 #pragma warning disable = 174
 
 extern uint8_t g_current_element_u8;  /* element.c 提供的当前元素枚举值 (uint8_t 镜像) */
+extern float   g_brake_speed;         /* element.c 提供的刹车目标速度 (rad/s) */
 
 /* ================================================================
  * 控制管道类型定义
@@ -61,6 +62,8 @@ typedef struct {
     float   outer_lpf_fc;     /* 第一节 LPF 截止频率 (Hz) */
     float   outer_lpf_fc2;    /* 第二节 LPF 截止频率 (Hz) */
     float   gyro_lpf_fc;
+    float   gyro_damp_k;      /* 角速度阻尼系数 (外环 -k * fade * gyro_filtered) */
+    float   gyro_damp_fade;   /* 阻尼衰减阈值: |err|达此值时阻尼归零, 维持急弯转向 */
     float   Kd_diff_high;
     float   Kd_diff_low;
     float   Kd_diff_thresh;
@@ -152,8 +155,7 @@ static void CtrlState_Seed(ControlState_t *s, const ControlParams_t *p, float se
     ma_reset(&s->d_ma, 0.0f);
     s->lat_g_filtered        = 0.0f;
     s->outer_brake_factor = 1.0f;
-    s->inner.error_sum  = 0.0f;
-    s->inner.last_error = 0.0f;
+    /* 内环 PI 状态不在此清零: 元素切换时保留积分, 平滑衔接 */
     s->last_spd_l       = speed_target_l.f;
     s->last_spd_r       = speed_target_r.f;
 }
@@ -189,11 +191,30 @@ static const ControlParams_t* GetActiveParams(element_t e)
 
 /* ================================================================
  * ApplyParamsIfChanged — 参数集切换时 seed 管线, 防止突变抖动
+ *   直道 ↔ 十字: 保留外环积分, 避免频繁清零导致 I 项无法积累
+ *   环岛 ↔ 任意:  内外环积分全部清零, 双向隔离
  * ================================================================ */
 static void ApplyParamsIfChanged(const ControlParams_t *p)
 {
     if (p != g_active_params_prev) {
+        /* 直道 ↔ 十字切换时保留外环积分 */
+        int is_straight_cross = ((void *)p == (void *)&g_params && (void *)g_active_params_prev == (void *)&g_params_cross)
+                             || ((void *)p == (void *)&g_params_cross && (void *)g_active_params_prev == (void *)&g_params);
+        float saved_i_sum  = g_state.i_sum;
+        float saved_i_term = g_state.i_term;
+
         CtrlState_Seed(&g_state, p, g_state.err_filtered);
+
+        if (is_straight_cross) {
+            g_state.i_sum  = saved_i_sum;
+            g_state.i_term = saved_i_term;
+        }
+
+        /* 环岛进出时内环积分清零: 环岛与其他元素双向隔离 */
+        if ((void *)p == (void *)&g_params_ring || (void *)g_active_params_prev == (void *)&g_params_ring) {
+            g_state.inner.error_sum  = 0.0f;
+            g_state.inner.last_error = 0.0f;
+        }
         g_active_params_prev = p;
     }
 }
@@ -857,6 +878,7 @@ void System_Reset(void){
     g_ectx.current = ELEMENT_STRAIGHT;
     g_ectx.global_exit_lockout_cnt = 0;
     g_ectx.offtrack_active = 0;
+    g_ectx.braking_frame_cnt = 0;
     g_ectx.total_frames = 0;
     manual_control_flag = 1;
     Fan_TurnOff();
@@ -894,6 +916,7 @@ void Change_Maunal(){
         g_ectx.current = ELEMENT_STRAIGHT;
         g_ectx.global_exit_lockout_cnt = 0;
         g_ectx.offtrack_active = 0;
+        g_ectx.braking_frame_cnt = 0;
         /* total_frames 由电机激活时清零, 不在此处提前设置 */
     }else{
         /* 切换到手动模式: 关闭风扇, 刹车 */
@@ -966,9 +989,11 @@ static void OnCtrlTransition(ControlStrategy_t from, ControlStrategy_t to)
         return;
     }
 
-    /* 开环恢复到正常 PID: 用当前误差 seed 管线 */
+    /* 开环恢复到正常 PID: 用当前误差 seed 管线, 内环冷启动 */
     if (from == CTRL_OL_YAW && to == CTRL_NORMAL) {
         CtrlState_Seed(&g_state, &g_params, g_state.err_filtered);
+        g_state.inner.error_sum  = 0.0f;
+        g_state.inner.last_error = 0.0f;
         return;
     }
 
@@ -978,14 +1003,16 @@ static void OnCtrlTransition(ControlStrategy_t from, ControlStrategy_t to)
         return;
     }
 
-    /* 退出冻结: seed 管线到当前滤波值 */
+    /* 退出冻结: seed 管线到当前滤波值, 内环冷启动 */
     if (from == CTRL_ERR_FREEZE && to == CTRL_NORMAL) {
         CtrlState_Seed(&g_state, &g_params, g_state.err_filtered);
+        g_state.inner.error_sum  = 0.0f;
+        g_state.inner.last_error = 0.0f;
         return;
     }
 
     /* 进入刹车/滑行: 全量复位 */
-    if (to == CTRL_BRAKE ) {
+    if (to == CTRL_BRAKE || to == CTRL_BRAKING) {
         CtrlState_Reset(&g_state, &g_params);
         return;
     }
@@ -1003,6 +1030,10 @@ static void ControlDispatch(ControlStrategy_t ctrl, float spd_r, float spd_l)
     case CTRL_ERR_FREEZE:
     case CTRL_RA_YAW:
         Motor_Write_Speeds(spd_r, spd_l);
+        break;
+    case CTRL_BRAKING:
+        Motor_Write_Speeds(g_brake_speed, g_brake_speed);
+        /* 刹车延时内保持负压风扇运转, 进入 SAFETY_STOP (CTRL_BRAKE) 后再停 */
         break;
     case CTRL_BRAKE:
         Motor_Write_Speeds(0.0f, 0.0f);
@@ -1049,7 +1080,10 @@ static float RunOuterLoop(const OuterLoopParams_t *p, ControlState_t *s,
     float slew_diff;
     float err_diff;
     float raw_d_term;
-    float err_lpf1;  /* 第一节 LPF 输出, 级联给第二节 */
+    float err_lpf1;      /* 第一节 LPF 输出, 级联给第二节 */
+    float damp_fade;     /* 角速度阻尼衰减系数 (1.0=全阻尼, 0.0=归零) */
+    float err_abs;       /* |err_filtered| 缓存 (阻尼衰减用) */
+    float err_abs_i;     /* |err_filtered| 缓存 (积分分离用) */
     /* 1. 斜率限制 → 2. 低通滤波 */
     slew_diff = err_angle - s->err_slewed;
     if (slew_diff > p->outer_slew_max) {
@@ -1067,10 +1101,11 @@ static float RunOuterLoop(const OuterLoopParams_t *p, ControlState_t *s,
     s->pid_output = FuzzyPID_Step(pid, s->err_filtered);
 
     /* 4. 外环积分 (积分分离) */
-    if (abs_f(s->err_filtered) > p->outer_i_sep_hi) {
-        s->i_sum = 0.0f;
-    } else if (abs_f(s->err_filtered) < p->outer_i_sep_lo) {
-        s->i_sum = 0.0f;
+    err_abs_i = abs_f(s->err_filtered);
+    if (err_abs_i > p->outer_i_sep_hi) {
+        s->i_sum = 0.0f;                    /* 弯道大偏差: 清零防饱和 */
+    } else if (err_abs_i < p->outer_i_sep_lo) {
+        /* 回中完成: 冻结保持, 让积分当"自动回中偏置"继续顶着 */
     } else {
         s->i_sum += p->outer_Ki * (-s->err_filtered);
         if (s->i_sum > p->outer_i_limit)  s->i_sum = p->outer_i_limit;
@@ -1097,10 +1132,20 @@ static float RunOuterLoop(const OuterLoopParams_t *p, ControlState_t *s,
         Kd_diff = p->Kd_diff_low;
     }
 
-    /* 8. 外环合成: tar_yaw = P输出 + I项 - Kd * 滤波微分 */
+    /* 8. 角速度阻尼衰减: |err| 小时全阻尼稳住, |err| 大时(急弯)阻尼归零避免对抗转向 */
+    err_abs = (s->err_filtered > 0.0f) ? s->err_filtered : -s->err_filtered;
+    if (p->gyro_damp_fade > 0.0f) {
+        damp_fade = 1.0f - err_abs / p->gyro_damp_fade;
+        if (damp_fade < 0.0f) damp_fade = 0.0f;
+    } else {
+        damp_fade = 0.0f;
+    }
+
+    /* 9. 外环合成: tar_yaw = P输出 + I项 - Kd * 滤波微分 - Kd_gyro * fade * 滤波角速度 */
     return s->pid_output
          + s->i_term
-         - Kd_diff * s->filtered_d_term;
+         - Kd_diff * s->filtered_d_term
+         - p->gyro_damp_k * damp_fade * s->gyro_filtered;
 }
 
 /* ================================================================
@@ -1348,7 +1393,8 @@ void Main_Control_Task(void *pvParameters)
                 /* 元素切换 → 更新 LED + 风扇 (仅自动模式, 手动模式保持呼吸灯) */
                 if (!manual_control_flag && current_element != prev_element) {
                     LED_GetElementColor(current_element, &led_r, &led_g, &led_b);
-                    if (current_element == ELEMENT_SAFETY_STOP) {
+                    if (current_element == ELEMENT_SAFETY_STOP
+                        || current_element == ELEMENT_BRAKING) {
                         LED_RequestBreathing();
                     } else {
                         LED_RequestSteady(led_r, led_g, led_b);
@@ -1375,7 +1421,8 @@ void Main_Control_Task(void *pvParameters)
 
 
                 /* 速度查表 (基于最新状态机输出) */
-                if (current_element == ELEMENT_SAFETY_STOP) {
+                if (current_element == ELEMENT_SAFETY_STOP
+                    || current_element == ELEMENT_BRAKING) {
                     common_speed = 0.0f;
                 } else if (prop != NULL && prop->speed_ptr != NULL) {
                     common_speed = *(prop->speed_ptr);
@@ -1483,9 +1530,7 @@ void Main_Control_Task(void *pvParameters)
 
                     /* 风扇缓启动完成后激活电机 (推车模式跳过风扇, 立即激活) */
                     if (g_auto_transition == 1) {
-                        if (g_ectx.push_mode
-                            || ((xTaskGetTickCount() - g_auto_fan_tick) >= pdMS_TO_TICKS(2000)
-                                && Fan_IsSoftStartComplete())) {
+                        if (g_ectx.push_mode || Fan_IsSoftStartComplete()) {
                             g_auto_transition = 2;
                             lpf_reset(&g_state.lpf_gyro, 0.0f);
                             g_state.inner.error_sum = 0.0f;
@@ -1608,6 +1653,12 @@ void Main_Control_Task_Init(void)
     Debug_Register("Wal_ADC_KC", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_WALL, &g_params_wall.adc.err_C_K);
     Debug_Register("Wal_ADC_KD", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_WALL, &g_params_wall.adc.err_D_K);
 
+    /* 环岛专用 (g_params_ring.adc, 初始继承直道 g_params, 上位机可独立调参) */
+    Debug_Register("Rng_ADC_KA", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_RING, &g_params_ring.adc.err_A_K);
+    Debug_Register("Rng_ADC_KB", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_RING, &g_params_ring.adc.err_B_K);
+    Debug_Register("Rng_ADC_KC", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_RING, &g_params_ring.adc.err_C_K);
+    Debug_Register("Rng_ADC_KD", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_RING, &g_params_ring.adc.err_D_K);
+
     /* 死区 & 通道选择 */
     Debug_Register("Sys_CH_Induct",   DBG_UINT8  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &change_inductor);
     Debug_Register("Sys_ADC_DZ",DBG_UINT16 | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &adc_dead_zone);
@@ -1632,15 +1683,17 @@ void Main_Control_Task_Init(void)
     g_params.outer.outer_lpf_fc    = 40.0f;   /* 第一节 40Hz */
     g_params.outer.outer_lpf_fc2   = 60.0f;   /* 第二节 60Hz */
     g_params.outer.gyro_lpf_fc     = 100.0f;
+    g_params.outer.gyro_damp_k     = 0.0f;
+    g_params.outer.gyro_damp_fade  = 0.0f;
     g_params.outer.Kd_diff_thresh  = 100.0f;
     g_params.outer.Kd_diff_high  = 0.0f;
     g_params.outer.Kd_diff_low   = 0.0f;
     g_params.outer.diff_deadband   = 0.5f;
     g_params.outer.d_ma_window     = 80;
-    g_params.outer.outer_Ki        = 0.0f;
-    g_params.outer.outer_i_limit   = 0.0f;
-    g_params.outer.outer_i_sep_hi  = 10000.0f;
-    g_params.outer.outer_i_sep_lo  = 30.0f;
+    g_params.outer.outer_Ki        = 0.05f;    /* 外环积分增益 */
+    g_params.outer.outer_i_limit   = 30.0f;    /* 外环积分限幅 */
+    g_params.outer.outer_i_sep_hi  = 500.0f;   /* 积分分离上限 (|err|>此值清I) */
+    g_params.outer.outer_i_sep_lo  = 20.0f;    /* 积分分离下限 (|err|<此值清I) */
     g_params.outer.err_brake_max  = 75.0f;
     g_params.outer.err_brake_safe = 55.0f;
     g_params.outer.outer_brake_k_err  = 0.0f;
@@ -1648,11 +1701,13 @@ void Main_Control_Task_Init(void)
     /* 外环两节 LPF 截止频率 (PERI_TYPE: 写时自动更新滤波器 alpha) */
     Debug_Register("Str_Out_LPFc1",   DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_outer_lpf_fc_desc);
     Debug_Register("Str_Out_LPFc2",   DBG_FLOAT  | STATIC_TYPE | PERI_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_outer_lpf_fc2_desc);
-    //Debug_Register("Out_Ki",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_Ki);
-    //Debug_Register("OutILim",   DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_limit);
-    //Debug_Register("OutIHi",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_hi);
-   // Debug_Register("OutILo",    DBG_FLOAT  | STATIC_TYPE, &g_params.outer.outer_i_sep_lo);
+    Debug_Register("Str_Out_Ki",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_Ki);
+    Debug_Register("Str_Out_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_i_limit);
+    Debug_Register("Str_Out_IHi",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_i_sep_hi);
+    Debug_Register("Str_Out_ILo",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_i_sep_lo);
     Debug_Register("Str_Out_GyroFc", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.gyro_lpf_fc);
+    Debug_Register("Str_Out_DampK",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.gyro_damp_k);
+    Debug_Register("Str_Out_DampFade", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.gyro_damp_fade);
     Debug_Register("Str_Out_EBMax",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_max);
     Debug_Register("Str_Out_EBSafe", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.err_brake_safe);
     Debug_Register("Str_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_brake_k_err);
@@ -1660,23 +1715,41 @@ void Main_Control_Task_Init(void)
     /* 十字专用外环参数 (g_params_cross.outer, 上位机独立调参) */
     Debug_Register("Crs_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_slew_max);
     Debug_Register("Crs_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.gyro_lpf_fc);
+    Debug_Register("Crs_Out_DampK",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.gyro_damp_k);
+    Debug_Register("Crs_Out_DampFade", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.gyro_damp_fade);
     Debug_Register("Crs_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_max);
     Debug_Register("Crs_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.err_brake_safe);
     Debug_Register("Crs_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_brake_k_err);
+    Debug_Register("Crs_Out_Ki",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_Ki);
+    Debug_Register("Crs_Out_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_i_limit);
+    Debug_Register("Crs_Out_IHi",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_i_sep_hi);
+    Debug_Register("Crs_Out_ILo",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_CROSS, &g_params_cross.outer.outer_i_sep_lo);
 
     /* 环岛专用外环参数 (g_params_ring.outer, 上位机独立调参) */
     Debug_Register("Rng_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_slew_max);
     Debug_Register("Rng_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.gyro_lpf_fc);
+    Debug_Register("Rng_Out_DampK",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.gyro_damp_k);
+    Debug_Register("Rng_Out_DampFade", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.gyro_damp_fade);
     Debug_Register("Rng_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_max);
     Debug_Register("Rng_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.err_brake_safe);
     Debug_Register("Rng_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_brake_k_err);
+    Debug_Register("Rng_Out_Ki",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_Ki);
+    Debug_Register("Rng_Out_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_i_limit);
+    Debug_Register("Rng_Out_IHi",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_i_sep_hi);
+    Debug_Register("Rng_Out_ILo",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_RING, &g_params_ring.outer.outer_i_sep_lo);
 
     /* 墙面专用外环参数 (g_params_wall.outer, 上位机独立调参) */
     Debug_Register("Wal_Out_SlewMax",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_slew_max);
     Debug_Register("Wal_Out_GyroFc",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.gyro_lpf_fc);
+    Debug_Register("Wal_Out_DampK",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.gyro_damp_k);
+    Debug_Register("Wal_Out_DampFade", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.gyro_damp_fade);
     Debug_Register("Wal_Out_EB_Mx",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_max);
     Debug_Register("Wal_Out_EB_Sf",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.err_brake_safe);
     Debug_Register("Wal_Out_OBrkE", DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_brake_k_err);
+    Debug_Register("Wal_Out_Ki",    DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_Ki);
+    Debug_Register("Wal_Out_ILim",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_i_limit);
+    Debug_Register("Wal_Out_IHi",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_i_sep_hi);
+    Debug_Register("Wal_Out_ILo",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_WALL, &g_params_wall.outer.outer_i_sep_lo);
 
     /* ================================================================
      * 4. 外环观测 (HIGH_FREQ) — 只看不改
@@ -1685,6 +1758,7 @@ void Main_Control_Task_Init(void)
    // Debug_Register("TarYawR", DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.tar_yaw_raw);
     Debug_Register("ActYaw",  DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.gyro_filtered);
     Debug_Register("YawITrm", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.inner.error_sum);
+    Debug_Register("OutITrm",  DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_state.i_term);
 
     /* ================================================================
      * 5. 内环 PI — 默认值 & Debug 注册
