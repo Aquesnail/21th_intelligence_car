@@ -248,6 +248,9 @@ static uint32_t g_mech_state         = 0;
 static Lpf_t g_lpf_left;
 static Lpf_t g_lpf_right;
 
+/* 行驶距离积分 (每2ms累加, 启动清零) */
+float g_total_distance = 0.0f;     /* 总行驶距离 (m), element.c 通过 extern 引用 */
+
 /* 打滑率观测: 编码器+陀螺仪运动学一致性检验 */
 static float g_slip_ratio = 0.0f;       /* 打滑率 (0~1, LPF滤波后, 500Hz上传) */
 static Lpf_t g_lpf_slip;                /* 打滑率输出低通滤波器 (20Hz截止) */
@@ -1371,6 +1374,8 @@ void Main_Control_Task(void *pvParameters)
                     speed_mps = avg_speed_rad_s * 0.016f;  /* 轮胎半径 = 3.2cm / 2 = 1.6cm = 0.016m */
                     lat_g_raw = -speed_mps * g_state.gyro_filtered / 9.80665f;
                     g_state.lat_g_filtered = lpf_update(&g_state.lpf_lat_g, lat_g_raw);
+                    /* 总行驶距离积分 (每2ms累加一次, 启动时由 memset 清零) */
+                    g_total_distance += speed_mps * 0.002f;
                 }
                 current_element = Element_Update(&g_ectx);
                 /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
@@ -1620,6 +1625,8 @@ void Main_Control_Task_Init(void)
     Debug_Register("TiltLR", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_ectx.tilt_lr);
 
    // Debug_Register("LatG_VW",  DBG_FLOAT | HIGH_FREQ_TYPE, &g_state.lat_g_filtered);
+    /* 距离 */
+    Debug_Register("TotalDist", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_total_distance);
     /* 电机 */
     Debug_Register("L_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_l.f));
     Debug_Register("R_Tar", DBG_FLOAT | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &(speed_target_r.f));

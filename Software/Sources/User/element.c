@@ -9,6 +9,7 @@
 #include <string.h>
 extern unsigned char manual_control_flag;
 extern float user_calib_k[4];  /* app_main_control.c 中定义, 用户校准系数 [横左,竖左,横右,竖右] */
+extern float g_total_distance; /* app_main_control.c 中定义, 总行驶距离 (m) */
 
 #define FABS(x) ((x) > 0.0f ? (x) : -(x))
 
@@ -97,9 +98,13 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
     { ELEMENT_RING_LEFT_EXIT,  "RING_L_EXIT", &g_speed_ring, &g_fan_d_ring, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
     /* [18] ELEMENT_RING_RIGHT_EXIT */
     { ELEMENT_RING_RIGHT_EXIT, "RING_R_EXIT", &g_speed_ring, &g_fan_d_ring, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
-    /* [19] ELEMENT_BRAKING */
+    /* [19] ELEMENT_RING_LEFT_ENTRY_CORR */
+    { ELEMENT_RING_LEFT_ENTRY_CORR,  "RING_L_EnC", &g_speed_ring, &g_fan_d_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 蓝 */
+    /* [20] ELEMENT_RING_RIGHT_ENTRY_CORR */
+    { ELEMENT_RING_RIGHT_ENTRY_CORR, "RING_R_EnC", &g_speed_ring, &g_fan_d_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 蓝 */
+    /* [21] ELEMENT_BRAKING */
     { ELEMENT_BRAKING, "BRAKING", NULL, 0, 255, 0, 0, CTRL_BRAKING, NULL, 0 }, /* 红 */
-    /* [20] ELEMENT_SAFETY_STOP */
+    /* [22] ELEMENT_SAFETY_STOP */
     { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 0, 255, 0, 0, CTRL_BRAKE, NULL, 0 }, /* 红 */
 };
 
@@ -316,6 +321,8 @@ static float    g_ring_exit_corr_k_saved = 1.0f; /* 进入矫正前保存的原�
 static float    g_ring_entry_corr_k2   = 2.0f;   /* 左环入环: CalibK[2] 临时放大系数 (横右电感, 对侧) */
 static float    g_ring_entry_corr_k0   = 2.0f;   /* 右环入环: CalibK[0] 临时放大系数 (横左电感, 对侧) */
 static float    g_ring_entry_corr_k_saved = 1.0f; /* 入环矫正前保存的原始 CalibK 值 */
+static float    g_ring_entry_dist_start = 0.0f;   /* 入环矫正起点距离 (m) */
+static float    g_ring_entry_corr_dist  = 7.35f;  /* 入环矫正距离阈值 (m), 达到后进入 PASS */
 
 /* ---- 环岛 Check ---- */
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
@@ -421,10 +428,33 @@ static void Enter_RingExitCorrToStraight(ElementCtx_t *ctx)
 }
 
 /* ---- 环岛 Enter ---- */
+/* ---- 入环矫正 Check (距离计数) ---- */
+static unsigned char Check_RingEntryCorrDist(ElementCtx_t *ctx)
+{
+    return ((g_total_distance - g_ring_entry_dist_start) >= g_ring_entry_corr_dist) ? 1 : 0;
+}
+
+/* ---- 入环矫正 Enter ---- */
+static void Enter_RingEntryCorr(ElementCtx_t *ctx)
+{
+    ctx->elem_frame_cnt = 0;
+    g_ring_entry_dist_start = g_total_distance;
+}
+
 static void Enter_RingPass(ElementCtx_t *ctx)
 {
     ctx->elem_frame_cnt = 0;
     ctx->ring_frame_cnt = 0;
+    /* 入环矫正: 放大对侧 CalibK (与出环矫正对称, 取对侧通道) */
+    if (ctx->ring_side == 0) {
+        /* 左环: 放大 CalibK[2] (横右电感) */
+        g_ring_entry_corr_k_saved = user_calib_k[2];
+        user_calib_k[2] = g_ring_entry_corr_k2;
+    } else {
+        /* 右环: 放大 CalibK[0] (横左电感) */
+        g_ring_entry_corr_k_saved = user_calib_k[0];
+        user_calib_k[0] = g_ring_entry_corr_k0;
+    }
 }
 
 static void Enter_RingEntry(ElementCtx_t *ctx)
@@ -432,14 +462,8 @@ static void Enter_RingEntry(ElementCtx_t *ctx)
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE ||
         ctx->current == ELEMENT_RING_LEFT_PASS) {
         ctx->ring_side = 0;
-        /* 左环入环: 放大对侧 CalibK[2] (横右电感) */
-        g_ring_entry_corr_k_saved = user_calib_k[2];
-        user_calib_k[2] = g_ring_entry_corr_k2;
     } else {
         ctx->ring_side = 1;
-        /* 右环入环: 放大对侧 CalibK[0] (横左电感) */
-        g_ring_entry_corr_k_saved = user_calib_k[0];
-        user_calib_k[0] = g_ring_entry_corr_k0;
     }
 }
 
@@ -891,9 +915,11 @@ static float Calc_RAPreYawrate(ElementCtx_t *ctx, float speed)
 static unsigned char Check_RightAngleEntry_Pre(ElementCtx_t *ctx)
 {
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
+        || ctx->current == ELEMENT_RING_LEFT_ENTRY_CORR
         || ctx->current == ELEMENT_RING_LEFT_PASS
         || ctx->current == ELEMENT_IN_RING
         || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+        || ctx->current == ELEMENT_RING_RIGHT_ENTRY_CORR
         || ctx->current == ELEMENT_RING_RIGHT_PASS) {
         return 0;
     }
@@ -1023,8 +1049,11 @@ typedef struct {
 static const Transition_t g_transitions[] = {
 
     /* 无条件即时转移 */
-    { ELEMENT_RING_LEFT_ENTRANCE,  ELEMENT_RING_LEFT_PASS,  0, NULL, Enter_RingPass },
-    { ELEMENT_RING_RIGHT_ENTRANCE, ELEMENT_RING_RIGHT_PASS, 0, NULL, Enter_RingPass },
+    { ELEMENT_RING_LEFT_ENTRANCE,  ELEMENT_RING_LEFT_ENTRY_CORR,  0, NULL, Enter_RingEntryCorr },
+    { ELEMENT_RING_RIGHT_ENTRANCE, ELEMENT_RING_RIGHT_ENTRY_CORR, 0, NULL, Enter_RingEntryCorr },
+    /* 入环矫正距离计数 → PASS */
+    { ELEMENT_RING_LEFT_ENTRY_CORR,  ELEMENT_RING_LEFT_PASS,  0, Check_RingEntryCorrDist, Enter_RingPass },
+    { ELEMENT_RING_RIGHT_ENTRY_CORR, ELEMENT_RING_RIGHT_PASS, 0, Check_RingEntryCorrDist, Enter_RingPass },
 
     /* STRAIGHT → 各元素 (优先级: 环岛=1 > 上墙=2 > 滚筒=3 > 跷跷板=4 > 十字=5 > 直角=6) */
     { ELEMENT_STRAIGHT, ELEMENT_RING_LEFT_ENTRANCE,  1, Check_RingLeftEntry,  Enter_RingEntry },
@@ -1274,6 +1303,7 @@ void Element_Init(ElementCtx_t *ctx)
     /* 入环矫正 */
     Debug_Register("El_RingEnCorrK2", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_entry_corr_k2);
     Debug_Register("El_RingEnCorrK0", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_entry_corr_k0);
+    Debug_Register("El_RingEnCorrDt", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_entry_corr_dist);
 
     /* ================================================================
      * 4. 上墙 WALL — 默认值 & Debug 注册
@@ -1700,9 +1730,11 @@ element_t Element_Update(ElementCtx_t *ctx)
     ctx->elem_frame_cnt++;
     ctx->elem_blanking_cnt++;
     if (ctx->global_exit_lockout_cnt > 0) ctx->global_exit_lockout_cnt--;
-    /* 环岛链帧计数 (ENTRANCE/PASS/IN_RING 超时兜底) */
+    /* 环岛链帧计数 (ENTRANCE/ENTRY_CORR/PASS/IN_RING 超时兜底) */
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
         || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+        || ctx->current == ELEMENT_RING_LEFT_ENTRY_CORR
+        || ctx->current == ELEMENT_RING_RIGHT_ENTRY_CORR
         || ctx->current == ELEMENT_RING_LEFT_PASS
         || ctx->current == ELEMENT_RING_RIGHT_PASS
         || ctx->current == ELEMENT_IN_RING) {
@@ -1855,6 +1887,13 @@ float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop, Element
     }
     if (ctrl == CTRL_BRAKE) {
         return 0.0f;
+    }
+    /* IN_RING: 叠加与 PASS 一致的 yaw 偏置 (复用 g_ol_ring_yawrate) */
+    if (ctrl == CTRL_NORMAL && ctx->current == ELEMENT_IN_RING) {
+        if (ctx->ring_side == 0) {
+            return ctx->yawrate + g_ol_ring_yawrate;
+        }
+        return ctx->yawrate - g_ol_ring_yawrate;
     }
     return ctx->yawrate;
 }

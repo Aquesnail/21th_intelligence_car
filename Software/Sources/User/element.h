@@ -29,13 +29,16 @@ typedef enum ElementType {
     ELEMENT_RING_LEFT_EXIT,       /* 左环出环矫正 */
     ELEMENT_RING_RIGHT_EXIT,      /* 右环出环矫正 */
 
+    ELEMENT_RING_LEFT_ENTRY_CORR,  /* 左环入环矫正 (距离计数→PASS) */
+    ELEMENT_RING_RIGHT_ENTRY_CORR, /* 右环入环矫正 (距离计数→PASS) */
+
     ELEMENT_BRAKING,              /* 刹车状态: 持续N帧写刹车扭矩, 之后切 SAFETY_STOP */
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
     
   //  ELEMENT_TIMER,                  /* 定时器元素: 每次开始起跑时清零，以秒为单位计时，计时到了若发现倾角正常则自动停车*/
 } element_t;
 
-#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 18 个活跃元素 (含 WALL 3 子状态 + BARREL 3 子状态) */
+#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 23 个活跃元素 */
 
 /* ================================================================
  * 控制策略枚举
