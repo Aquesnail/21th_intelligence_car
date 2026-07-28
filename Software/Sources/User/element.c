@@ -5,9 +5,11 @@
 #include "led_indicator.h"
 #include <math.h>
 #include "lpf.h"
+#include "fan_control.h"
 #include <string.h>
 extern unsigned char manual_control_flag;
 extern float user_calib_k[4];  /* app_main_control.c 中定义, 用户校准系数 [横左,竖左,横右,竖右] */
+extern float g_total_distance; /* app_main_control.c 中定义, 总行驶距离 (m) */
 
 #define FABS(x) ((x) > 0.0f ? (x) : -(x))
 
@@ -96,7 +98,13 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
     { ELEMENT_RING_LEFT_EXIT,  "RING_L_EXIT", &g_speed_ring, &g_fan_d_ring, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
     /* [18] ELEMENT_RING_RIGHT_EXIT */
     { ELEMENT_RING_RIGHT_EXIT, "RING_R_EXIT", &g_speed_ring, &g_fan_d_ring, 255, 128, 0, CTRL_NORMAL, NULL, 0 }, /* 橙 */
-    /* [19] ELEMENT_SAFETY_STOP */
+    /* [19] ELEMENT_RING_LEFT_ENTRY_CORR */
+    { ELEMENT_RING_LEFT_ENTRY_CORR,  "RING_L_EnC", &g_speed_ring, &g_fan_d_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 蓝 */
+    /* [20] ELEMENT_RING_RIGHT_ENTRY_CORR */
+    { ELEMENT_RING_RIGHT_ENTRY_CORR, "RING_R_EnC", &g_speed_ring, &g_fan_d_ring, 0, 0, 255, CTRL_NORMAL, NULL, 0 }, /* 蓝 */
+    /* [21] ELEMENT_BRAKING */
+    { ELEMENT_BRAKING, "BRAKING", NULL, 0, 255, 0, 0, CTRL_BRAKING, NULL, 0 }, /* 红 */
+    /* [22] ELEMENT_SAFETY_STOP */
     { ELEMENT_SAFETY_STOP, "SAFETY_STOP", NULL, 0, 255, 0, 0, CTRL_BRAKE, NULL, 0 }, /* 红 */
 };
 
@@ -106,6 +114,8 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
 static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
 static float   g_offtrack_adc_thresh   = 20.0f;   /* ADC 低于此值视为离赛道 */
 static uint32_t g_ontrack_timeout_frames = 10000; /* 上赛道超时 (帧), 上位机下发帧数 (500帧/s, 10000帧=20s) */
+static uint16_t g_braking_frames       = 200;     /* 刹车持续帧数 (500fps, 200帧=0.4s) */
+float    g_brake_speed          = 0.1f;    /* 刹车目标速度 (rad/s), 非零产生刹车力矩 (供 app_main_control.c extern) */
 uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜像, 供上位机 HIGH_FREQ 上传) */
 
 /* ================================================================
@@ -273,7 +283,7 @@ ControlStrategy_t Element_GetEffectiveCtrl(element_t e, ElementCtx_t *ctx)
     if (prop == NULL) return CTRL_NORMAL;
     ctrl = prop->ctrl;
 
-    if (ctx != NULL && ctx->push_mode && ctrl != CTRL_BRAKE) {
+    if (ctx != NULL && ctx->push_mode && ctrl != CTRL_BRAKE && ctrl != CTRL_BRAKING) {
         return CTRL_FREEWHEEL;
     }
     return ctrl;
@@ -306,6 +316,13 @@ static float    g_ring_exit_corr_k0   = 2.0f;   /* 左环出环: CalibK[0] 临�
 static float    g_ring_exit_corr_k2   = 2.0f;   /* 右环出环: CalibK[2] 临时放大系数 (横右电感) */
 static unsigned short g_ring_exit_corr_frames = 100; /* 出环矫正持续帧数 (默认100帧=200ms) */
 static float    g_ring_exit_corr_k_saved = 1.0f; /* 进入矫正前保存的原始 CalibK 值 */
+
+/* ---- 环岛入环矫正参数 ---- */
+static float    g_ring_entry_corr_k2   = 2.0f;   /* 左环入环: CalibK[2] 临时放大系数 (横右电感, 对侧) */
+static float    g_ring_entry_corr_k0   = 2.0f;   /* 右环入环: CalibK[0] 临时放大系数 (横左电感, 对侧) */
+static float    g_ring_entry_corr_k_saved = 1.0f; /* 入环矫正前保存的原始 CalibK 值 */
+static float    g_ring_entry_dist_start = 0.0f;   /* 入环矫正起点距离 (m) */
+static float    g_ring_entry_corr_dist  = 7.35f;  /* 入环矫正距离阈值 (m), 达到后进入 PASS */
 
 /* ---- 环岛 Check ---- */
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
@@ -411,10 +428,33 @@ static void Enter_RingExitCorrToStraight(ElementCtx_t *ctx)
 }
 
 /* ---- 环岛 Enter ---- */
+/* ---- 入环矫正 Check (距离计数) ---- */
+static unsigned char Check_RingEntryCorrDist(ElementCtx_t *ctx)
+{
+    return ((g_total_distance - g_ring_entry_dist_start) >= g_ring_entry_corr_dist) ? 1 : 0;
+}
+
+/* ---- 入环矫正 Enter ---- */
+static void Enter_RingEntryCorr(ElementCtx_t *ctx)
+{
+    ctx->elem_frame_cnt = 0;
+    g_ring_entry_dist_start = g_total_distance;
+}
+
 static void Enter_RingPass(ElementCtx_t *ctx)
 {
     ctx->elem_frame_cnt = 0;
     ctx->ring_frame_cnt = 0;
+    /* 入环矫正: 放大对侧 CalibK (与出环矫正对称, 取对侧通道) */
+    if (ctx->ring_side == 0) {
+        /* 左环: 放大 CalibK[2] (横右电感) */
+        g_ring_entry_corr_k_saved = user_calib_k[2];
+        user_calib_k[2] = g_ring_entry_corr_k2;
+    } else {
+        /* 右环: 放大 CalibK[0] (横左电感) */
+        g_ring_entry_corr_k_saved = user_calib_k[0];
+        user_calib_k[0] = g_ring_entry_corr_k0;
+    }
 }
 
 static void Enter_RingEntry(ElementCtx_t *ctx)
@@ -429,6 +469,12 @@ static void Enter_RingEntry(ElementCtx_t *ctx)
 
 static void Enter_InRing(ElementCtx_t *ctx)
 {
+    /* 恢复入环矫正时修改的 CalibK 通道 */
+    if (ctx->ring_side == 0) {
+        user_calib_k[2] = g_ring_entry_corr_k_saved;
+    } else {
+        user_calib_k[0] = g_ring_entry_corr_k_saved;
+    }
     ctx->ring_entry_yaw = ctx->yaw;
     VoteWin_Reset(&ctx->vote_ring);
 }
@@ -869,9 +915,11 @@ static float Calc_RAPreYawrate(ElementCtx_t *ctx, float speed)
 static unsigned char Check_RightAngleEntry_Pre(ElementCtx_t *ctx)
 {
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
+        || ctx->current == ELEMENT_RING_LEFT_ENTRY_CORR
         || ctx->current == ELEMENT_RING_LEFT_PASS
         || ctx->current == ELEMENT_IN_RING
         || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+        || ctx->current == ELEMENT_RING_RIGHT_ENTRY_CORR
         || ctx->current == ELEMENT_RING_RIGHT_PASS) {
         return 0;
     }
@@ -1001,8 +1049,11 @@ typedef struct {
 static const Transition_t g_transitions[] = {
 
     /* 无条件即时转移 */
-    { ELEMENT_RING_LEFT_ENTRANCE,  ELEMENT_RING_LEFT_PASS,  0, NULL, Enter_RingPass },
-    { ELEMENT_RING_RIGHT_ENTRANCE, ELEMENT_RING_RIGHT_PASS, 0, NULL, Enter_RingPass },
+    { ELEMENT_RING_LEFT_ENTRANCE,  ELEMENT_RING_LEFT_ENTRY_CORR,  0, NULL, Enter_RingEntryCorr },
+    { ELEMENT_RING_RIGHT_ENTRANCE, ELEMENT_RING_RIGHT_ENTRY_CORR, 0, NULL, Enter_RingEntryCorr },
+    /* 入环矫正距离计数 → PASS */
+    { ELEMENT_RING_LEFT_ENTRY_CORR,  ELEMENT_RING_LEFT_PASS,  0, Check_RingEntryCorrDist, Enter_RingPass },
+    { ELEMENT_RING_RIGHT_ENTRY_CORR, ELEMENT_RING_RIGHT_PASS, 0, Check_RingEntryCorrDist, Enter_RingPass },
 
     /* STRAIGHT → 各元素 (优先级: 环岛=1 > 上墙=2 > 滚筒=3 > 跷跷板=4 > 十字=5 > 直角=6) */
     { ELEMENT_STRAIGHT, ELEMENT_RING_LEFT_ENTRANCE,  1, Check_RingLeftEntry,  Enter_RingEntry },
@@ -1159,6 +1210,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->track_table_enabled = 0;
         ctx->offtrack_active     = 0;
         ctx->offtrack_start_tick = 0;
+        ctx->braking_frame_cnt   = 0;
         ctx->push_mode           = 0;
         ctx->current = ELEMENT_STRAIGHT;
         ctx->prev    = ELEMENT_STRAIGHT;
@@ -1182,6 +1234,8 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_TTimeOut", DBG_UINT32 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ontrack_timeout_frames);
     Debug_Register("El_OffTkMs",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_offtrack_timeout_ms);
     Debug_Register("El_OffTkAdc", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_offtrack_adc_thresh);
+    Debug_Register("El_BrkFrames",DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_braking_frames);
+    Debug_Register("El_BrkSpeed", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_brake_speed);
     Debug_Register("El_TblEnable",DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->track_table_enabled);
     Debug_Register("El_DbgElem",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_single_element_debug);
     Debug_Register("El_PushMode", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->push_mode);
@@ -1246,6 +1300,10 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_RingExCorrK0", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_corr_k0);
     Debug_Register("El_RingExCorrK2", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_corr_k2);
     Debug_Register("El_RingExCorrTO", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_exit_corr_frames);
+    /* 入环矫正 */
+    Debug_Register("El_RingEnCorrK2", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_entry_corr_k2);
+    Debug_Register("El_RingEnCorrK0", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_entry_corr_k0);
+    Debug_Register("El_RingEnCorrDt", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_ring_entry_corr_dist);
 
     /* ================================================================
      * 4. 上墙 WALL — 默认值 & Debug 注册
@@ -1598,11 +1656,12 @@ element_t Element_Update(ElementCtx_t *ctx)
     /* ---- 1. 倾角绝对值 (供投票和停车使用) ---- */
     tilt_fb_abs = FABS(ctx->tilt_fb);
     tilt_lr_abs = FABS(ctx->tilt_lr);
-    if (ctx->current != ELEMENT_SAFETY_STOP) {
+    if (ctx->current != ELEMENT_SAFETY_STOP && ctx->current != ELEMENT_BRAKING
+        && manual_control_flag == 0 && Fan_IsSoftStartComplete()) {
         ctx->total_frames++;
     }
     now_tick = xTaskGetTickCount();
-    if (all_adc_low && ctx->current != ELEMENT_SAFETY_STOP) {
+    if (all_adc_low && ctx->current != ELEMENT_SAFETY_STOP && ctx->current != ELEMENT_BRAKING) {
         if (ctx->offtrack_active== 0) {
             ctx->offtrack_active= 1;
             ctx->offtrack_start_tick = xTaskGetTickCount();
@@ -1610,8 +1669,9 @@ element_t Element_Update(ElementCtx_t *ctx)
 
             elapsed_ms = (now_tick - ctx->offtrack_start_tick) * portTICK_PERIOD_MS;
             if (elapsed_ms >= (unsigned long)g_offtrack_timeout_ms) {
-                ctx->current = ELEMENT_SAFETY_STOP;
-                Debug_Log(Element_GetProp(ELEMENT_SAFETY_STOP)->name);
+                ctx->current = ELEMENT_BRAKING;
+                ctx->braking_frame_cnt = g_braking_frames;
+                Debug_Log(Element_GetProp(ELEMENT_BRAKING)->name);
                 ctx->offtrack_active= 0;
                 g_current_element_u8 = (uint8_t)ctx->current;
                 return ctx->current;
@@ -1620,14 +1680,31 @@ element_t Element_Update(ElementCtx_t *ctx)
     } else {
         ctx->offtrack_active= 0;
     }
-    if (ctx->current != ELEMENT_SAFETY_STOP && ctx->push_mode != 1 && manual_control_flag == 0) {
+    if (ctx->current != ELEMENT_SAFETY_STOP && ctx->current != ELEMENT_BRAKING
+        && ctx->push_mode != 1 && manual_control_flag == 0) {
         if (g_ontrack_timeout_frames > 0
             && ctx->total_frames >= g_ontrack_timeout_frames
             && tilt_fb_abs < angle_level && tilt_lr_abs < angle_level) {
-            System_Reset();
+            ctx->current = ELEMENT_BRAKING;
+            ctx->braking_frame_cnt = g_braking_frames;
+            Debug_Log(Element_GetProp(ELEMENT_BRAKING)->name);
             g_current_element_u8 = (uint8_t)ctx->current;
             return ctx->current;
         }
+    }
+
+    /* BRAKING 状态: 持续刹车 N 帧后 → SAFETY_STOP */
+    if (ctx->current == ELEMENT_BRAKING) {
+        g_current_element_u8 = (uint8_t)ctx->current;
+        if (ctx->braking_frame_cnt > 0) {
+            ctx->braking_frame_cnt--;
+            return ctx->current;
+        }
+        ctx->current = ELEMENT_SAFETY_STOP;
+        Debug_Log(Element_GetProp(ELEMENT_SAFETY_STOP)->name);
+        ctx->offtrack_active = 0;
+        g_current_element_u8 = (uint8_t)ctx->current;
+        return ctx->current;
     }
 
     /* SAFETY_STOP 退出: 任一 ADC 恢复 → 切手动模式 */
@@ -1653,9 +1730,11 @@ element_t Element_Update(ElementCtx_t *ctx)
     ctx->elem_frame_cnt++;
     ctx->elem_blanking_cnt++;
     if (ctx->global_exit_lockout_cnt > 0) ctx->global_exit_lockout_cnt--;
-    /* 环岛链帧计数 (ENTRANCE/PASS/IN_RING 超时兜底) */
+    /* 环岛链帧计数 (ENTRANCE/ENTRY_CORR/PASS/IN_RING 超时兜底) */
     if (ctx->current == ELEMENT_RING_LEFT_ENTRANCE
         || ctx->current == ELEMENT_RING_RIGHT_ENTRANCE
+        || ctx->current == ELEMENT_RING_LEFT_ENTRY_CORR
+        || ctx->current == ELEMENT_RING_RIGHT_ENTRY_CORR
         || ctx->current == ELEMENT_RING_LEFT_PASS
         || ctx->current == ELEMENT_RING_RIGHT_PASS
         || ctx->current == ELEMENT_IN_RING) {
@@ -1808,6 +1887,13 @@ float SelectTargetYaw(ControlStrategy_t ctrl, const ElementProp_t *prop, Element
     }
     if (ctrl == CTRL_BRAKE) {
         return 0.0f;
+    }
+    /* IN_RING: 叠加与 PASS 一致的 yaw 偏置 (复用 g_ol_ring_yawrate) */
+    if (ctrl == CTRL_NORMAL && ctx->current == ELEMENT_IN_RING) {
+        if (ctx->ring_side == 0) {
+            return ctx->yawrate + g_ol_ring_yawrate;
+        }
+        return ctx->yawrate - g_ol_ring_yawrate;
     }
     return ctx->yawrate;
 }

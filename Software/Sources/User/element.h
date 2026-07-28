@@ -29,12 +29,16 @@ typedef enum ElementType {
     ELEMENT_RING_LEFT_EXIT,       /* 左环出环矫正 */
     ELEMENT_RING_RIGHT_EXIT,      /* 右环出环矫正 */
 
+    ELEMENT_RING_LEFT_ENTRY_CORR,  /* 左环入环矫正 (距离计数→PASS) */
+    ELEMENT_RING_RIGHT_ENTRY_CORR, /* 右环入环矫正 (距离计数→PASS) */
+
+    ELEMENT_BRAKING,              /* 刹车状态: 持续N帧写刹车扭矩, 之后切 SAFETY_STOP */
     ELEMENT_SAFETY_STOP,          /* 安全停车: 翻车/离赛道超时 (最后一个活跃元素) */
     
   //  ELEMENT_TIMER,                  /* 定时器元素: 每次开始起跑时清零，以秒为单位计时，计时到了若发现倾角正常则自动停车*/
 } element_t;
 
-#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 18 个活跃元素 (含 WALL 3 子状态 + BARREL 3 子状态) */
+#define ELEMENT_ACTIVE_COUNT  (ELEMENT_SAFETY_STOP + 1)  /* 23 个活跃元素 */
 
 /* ================================================================
  * 控制策略枚举
@@ -43,6 +47,7 @@ typedef enum {
     CTRL_NORMAL,     /* 正常 PID 循迹 → 写电机 */
     CTRL_OL_YAW,     /* 开环角速度覆盖（PASS 阶段） → 写电机 */
     CTRL_BRAKE,      /* 紧急刹车（SAFETY_STOP） → 写0 */
+    CTRL_BRAKING,    /* 刹车扭矩（BRAKING） → 写极小非零速度产生刹车力矩 */
     CTRL_FREEWHEEL,  /* 自由滑行（推车调试） → 写0, 元素检测/LED照跑 */
     CTRL_ERR_FREEZE, /* 冻结 Err_Angle（直角转弯 → 屏蔽传感器极性反转） */
     CTRL_RA_YAW, /* 前馈角速度（直角转弯） */
@@ -142,6 +147,9 @@ typedef struct {
     /* ---- 离赛道超时 ---- */
     unsigned char  offtrack_active;
     unsigned long  offtrack_start_tick;
+
+    /* ---- 刹车状态 ---- */
+    unsigned short braking_frame_cnt;  /* 刹车剩余帧数 */
 
     
     unsigned char  push_mode;         /* 推车调试模式: 1=关电机+关风扇 */
