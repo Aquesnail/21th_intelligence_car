@@ -14,6 +14,9 @@ extern uint8_t manual_control_flag;
 #define P54_LONG_PRESS_TICKS  500  /* 500 * 2ms = 1000ms */
 extern void Change_Maunal();
 
+/* 全局亮度缩放 (0-255), 值越小灯越暗. 255 = 原始亮度 */
+#define LED_BRIGHTNESS  128
+
 /* ================================================================
  * app_clk_test — LED 动画引擎任务 (2ms 周期 / 500Hz, 与主控同频)
  *
@@ -154,6 +157,11 @@ void app_clk_test(void)
             g = steady_g;
             b = steady_b;
         }
+
+        /* 全局亮度缩放 */
+        r = (uint8_t)((uint16_t)r * LED_BRIGHTNESS / 255);
+        g = (uint8_t)((uint16_t)g * LED_BRIGHTNESS / 255);
+        b = (uint8_t)((uint16_t)b * LED_BRIGHTNESS / 255);
 
         /* 输出到 WS2812 */
         WS2812_SetColor(0, r, g, b);

@@ -21,8 +21,8 @@ void WS2812_Init(void)
     // 1. 调用底层的 PWM 初始化 (由 AICube 生成的那个函数)
     // 确保里面的 PWME_Init 已经包含了我们调试好的:
     // PWME_SetReload16(74); 分频1; 4字节突发; EnableUpdate;
-    PWMC_Init();
-    DMA_PWMC_EnableTxInt();
+    PWME_Init();
+    DMA_PWME_EnableTxInt();
     // 2. 运行时初始化缓冲区（替代 Flash 镜像），然后清空
     memset(ws_buffer, 0, sizeof(ws_buffer));
     WS2812_Clear();
@@ -103,25 +103,19 @@ void WS2812_Show(void)
     ws_dma_busy = 1;
 
     // --- DMA 配置与启动 ---
-    DMA_PWMC_DisableTx(); // 先关闭以配置
-    
+    DMA_PWME_DisableTx(); // 先关闭以配置
+
     // 设置地址 (强转为 uint8_t*)
-    DMA_PWMC_SetTxAddress((uint8_t *)ws_buffer);
-    
+    DMA_PWME_SetTxAddress((uint8_t *)ws_buffer);
+
     // 设置传输总量：(灯数 * 24 + 1) * 4字节
-    // 注意：STC的 SetTxAmount 通常接收的是“总字节数”或者“总次数”，
-    // 根据你的库函数实现，如果是写入 DMA_AMT 寄存器，通常是 (次数-1)。
-    // AICube生成的 SetTxAmount(val) 内部通常直接写寄存器，所以这里填 总字节数
-    DMA_PWMC_SetTxAmount(BUFFER_SIZE_PKTS * 4 - 1); 
-    
-    DMA_PWMC_ClearTxFlag();
-    DMA_PWMC_EnableTx();
-    
-    // 【关键】手动触发 (AICube可能未生成Trigger函数，手动置位)
-    // 假设使用 PWMC，对应 DMA_PWMCR_CR 寄存器
-    // 如果你有 DMA_PWMC_TriggerTx() 就用，没有就用下面的寄存器操作：
-    // DMA_PWMCR_CR |= 0x40; // bit6 = TRIG
-    DMA_PWMC_TriggerTx();
+    DMA_PWME_SetTxAmount(BUFFER_SIZE_PKTS * 4 - 1);
+
+    DMA_PWME_ClearTxFlag();
+    DMA_PWME_EnableTx();
+
+    // 手动触发 PWME DMA 传输
+    DMA_PWME_TriggerTx();
 }
 
 /**
@@ -133,23 +127,19 @@ uint8_t WS2812_IsBusy(void)
 }
 
 // ================= 中断处理 =================
-// 放在 pwm.c 或者这里都可以，确保不要重复定义
-// 如果 pwm.c 里已经有了 DMA_PWMETX_ISR，请把这段逻辑移过去
 
-void DMA_PWMETX_ISR(void) interrupt DMA_PWMCT_VECTOR
+void DMA_PWMETX_ISR(void) interrupt DMA_PWMET_VECTOR
 {
-    if (DMA_PWMC_CheckTxFlag())
+    if (DMA_PWME_CheckTxFlag())
     {
-        DMA_PWMC_ClearTxFlag();
-        
+        DMA_PWME_ClearTxFlag();
+
         // 传输完成，停止 DMA
-        DMA_PWMC_DisableTx();
-        
+        DMA_PWME_DisableTx();
+
         // 强制通道输出低电平 (Reset 信号)
-        // 这一步很重要，防止DMA停了但PWM还在按最后一个值输出
-      //  PWM_UpdateDuty(PWMC_CH5, 0); 
-        PWMC_SetCCR3Value(0); // 直接设置 CCR3 = 0，强制输出低电平
-        
+        PWME_SetCCR5Value(0); // 直接设置 CCR3 = 0，强制输出低电平
+
         // 清除忙标志
         ws_dma_busy = 0;
     }

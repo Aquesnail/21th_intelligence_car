@@ -8,8 +8,8 @@
 extern uint8_t imu_ready;
 
 /* 片选操作 */
-#define ICM42688_CS_SET()   P35=1
-#define ICM42688_CS_RESET() P35=0
+#define ICM42688_CS_SET()   P64=1
+#define ICM42688_CS_RESET() P64=0
 
 #define ICM42688_SPI_TIMEOUT  1000
 

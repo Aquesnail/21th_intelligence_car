@@ -234,10 +234,10 @@ static void ApplyParamsIfChanged(const ControlParams_t *p)
  * ================================================================ */
 
 /* ADC DMA 缓冲区 */
-static uint8_t xdata adc_dma_buf[ADC2_DMASIZE]; // 运行时 memset 初始化
+static uint8_t xdata adc_dma_buf[ADC1_DMASIZE]; // 运行时 memset 初始化
 
 /* ADC 各通道采样值 */
-static float adc_values[ADC2_CH_NUM]; // 运行时 memset 初始化
+static float adc_values[ADC1_CH_NUM]; // 运行时 memset 初始化
 
 /* 电机数据 (500Hz stream 推送) */
 static float    g_left_speed_actual  = 0.0f;
@@ -287,11 +287,13 @@ static TickType_t   g_auto_fan_tick   = 0;
 TaskHandle_t xMainControlTaskHandle = NULL;
 
 /* ================================================================
- * SPI3 DMA 回调 (预留)
+ * SPI3 DMA 回调 — DMA 传输完成时由 ISR 调用, 通知等待任务
  * ================================================================ */
-void SPI3_Callback(void *pvParameters)
+void SPI3_Callback(BaseType_t *xHigherPriorityTaskWoken)
 {
-    (void)pvParameters;
+    if (xMainControlTaskHandle != NULL) {
+        xTaskNotifyFromISR(xMainControlTaskHandle, SIGNAL_MOTOR_SPI_DMA_DONE, eSetBits, xHigherPriorityTaskWoken);
+    }
 }
 /* PID 参数外设描述符 (Motor A / 左电机) */
 float xdata g_pid_a_kp = 0.0f;
@@ -893,7 +895,7 @@ void System_Reset(void){
 
 void Change_Maunal(){
     const ElementProp_t *init_prop;
-    uint16_t init_fan_d;
+    float init_fan_d;
 
 	if(manual_control_flag){
         /* 切换到自动模式: 启动风扇(推车模式跳过), 等缓启动完成后激活电机 */
@@ -1229,6 +1231,7 @@ void Main_Control_Task(void *pvParameters)
     uint8_t led_r, led_g, led_b;   /* LED 颜色临时变量 */
     motor_data_t tmp;
     motor_data_t speed_a, speed_b;
+    motor_data_t nan_check;           /* NaN 检测用 */
     uint32_t ulNotifiedValue;
     uint16_t raw;  /* TODO: 临时, ADC 尖峰过滤用 */
     float Err_1;
@@ -1242,7 +1245,7 @@ void Main_Control_Task(void *pvParameters)
     float gx_body, gy_body, gz_body;  /* 重力向量, 传入 Element_CalcTilt */
     const ElementProp_t *prop;              /* 当前元素属性 (每 tick 查一次) */
     ControlStrategy_t    ctrl;              /* 当前有效控制策略 */
-    uint16_t elem_fan_d;                    /* 元素切换时查表的有效风扇占空比 */
+    float elem_fan_d;                    /* 元素切换时查表的有效风扇占空比 (0.0~1.0) */
     (void)pvParameters;
 
     Element_Init(&g_ectx);  /* 初始化元素状态机上下文 */
@@ -1264,7 +1267,6 @@ void Main_Control_Task(void *pvParameters)
 
 
     g_stream_active = 1;
-    P2INTE |= PIN_0;
     for (;;) {
         ulNotifiedValue = 0;
         xTaskNotifyWait(0, SIGNAL_MOTOR_DATA_READY, &ulNotifiedValue, pdMS_TO_TICKS(2));
@@ -1279,8 +1281,14 @@ void Main_Control_Task(void *pvParameters)
                 }
                 MOTOR_CS_SET();
                 tmp = motor_spi_dat_handle(spi_buffer);
+                nan_check.f = g_lpf_right.output;
+                if ((nan_check.u32 & 0x7F800000ul) == 0x7F800000ul && (nan_check.u32 & 0x007FFFFFul) != 0)
+                    lpf_reset(&g_lpf_right, tmp.f);
                 g_right_speed_actual = SPD_RD_SIGN_R * lpf_update(&g_lpf_right, tmp.f);
                 tmp = motor_spi_dat_handle(spi_buffer + 4);
+                nan_check.f = g_lpf_left.output;
+                if ((nan_check.u32 & 0x7F800000ul) == 0x7F800000ul && (nan_check.u32 & 0x007FFFFFul) != 0)
+                    lpf_reset(&g_lpf_left, tmp.f);
                 g_left_speed_actual = SPD_RD_SIGN_L * lpf_update(&g_lpf_left, tmp.f);
                 tmp = motor_spi_dat_handle(spi_buffer + 8);
                 g_mech_state = tmp.u32;
@@ -1375,7 +1383,17 @@ void Main_Control_Task(void *pvParameters)
                     lat_g_raw = -speed_mps * g_state.gyro_filtered / 9.80665f;
                     g_state.lat_g_filtered = lpf_update(&g_state.lpf_lat_g, lat_g_raw);
                     /* 总行驶距离积分 (每2ms累加一次, 启动时由 memset 清零) */
-                    g_total_distance += speed_mps * 0.002f;
+                {
+                    float dist_step = speed_mps * 0.002f;
+                    /* NaN 防护: 输入异常或累积量已被污染时重置 */
+                    nan_check.f = g_total_distance;
+                    if ((nan_check.u32 & 0x7F800000ul) == 0x7F800000ul && (nan_check.u32 & 0x007FFFFFul) != 0)
+                        g_total_distance = 0.0f;
+                    nan_check.f = dist_step;
+                    if ((nan_check.u32 & 0x7F800000ul) == 0x7F800000ul && (nan_check.u32 & 0x007FFFFFul) != 0)
+                        dist_step = 0.0f;
+                    g_total_distance += dist_step;
+                }
                 }
                 current_element = Element_Update(&g_ectx);
                 /* 直角转弯冻结: CTRL_ERR_FREEZE 策略下用冻结值替代真实 Err_Angle */
@@ -1555,16 +1573,16 @@ void Main_Control_Task(void *pvParameters)
                 //taskEXIT_CRITICAL();
             }
 
-            if (ADC2_DMA_IsDone()) {
-                    
-                ADC2_DMA_ClearFlag();
-                
-                for (i = 0; i < ADC2_CH_NUM; i++) {
-                    raw = ADC2_GetAvgValue(i);
-                    adc_values[i] = (float)raw; //最右横向为1，最左横向为3，左中为2，右中为0
+            if (ADC1_DMA_IsDone()) {
+
+                ADC1_DMA_ClearFlag();
+
+                for (i = 0; i < ADC1_CH_NUM; i++) {
+                    raw = ADC1_GetAvgValue(i);
+                    adc_values[i] = (float)raw;
                 }
-                
-                ADC2_DMA_Start();
+
+                ADC1_DMA_Start();
                
             }
         }
@@ -1572,7 +1590,7 @@ void Main_Control_Task(void *pvParameters)
 }
 
 /* ================================================================
- * P2.0 中断处理 (500Hz 电机数据就绪)
+ * P3.6 中断处理 (500Hz 电机数据就绪, SPI_MOTOR_INT2)
  *   通知 Main_Control_Task
  * ================================================================ */
 void Motor_Data_Ready_INT2_Handle(BaseType_t *xHigherPriorityTaskWoken)
@@ -1936,7 +1954,7 @@ void Main_Control_Task_Init(void)
      * ================================================================ */
     Debug_Register("Sys_ComSpd",    DBG_FLOAT  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &common_speed);
     Debug_Register("Sys_DriveSpd", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &drive_speed);
-    Debug_Register("Sys_FanD",     DBG_UINT16 | STATIC_TYPE | PERI_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_fan_d);
+    Debug_Register("Sys_FanD",     DBG_FLOAT | STATIC_TYPE | PERI_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_fan_d);
     Debug_Register("Sys_SS_Step",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_ss_step);
     Debug_Register("Sys_Manual",    DBG_UINT8  | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &manual_control_flag);
     Debug_Register("stat",      DBG_UINT8 | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &g_current_element_u8);
@@ -2024,8 +2042,8 @@ void Main_Control_Task_Init(void)
 
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
-    ADC2_DMA_Init(adc_dma_buf);
-    ADC2_DMA_Start();
+    ADC1_DMA_Init(adc_dma_buf);
+    ADC1_DMA_Start();
     //vTaskDelay(pdMS_TO_TICKS(10));
     
     /* 创建 Main_Control_Task (低优先级, 2ms 周期) */

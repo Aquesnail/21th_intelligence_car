@@ -116,3 +116,13 @@ void motor_stream_stop(void)
 {
     motor_send_cmd(MOTOR_CMD_STOP, 0, 0);
 }
+
+/* 写风扇占空比 (float 0.0~1.0 → 0%~100%) */
+void motor_write_fan_duty(float duty)
+{
+    motor_data_t val;
+    val.f = duty;
+    MOTOR_CS_RESET();
+    motor_write_reg(REG_FAN_DUTY, val);
+    MOTOR_CS_SET();
+}

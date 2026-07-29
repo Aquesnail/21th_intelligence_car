@@ -1,4 +1,4 @@
-#include "dma_uart.h"
+#include "dma_uart2.h"
 #include "dma_uart_ring.h"
 #include <string.h>
 
@@ -97,7 +97,7 @@ void UART2_DMA_Config(void) {
     DMA_UR2R_CR = 0xa1; // Enable DMA, Start Rx, Clear FIFO
 
 }
-void SetTimer2Baudraye(u16 dat)  // 选择波特率, 2: 使用Timer2做波特率, 其它值: 使用Timer1做波特率.
+static void SetTimer2Baudraye(u16 dat)  // 选择波特率, 2: 使用Timer2做波特率, 其它值: 使用Timer1做波特率.
 {
     T2R = 0;    //Timer stop
     T2_CT = 0;  //Timer2 set As Timer

@@ -3,7 +3,7 @@
 #include "task.h"
 #include "debug_arch.h"
 #include "timer.h"
-#include "dma_uart.h"
+#include "dma_uart3.h"
 #include <string.h>
 
 #pragma warning disable = 138

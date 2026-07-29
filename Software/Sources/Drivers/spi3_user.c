@@ -51,7 +51,7 @@ void SPI3_Init(DMA_SPI3_Callback_t callback)
     /* 运行时初始化 DMA 缓冲区，避免 Flash 镜像占用 */
     memset(pu8SPI3DMATxBuffer, 0, sizeof(pu8SPI3DMATxBuffer));
 
-    SPI3_SwitchP2n();                  
+    SPI3_SwitchP7n();                  
 
     SPI3_MasterMode();                  //设置SPI3为主机模式
     SPI3_IgnoreSS();                    //忽略SS脚

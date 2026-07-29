@@ -720,16 +720,6 @@
           <GroupName>Drivers</GroupName>
           <Files>
             <File>
-              <FileName>dma_uart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Sources\Drivers\dma_uart.c</FilePath>
-            </File>
-            <File>
-              <FileName>dma_uart.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Sources\Drivers\dma_uart.h</FilePath>
-            </File>
-            <File>
               <FileName>delay.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Sources\Drivers\delay.c</FilePath>
@@ -938,6 +928,16 @@
               <FileName>pwm_user.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Sources\Drivers\pwm_user.h</FilePath>
+            </File>
+            <File>
+              <FileName>dma_uart3.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\Drivers\dma_uart3.c</FilePath>
+            </File>
+            <File>
+              <FileName>dma_uart3.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Sources\Drivers\dma_uart3.h</FilePath>
             </File>
           </Files>
         </Group>

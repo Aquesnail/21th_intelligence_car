@@ -7,8 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 #include "delay.h"
+#include "dma_uart3.h"
 #include "dma_uart_ring.h"
-#include "dma_uart.h"
+
+extern dma_uart_manager_t uart3_mgr;
 
 #define DEBUG_TASK_STACK_SIZE   512
 #define DEBUG_TASK_PRIORITY     (tskIDLE_PRIORITY + 2)
@@ -26,12 +28,12 @@ void vDebugTaskDelayedStart(void *pvParameters);
 /* 私有函数实现 ------------------------------------------------------------ */
 static void Debug_Write(uint8_t* pData, uint16_t len)
 {
-    DMA_UART_Write(&uart2_mgr, pData, len);
+    DMA_UART_Write(&uart3_mgr, pData, len);
 }
 
 static uint16_t Debug_Read(uint8_t* pData, uint16_t len)
 {
-    return DMA_UART_Read(&uart2_mgr, pData, len);
+    return DMA_UART_Read(&uart3_mgr, pData, len);
 }
 
 /* 公共函数 ---------------------------------------------------------------- */

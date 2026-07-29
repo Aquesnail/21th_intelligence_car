@@ -2,7 +2,7 @@
 #define _DEBUG_ARCH_H
 
 #include "stc32g144k246.h"  // 包含硬件寄存器定义
-#include "dma_uart.h"
+#include "dma_uart3.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"

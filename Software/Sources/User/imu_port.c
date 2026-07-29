@@ -1,6 +1,6 @@
 #include "icm42688.h"
 #include "icm42688_defs.h"
-#include "spi1_user.h"
+#include "spi2_user.h"
 #include "delay.h"
 
 #include "FreeRTOS.h"
@@ -53,7 +53,7 @@ void IMU_INT1_ISR_Handle(BaseType_t* xHigherPriorityTaskWoken);
 uint8_t ICM42688_SPI_TxRx(uint8_t dat) {
     uint8_t rx_dat;
     taskENTER_CRITICAL();
-    rx_dat = SPI1_WriteReadByte(dat);
+    rx_dat = SPI2_WriteReadByte(dat);
     taskEXIT_CRITICAL();
     return rx_dat;
 }
@@ -61,7 +61,7 @@ uint8_t ICM42688_SPI_TxRx(uint8_t dat) {
 /* SPI DMA批量读取 */
 void ICM42688_SPI_DmaRead(uint8_t* rx_buf, uint16_t len) {
     uint32_t ulNotifiedValue;
-    SPI1_DMA_WriteReadBytes_IT(FIFO_TxBuffer, rx_buf, len);
+    SPI2_DMA_WriteReadBytes_IT(FIFO_TxBuffer, rx_buf, len);
     if (xTaskNotifyWait(0, SIGNAL_SPI_DMA_DONE, &ulNotifiedValue, pdMS_TO_TICKS(10)) == pdTRUE) {
         return;
     } else {
@@ -144,6 +144,8 @@ void vIMUProcessTask(void *pvParameters) {
 
     (void)pvParameters;
 
+    ICM42688_Print("[IMU] task started, init SPI2...\r\n");
+
     /* -----------------------------------------------------------
      * 2. 初始化逻辑
      * ----------------------------------------------------------- */
@@ -161,12 +163,15 @@ void vIMUProcessTask(void *pvParameters) {
     memset(FIFO_TxBuffer, 0xff, sizeof(FIFO_TxBuffer));
     vTaskDelay(pdMS_TO_TICKS(2));
 
-    SPI1_Init(IMU_DMA_Read_CallBack);
+    SPI2_Init(IMU_DMA_Read_CallBack);
     icm_fifo_ths = FIFO_Packets; /* 每次读取 2 个包 */
 
+    ICM42688_Print("[IMU] SPI2 ready, init ICM42688...\r\n");
     i = ICM42688_Init();
     if (i != ICM_OK) {
-        ICM42688_Print("IMU Init Error: %d \r\n", i);
+        ICM42688_Print("[IMU] ICM42688 Init Error: %d\r\n", i);
+    } else {
+        ICM42688_Print("[IMU] ICM42688 Init OK, entering loop\r\n");
     }
     
     /* -----------------------------------------------------------
@@ -271,7 +276,8 @@ void IMU_Init() {
    // Debug_Register("IGYv", DBG_FLOAT | HIGH_FREQ_TYPE, &g_imu_gy);
    // Debug_Register("IGZv", DBG_FLOAT | HIGH_FREQ_TYPE, &g_imu_gz);
 
-    xTaskCreate(vIMUProcessTask, "IMU", 728-500, NULL, tskIDLE_PRIORITY + 4, NULL);
+    xTaskCreate(vIMUProcessTask, "IMU", 728, NULL, tskIDLE_PRIORITY + 4, NULL);
+    ICM42688_Print("[IMU] task created, waiting for init...\r\n");
 
 //	Debug_Register("ax", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ax));
   //  Debug_Register("ay", DBG_FLOAT | HIGH_FREQ_TYPE, &(IMU_Filter_Data->sensor.dat.ay));

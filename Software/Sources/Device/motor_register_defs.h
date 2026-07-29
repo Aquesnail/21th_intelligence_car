@@ -24,4 +24,7 @@
 #define REG_B_PID_SPEED_KD              0x2Fu
 #define REG_B_PID_SPEED_INTEGRAL_LIMIT  0x40u
 
+/* 风扇控制 */
+#define REG_FAN_DUTY                    0x2Bu
+
 #endif

@@ -3,6 +3,9 @@
 
 #include "config.h"
 
+/* SPI DMA 完成通知信号 (motor_port.c + SPI3_Callback 共用) */
+#define SIGNAL_MOTOR_SPI_DMA_DONE  (1 << 0)
+
 /* =========================================================
  * 底层接口 (由 motor_port.c 实现)
  * =========================================================*/
@@ -35,8 +38,9 @@ void         motor_read_two_regs(uint8_t addr1, uint8_t addr2, motor_data_t *val
 void         motor_stream_start(uint8_t addr1, uint8_t addr2);
 void         motor_stream_stop(void);
 motor_data_t motor_spi_recv_u32(void);
+void         motor_write_fan_duty(float duty);
 
-#define MOTOR_CS_SET()   (P22 = 1)
-#define MOTOR_CS_RESET() (P22 = 0)
+#define MOTOR_CS_SET()   (P70 = 1)
+#define MOTOR_CS_RESET() (P70 = 0)
 
 #endif

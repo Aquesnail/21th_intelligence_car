@@ -1,6 +1,7 @@
 #include "pwm_user.h"
 
 #define PWMC_DMATXSIZE 256
+#define PWME_DMATXSIZE 256
 
 //uint8_t xdata pu8PWMCDMATxBuffer[PWMC_DMATXSIZE]; //PWMCDMA发送缓冲区数组
 
@@ -57,6 +58,55 @@ void PWMC_Init(void)
     //<<AICUBE_USER_PWM2_INITIAL_BEGIN>>
     // 在此添加用户初始化代码  
     //<<AICUBE_USER_PWM2_INITIAL_END>>
+}
+
+void PWME_Init(){
+  //  PWMC_C3SwitchP6465();               //设置PWMC通道3数据端口: PWMC3P (P6.4), PWMC3N (P6.5)
+    PWME_C5SwitchP50();                 //设置PWME引脚切换选项5: P5.0
+    HSPWME_Disable();                   //关闭高速模式，使用同步方式进行初始化
+    PWME_InternalClockMode();           //选择内部时钟模式
+    PWME_SetClockDivider(0);            //设置16位预分频
+    PWME_SetReload16(149);              //设置16位重载值
+    PWME_BufferARR();                   //使能重载值寄存器预装载功能
+    PWME_SetCounter(0);                 //初始化计数值
+
+    PWME_CC5PDisable();                 //关闭通道
+  //  PWME_CC5Output();                   //使能通道输出功能
+    PWME_CC5PEnable();                  //打开通道
+    PWME_SetCCR5Value(36);
+    //PWM_UpdateDuty(PWME_CH3, 500);      //设置通道的PWM占空比
+    PWME_OC5REFPWMMode1();              //设置通道输出参考信号为PWM模式1信号
+    PWME_BufferCCR5();                  //使能CCRn预装载功能
+    PWME_CC5PNonInverted();             //设置正极通道输出高电平有效
+    PWME_EnablePWM5POutput();           //使能正极通道输出
+   // PWME_DisablePWM3NOutput();          //关闭负极通道输出
+
+    PWME_EnableMainOutput();            //使能PWM主输出
+
+    PWME_UpdateIntAsDMAEvent();         //设置PWME更新中断作为DMA事件
+    PWME_SetDMABaseAddress(0x16);       //设置PWME DMA的寄存器基地址 (CCR5: CCR5X,Reserved,CCR5H,CCR5L)
+    PWME_SetDMABurstCount(0);           //设置PWME DMA突发传输次数
+    PWME_SetDMABurst4Bytes();           //设置PWME DMA突发传输字节数
+    PWME_DMASkipSpace();                //设置PWME DMA时跳过保留寄存器（空白字节）
+    PWME_SetDMAOutput();                //设置PWME DMA方向为输出（DMA输出PWM波形）
+   // DMA_SPI1_SetTxAddress(d)        (DMA_SPI_TXAH = HIBYTE(d), DMA_SPI_TXAL = LOBYTE(d))
+ //   DMA_PWMET_TXAH = HIBYTE(pu8PWMEDMATxBuffer);  //设置PWME发送DMA总字节数
+ //   DMA_PWMET_TXAL = LOBYTE(pu8PWMEDMATxBuffer);
+
+  //  DMA_PWMER_AMTH = HIBYTE(PWME_DMATXSIZE - 1); //设置PWME发送DMA总字节数
+  //  DMA_PWMER_AMT = LOBYTE(PWME_DMATXSIZE - 1 ); //设置PWME发送DMA总字节数
+    DMA_PWME_SetTxAmount(PWME_DMATXSIZE - 1); //设置PWME发送DMA总字节数
+  //  DMA_PWME_SetTxAddress(pu8PWMEDMATxBuffer); //设置PWME发送DMA缓冲区地址
+    DMA_PWME_SetInterval(0);  //设置PWME发送DMA字节间隔时间（系统时钟）
+    DMA_PWME_ClearTxFlag();             //清除PWME发送DMA中断标志
+    DMA_PWME_SetTxBusPriority(0);       //设置总线访问为最低优先级
+    //DMA_PWME_SetTxIntPriority(0);       //设置中断为最低优先级
+    DMA_PWMER_CFG &= ~(0x03);           //最低优先级
+    DMA_PWME_EnableTxInt();             //使能PWME发送DMA中断
+    DMA_PWME_EnableTx();                //使能PWME发送DMA功能
+    PWME_EnableDMA();                   //设置PWME DMA方向为输出（DMA输出PWM波形）
+    PWME_DMANeverSkipSpace();
+    PWME_Run();                         //PWME开始运行
 }
 
 

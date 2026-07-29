@@ -1,7 +1,7 @@
 #include "application.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "dma_uart.h"
+#include "dma_uart3.h"
 #include "debug_arch.h"
 #include "crc.h"
 #include "beep.h"
@@ -20,13 +20,13 @@ extern void key_port_init(void);
 extern void MainControl_Init(void);
 extern void Main_Control_Task_Init();
 void app_init(void){
-    UART2_Init();
+    UART3_Init();
    // UART4_Init();
     CRC_Init();
-   // App_UartTest_Init();
+//  App_UartTest_Init();
 		App_DebugTask_Init();
 		APP_CLK_TEST_Init();
-    CPU_STATUS_TASK_Init();
+   CPU_STATUS_TASK_Init();
    // Beep_Init();
     IMU_Init();
     Main_Control_Task_Init();

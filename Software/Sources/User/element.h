@@ -75,7 +75,7 @@ typedef struct {
     element_t          id;              /* 元素枚举值 */
     const char        *name;            /* 可读名称（Debug_Log 用） */
     float             *speed_ptr;       /* 指向对应速度变量（NULL = 不改变速度） */
-    uint16_t          *fan_d_ptr;
+    float             *fan_d_ptr;       /* 风扇占空比 (0.0~1.0) */
     unsigned char      led_r;           /* LED 颜色 R */
     unsigned char      led_g;           /* LED 颜色 G */
     unsigned char      led_b;           /* LED 颜色 B */

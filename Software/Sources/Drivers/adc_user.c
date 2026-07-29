@@ -2,7 +2,7 @@
 
 // DMA 缓冲区定义 (必须位于 xdata 区域)
 uint8_t * adc2_dma_buffer = NULL;
-
+uint8_t * adc1_dma_buffer = NULL;
 // DMA 目标地址 (xdata 区域)
 #define ADC2_DMA_ADDR   0x1000
 // DMA 完成标志
@@ -95,15 +95,9 @@ void ADC2_DMA_Init(uint8_t* adc2_dma_buf)
     // // 根据手册: n = (值 - 4) / 2，所以 16 次 = (2*16-4) = 28 = 0x1C
     // DMA_ADC2_CFG2 = 0b00001011;
 
-    // // 5. 配置 ADC2 通道使能
-    // // ADC2_0~ADC2_7 对应 P0.0~P0.7
-    // // CHSW0: ADC7~ADC0 的使能位
-    DMA_ADC2_CHSW0 |= 0x0F;      // 使能 ADC2_0~ADC2_3 (0x0F = 0000 1111)
-    // // CHSW1: ADC15~ADC8 的使能位
-    DMA_ADC2_CHSW1 |= 0x00;      // 不使能 8~15 通道
+    // DMA_ADC2_SetChannels 已设置 CHSW0/1，无需重复
 
-    DMA_ADC2_Enable();                  //使能ADC DMA功能
-    // 6. 清除 DMA 完成标志
+    // 清除 DMA 完成标志
     adc2_dma_done = 0;
 }
 
@@ -188,6 +182,156 @@ void DMA_ADC2_ISR_Handle() interrupt DMA_ADC2_VECTOR
 
     // 设置完成标志
     adc2_dma_done = 1;
+
+    return;
+}
+
+//============================================================================
+// ADC1 配置代码 (参照 ADC2)
+//============================================================================
+
+// DMA 缓冲区定义
+
+// DMA 完成标志
+bit adc1_dma_done = 0;
+
+//========================================================================
+// 函数: void ADC1_Init(void)
+// 描述: ADC1 基础初始化
+// 参数: none
+// 返回: none
+//========================================================================
+void ADC1_Init(void)
+{
+    // 1. 配置 ADC1 时序
+    ADCTIM = 0x3f;
+
+    // 2. 配置 ADC1 速度和结果格式
+    ADCCFG = ADC1_RES_FMT | ADC1_SPEED;
+
+    // 3. 打开 ADC1 电源
+    ADC_CONTR = 0x80;
+
+    // 延时等待 ADC 电源稳定
+    delay_ms(1);
+}
+
+//========================================================================
+// 函数: void ADC1_DMA_Init(void)
+// 描述: ADC1 DMA 配置初始化
+// 参数: adc1_dma_buf: DMA 缓冲区指针
+// 返回: none
+//========================================================================
+void ADC1_DMA_Init(uint8_t* adc1_dma_buf)
+{
+    ADC1_SetClockDivider(15);
+    ADC1_ResultRightAlign();
+    ADC1_DisablePWMTrig();
+    ADC1_DisableRepeatConv();
+
+    ADC1_SetCSSetupCycles(ADC1_STPCYC);
+    ADC1_SetCSHoldCycles(ADC1_HLDCYC);
+    ADC1_SetSampleDutyCycles(ADC1_SMPCYC);
+
+    ADC1_DisableETR();
+
+    ADC1_ActiveChannel(0);
+    ADC1_Enable();
+
+    DMA_ADC1_SetAmount(ADC1_DMAAMT - 1);
+    DMA_ADC1_SetInterval(ADC1_DMAITV);
+    DMA_ADC1_SetChannels(0x0072);  // ADC1, ADC4, ADC5, ADC6 (bit1,4,5,6)
+    DMA_ADC1_SetRepeat8Times();
+    DMA_ADC1_ClearFlag();
+    DMA_ADC1_SetIntPriority(0);
+    DMA_ADC1_SetBusPriority(0);
+    DMA_ADC1_Enable();
+
+    // 使能 DMA 完成中断
+    DMA_ADC_CFG |= 0x80;
+    adc1_dma_buffer = adc1_dma_buf;
+
+    // 设置 DMA 接收地址
+    DMA_ADC_RXAH = (uint8_t)((uint16_t)adc1_dma_buffer >> 8);
+    DMA_ADC_RXAL = (uint8_t)adc1_dma_buffer;
+
+    // DMA_ADC1_SetChannels 已设置 CHSW0/1，无需重复
+
+    // 清除 DMA 完成标志
+    adc1_dma_done = 0;
+}
+
+//========================================================================
+// 函数: void ADC1_DMA_Start(void)
+// 描述: 启动 ADC1 DMA 转换
+// 参数: none
+// 返回: none
+//========================================================================
+void ADC1_DMA_Start(void)
+{
+    if (DMA_ADC_CR & 0x40) return;
+    DMA_ADC_CR = 0xC0;
+}
+
+//========================================================================
+// 函数: uint8_t ADC1_DMA_IsDone(void)
+// 描述: 检查 DMA 是否完成
+// 参数: none
+// 返回: 1=完成, 0=未完成
+//========================================================================
+uint8_t ADC1_DMA_IsDone(void)
+{
+    return adc1_dma_done;
+}
+
+//========================================================================
+// 函数: void ADC1_DMA_ClearFlag(void)
+// 描述: 清除 DMA 完成标志
+// 参数: none
+// 返回: none
+//========================================================================
+void ADC1_DMA_ClearFlag(void)
+{
+    adc1_dma_done = 0;
+}
+
+//========================================================================
+// 函数: uint16_t ADC1_GetAvgValue(uint8_t ch)
+// 描述: 获取指定通道的硬件平均 ADC 值 (12位)
+// 参数: ch: 通道号 0~3
+// 返回: 12位平均 ADC 值
+//========================================================================
+uint16_t ADC1_GetAvgValue(uint8_t ch)
+{
+    uint16_t offset;
+    uint16_t high_byte, low_byte;
+
+    if (ch >= ADC1_CH_NUM) return 0;
+
+    // 计算当前通道在数组中的基础偏移量
+    offset = ch * ADC1_CH_BLOCK_SIZE + (ADC1_DMAAMT * 2);
+
+    // 读取平均值的高低字节
+    high_byte = adc1_dma_buffer[offset + 2];
+    low_byte  = adc1_dma_buffer[offset + 3];
+
+    // 拼接并返回 (屏蔽高4位，保留12位有效数据)
+    return ((high_byte << 8) | low_byte) & 0x0FFF;
+}
+
+//========================================================================
+// 函数: void DMA_ADC1_ISR_Handle(void)
+// 描述: ADC1 DMA 中断服务函数 (中断号 48)
+// 参数: none
+// 返回: none
+//========================================================================
+void DMA_ADC1_ISR_Handle() interrupt DMA_ADC1_VECTOR
+{
+    // 清除 DMA 状态
+    DMA_ADC_STA = 0;
+
+    // 设置完成标志
+    adc1_dma_done = 1;
 
     return;
 }

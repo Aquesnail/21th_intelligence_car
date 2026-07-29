@@ -44,13 +44,13 @@ static float g_speed_barrel       = 95.0f;
 static float g_speed_cross        = 70.0f;
 static float g_speed_skip         = 30.0f;
 
-/* ---- 风扇占空比变量 (供元素属性表 fan_d_ptr 指向 + Debug_Register 在线调参) ---- */
-static uint16_t g_fan_d_straight = 400;
-static uint16_t g_fan_d_ring     = 400;
-static uint16_t g_fan_d_wall     = 425;
-static uint16_t g_fan_d_cross    = 400;
-static uint16_t g_fan_d_barrel   = 425;
-static uint16_t g_fan_d_skip     = 400;
+/* ---- 风扇占空比变量 (供元素属性表 fan_d_ptr 指向 + Debug_Register 在线调参, 0.0~1.0) ---- */
+static float g_fan_d_straight = 0.60f;
+static float g_fan_d_ring     = 0.60f;
+static float g_fan_d_wall     = 0.70f;
+static float g_fan_d_cross    = 0.60f;
+static float g_fan_d_barrel   = 0.70f;
+static float g_fan_d_skip     = 0.60f;
 
 /* ---- 环岛开环参数 (被 g_element_props 引用, 必须前置) ---- */
 float    g_ol_ring_angle   = 0.0f;    /* 环岛开环目标角度(绝对值, 度) */
@@ -1256,12 +1256,12 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_SkipSpd",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_speed_skip);
 
     /* ---- 风扇占空比变量 — Debug 注册 ---- */
-    Debug_Register("El_FanD_Str",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_straight);
-    Debug_Register("El_FanD_Ring", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_ring);
-    Debug_Register("El_FanD_Wall", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_wall);
-    Debug_Register("El_FanD_Cross",DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_cross);
-    Debug_Register("El_FanD_Bar",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_barrel);
-    Debug_Register("El_FanD_Skip", DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_skip);
+    Debug_Register("El_FanD_Str",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_straight);
+    Debug_Register("El_FanD_Ring", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_ring);
+    Debug_Register("El_FanD_Wall", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_wall);
+    Debug_Register("El_FanD_Cross",DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_cross);
+    Debug_Register("El_FanD_Bar",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_barrel);
+    Debug_Register("El_FanD_Skip", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_fan_d_skip);
 
     /* ================================================================
      * 3. 环岛 RING — 默认值 & Debug 注册

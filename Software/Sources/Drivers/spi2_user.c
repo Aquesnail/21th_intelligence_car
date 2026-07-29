@@ -51,13 +51,13 @@ void SPI2_Init(DMA_SPI2_Callback_t callback)
     /* 运行时初始化 DMA 缓冲区，避免 Flash 镜像占用 */
     memset(pu8SPI2DMATxBuffer, 0, sizeof(pu8SPI2DMATxBuffer));
 
-    SPI2_SwitchP8n();                   //选择SPI数据口: SS(P8.0), MOSI(P8.1), MISO(P8.2), SCLK(P8.3)
+    SPI2_SwitchP6n();                   //选择SPI数据口: CS(P6.4), MOSI(P6.5), MISO(P6.6), SCLK(P6.7)
 
     SPI2_MasterMode();                  //设置SPI2为主机模式
     SPI2_IgnoreSS();                    //忽略SS脚
     SPI2_DataMSB();                     //设置SPI2数据顺序为MSB (高位在前)
-    SPI2_SetMode3();                    //设置SPI2工作模式0 (CPOL=0, CPHA=0)
-    SPI2_SetClockDivider8();           //设置SPI2时钟分频
+    SPI2_SetMode0();                    //设置SPI2工作模式0 (CPOL=0, CPHA=0)
+    SPI2_SetClockDivider16();          //设置SPI2时钟分频
 
     HSSPI2_Disable();                   //关闭SPI2高速模式
 

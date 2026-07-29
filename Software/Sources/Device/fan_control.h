@@ -5,22 +5,23 @@
 
 /* ================================================================
  * 风扇缓启动 (Fan Soft-Start) 参数宏
+ *   duty 为 float 0.0~1.0 (0%=停转, 1.0=满油门)
  *   启动后先在 FAN_SS_START_DUTY 保持 FAN_SS_HOLD_TIME_SEC 秒,
  *   再从 FAN_SS_START_DUTY 线性插值到目标占空比
  *   总时长(s) = FAN_SS_HOLD_TIME_SEC + FAN_SS_BASE_TIME
  *             + (target - FAN_SS_DUTY_MIN) / FAN_SS_STEP_DUTY * FAN_SS_STEP_TIME
- *   启动完成后直接写入, 不再限斜率 (无感无刷已进闭环)
+ *   启动完成后直接通过 SPI 写入电机下位机
  * ================================================================ */
-#define FAN_SS_DUTY_MIN      250     /* 占空比下限 (钳位)               */
-#define FAN_SS_DUTY_MAX      500     /* 占空比上限 (钳位)               */
-#define FAN_SS_START_DUTY    275     /* 缓启动起始占空比                */
-#define FAN_SS_STEP_DUTY     40      /* 每步占空比增量 (用于计算时长)   */
+#define FAN_SS_DUTY_MIN      0.00f   /* 占空比下限 (钳位, 0%)           */
+#define FAN_SS_DUTY_MAX      1.00f   /* 占空比上限 (钳位, 100%)          */
+#define FAN_SS_START_DUTY    0.10f   /* 缓启动起始占空比 (10%)           */
+#define FAN_SS_STEP_DUTY     0.16f   /* 每步占空比增量 (用于计算时长)    */
 #define FAN_SS_STEP_TIME_SEC 1.0f    /* 每步对应时间 (秒)               */
 #define FAN_SS_BASE_TIME_SEC 1.0f    /* 保底启动时间 (秒)               */
 #define FAN_SS_HOLD_TIME_SEC 4.0f    /* 启动后保持起始占空比时长 (秒)    */
 
-/* 风扇占空比变量 (上位机可读写, 缓启动以此为目标值) */
-extern uint16_t fan_D;
+/* 风扇占空比变量 (上位机可读写, 缓启动以此为目标值, 0.0~1.0) */
+extern float fan_D;
 
 /* 风扇调试外设描述符 (注册到 Debug 系统) */
 extern DebugPeriDesc_t g_fan_d;
@@ -30,11 +31,13 @@ extern DebugPeriDesc_t g_fan_d;
  *   Fan_SoftStart_Trigger — 触发缓启动 (钳位 + 从起始值开始)
  *   Fan_SoftStart_Step    — 每 tick 调用, 浮点线性插值步进
  *   Fan_TurnOff           — 关闭风扇 + 清除缓启动状态
+ *   Fan_SetDuty           — 设置目标占空比 (自动判断走缓启动或直写)
+ *   Fan_IsSoftStartComplete — 查询缓启动是否完成
  * ================================================================ */
-void Fan_SoftStart_Trigger(uint16_t target);
-void Fan_SoftStart_Step(void);
-void Fan_TurnOff(void);
-void Fan_SetDuty(uint16_t duty);
+void    Fan_SoftStart_Trigger(float target);
+void    Fan_SoftStart_Step(void);
+void    Fan_TurnOff(void);
+void    Fan_SetDuty(float duty);
 uint8_t Fan_IsSoftStartComplete(void);
 
 #endif /* FAN_CONTROL_H */

@@ -44,4 +44,35 @@ uint16_t ADC2_GetAvgValue(uint8_t ch);
 // ADC2 DMA 中断服务函数 (需在 main.c 中包装成中断函数)
 void ADC2_DMA_ISR(void);
 
+//============================================================================
+// ADC1 配置参数
+//============================================================================
+#define ADC1_SPEED      15      // 0~15, ADC转换时间 = (n+1)*32 个CPU时钟
+#define ADC1_RES_FMT    (1<<5)  // 右对齐
+#define ADC1_CH_NUM     4       // 通道数: ADC1, ADC4, ADC5, ADC6
+#define ADC1_BUF_SIZE   8       // 每个通道采样次数
+
+#define ADC1_STPCYC             0       // ADC1通道选择建立时间
+#define ADC1_HLDCYC             1       // ADC1通道选择保持时间
+#define ADC1_SMPCYC             14      // ADC1通道采样时间
+#define ADC1_DMAITV             0       // ADC1 DMA扫描间隔时间（系统时钟）
+
+#define ADC1_DMAAMT             8       // ADC1 DMA 每个通道扫描次数(采样次数 n)
+#define ADC1_CH_BLOCK_SIZE      (ADC1_DMAAMT * 2 + 4)
+#define ADC1_DMASIZE            (64 * ADC1_CH_BLOCK_SIZE)
+
+// ADC1 初始化
+void ADC1_Init(void);
+void ADC1_DMA_Init(uint8_t* adc1_dma_buffer);
+
+// ADC1 启动 DMA 采样
+void ADC1_DMA_Start(void);
+
+// 检查 DMA 完成标志
+uint8_t ADC1_DMA_IsDone(void);
+void ADC1_DMA_ClearFlag(void);
+
+// 获取 ADC1 通道数据
+uint16_t ADC1_GetAvgValue(uint8_t ch);
+
 #endif
