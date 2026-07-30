@@ -18,7 +18,7 @@ extern float g_total_distance; /* app_main_control.c 中定义, 总行驶距离 
  * ================================================================ */
 
 /* ---- 车身水平倾角阈值 (多元素共用) ---- */
-static float angle_level = 15.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
+static float angle_level = 50.0f;   /* 车身水平倾角阈值(度), 四元数前后倾角 */
 
 /* ---- 倾角校准零偏 (上电放平自动归零, STATIC_TYPE 供上位机保存) ---- */
 static float g_tilt_fb_offset   = 0.0f;
@@ -34,27 +34,27 @@ static float g_tilt_lr_acc      = 0.0f;
  * 速度变量 (供元素属性表 speed_ptr 指向 + Debug_Register 在线调参)
  *   必须在 g_element_props 之前声明
  * ================================================================ */
-static float g_speed_cruising     = 70.0f;
-static float g_speed_ring         = 60.0f;
-static float g_speed_wall         = 45.0f;
-static float g_speed_wall_climb   = 45.0f;
-static float g_speed_wall_horiz   = 40.0f;
-static float g_speed_wall_descend = 50.0f;
-static float g_speed_barrel       = 95.0f;
-static float g_speed_cross        = 70.0f;
+static float g_speed_cruising     = 90.0f;
+static float g_speed_ring         = 75.0f;
+static float g_speed_wall         = 85.0f;
+static float g_speed_wall_climb   = 60.0f;
+static float g_speed_wall_horiz   = 60.0f;
+static float g_speed_wall_descend = 60.0f;
+static float g_speed_barrel       = 105.0f;
+static float g_speed_cross        = 75.0f;
 static float g_speed_skip         = 30.0f;
 
 /* ---- 风扇占空比变量 (供元素属性表 fan_d_ptr 指向 + Debug_Register 在线调参) ---- */
-static uint16_t g_fan_d_straight = 400;
+static uint16_t g_fan_d_straight = 425;
 static uint16_t g_fan_d_ring     = 400;
 static uint16_t g_fan_d_wall     = 425;
-static uint16_t g_fan_d_cross    = 400;
+static uint16_t g_fan_d_cross    = 425;
 static uint16_t g_fan_d_barrel   = 425;
 static uint16_t g_fan_d_skip     = 400;
 
 /* ---- 环岛开环参数 (被 g_element_props 引用, 必须前置) ---- */
 float    g_ol_ring_angle   = 0.0f;    /* 环岛开环目标角度(绝对值, 度) */
-float    g_ol_ring_yawrate = 15.0f;    /* 环岛开环目标角速度(绝对值, °/s) */
+float    g_ol_ring_yawrate = 8.0f;     /* 环岛开环目标角速度(绝对值, °/s) */
 
 /* ================================================================
  * 元素属性表 (Flash 常驻, 按 ELEMENT_ACTIVE_COUNT 索引)
@@ -113,7 +113,7 @@ static const ElementProp_t g_element_props[ELEMENT_ACTIVE_COUNT] = {
  * ================================================================ */
 static float   g_offtrack_timeout_ms   = 300.0f;  /* 离赛道超时 (ms) */
 static float   g_offtrack_adc_thresh   = 20.0f;   /* ADC 低于此值视为离赛道 */
-static uint32_t g_ontrack_timeout_frames = 10000; /* 上赛道超时 (帧), 上位机下发帧数 (500帧/s, 10000帧=20s) */
+static uint32_t g_ontrack_timeout_frames = 20000; /* 上赛道超时 (帧), 上位机下发帧数 (500帧/s, 20000帧=40s) */
 static uint16_t g_braking_frames       = 200;     /* 刹车持续帧数 (500fps, 200帧=0.4s) */
 float    g_brake_speed          = 0.1f;    /* 刹车目标速度 (rad/s), 非零产生刹车力矩 (供 app_main_control.c extern) */
 uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜像, 供上位机 HIGH_FREQ 上传) */
@@ -306,23 +306,23 @@ static float RingExit[4];
 static unsigned char xdata ring_vote_buf[100];
 static VoteWindow_t vote_win_ring;
 
-static unsigned short g_pass_timeout_frames = 150;  /* 默认150帧=300ms */
-static float    g_ring_exit_yaw_thresh  = 300.0f;  /* 退环所需 yaw 累计角度(绝对值, 度) */
-static unsigned short g_ring_timeout_frames   = 400;  /* 环岛总超时 (帧, ≈0.8s) */
-static float    g_ring_veto_vertical_sum = 600.0f;  /* 竖向电感和否决阈值: adc[1]+adc[3] > 此值 → 十字特征, 否决进环 */
+static unsigned short g_pass_timeout_frames = 200;  /* 默认200帧=400ms */
+static float    g_ring_exit_yaw_thresh  = 0.0f;    /* 退环所需 yaw 累计角度(绝对值, 度) */
+static unsigned short g_ring_timeout_frames   = 2000;  /* 环岛总超时 (帧, ≈4s) */
+static float    g_ring_veto_vertical_sum = 700.0f;  /* 竖向电感和否决阈值: adc[1]+adc[3] > 此值 → 十字特征, 否决进环 */
 
 /* ---- 环岛出环矫正参数 ---- */
 static float    g_ring_exit_corr_k0   = 2.0f;   /* 左环出环: CalibK[0] 临时放大系数 (横左电感) */
 static float    g_ring_exit_corr_k2   = 2.0f;   /* 右环出环: CalibK[2] 临时放大系数 (横右电感) */
-static unsigned short g_ring_exit_corr_frames = 100; /* 出环矫正持续帧数 (默认100帧=200ms) */
+static unsigned short g_ring_exit_corr_frames = 80;  /* 出环矫正持续帧数 (默认80帧=160ms) */
 static float    g_ring_exit_corr_k_saved = 1.0f; /* 进入矫正前保存的原始 CalibK 值 */
 
 /* ---- 环岛入环矫正参数 ---- */
-static float    g_ring_entry_corr_k2   = 2.0f;   /* 左环入环: CalibK[2] 临时放大系数 (横右电感, 对侧) */
-static float    g_ring_entry_corr_k0   = 2.0f;   /* 右环入环: CalibK[0] 临时放大系数 (横左电感, 对侧) */
+static float    g_ring_entry_corr_k2   = 4.0f;   /* 左环入环: CalibK[2] 临时放大系数 (横右电感, 对侧) */
+static float    g_ring_entry_corr_k0   = 4.0f;   /* 右环入环: CalibK[0] 临时放大系数 (横左电感, 对侧) */
 static float    g_ring_entry_corr_k_saved = 1.0f; /* 入环矫正前保存的原始 CalibK 值 */
 static float    g_ring_entry_dist_start = 0.0f;   /* 入环矫正起点距离 (m) */
-static float    g_ring_entry_corr_dist  = 7.35f;  /* 入环矫正距离阈值 (m), 达到后进入 PASS */
+static float    g_ring_entry_corr_dist  = 0.3f;   /* 入环矫正距离阈值 (m), 达到后进入 PASS */
 
 /* ---- 环岛 Check ---- */
 static unsigned char Check_RingEntry_Physical(ElementCtx_t *ctx)
@@ -890,7 +890,7 @@ static void Enter_CrossToSkip(ElementCtx_t *ctx)
 /* ---- 直角转弯参数 ---- */
 static unsigned char xdata ra_vote_buf[RA_WIN_MAX];
 static VoteWindow_t vote_win_ra;
-static float   g_ra_entry_thresh    = 100.0f;   /* |err_filtered| > 此值 → 进入直角 */
+static float   g_ra_entry_thresh    = 1000.0f;  /* |err_filtered| > 此值 → 进入直角 */
 static float   g_ra_exit_thresh     = 30.0f;    /* |err_raw| < 此值 → 退出直角 (滞回) */
 static unsigned short g_ra_timeout_frames = 1000;  /* 直角超时帧数 (默认1000帧=2s) */
 static float   g_ra_yawrate_feedforward_k = 0.6000000238418579f; /* 直角转弯前馈角速度系数 */
@@ -987,10 +987,10 @@ static void Enter_RightAngleExit(ElementCtx_t *ctx)
  *   Cross 和 RightAngle 不参与全局锁.
  * ================================================================ */
 
-static unsigned short g_ring_global_lock  = 300;  /* 环岛退出后全局锁存帧数 */
+static unsigned short g_ring_global_lock  = 100;  /* 环岛退出后全局锁存帧数 */
 static unsigned short g_wall_global_lock  = 200;  /* 上墙退出后全局锁存帧数 */
-static unsigned short g_barrel_global_lock = 300; /* 滚筒退出后全局锁存帧数 */
-static unsigned short g_skip_global_lock  = 30;  /* 跷跷板退出后全局锁存帧数 */
+static unsigned short g_barrel_global_lock = 250; /* 滚筒退出后全局锁存帧数 */
+static unsigned short g_skip_global_lock  = 250;  /* 跷跷板退出后全局锁存帧数 */
 
 static unsigned short GetGlobalExitLockFrames(element_t e)
 {
@@ -1207,7 +1207,7 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->ring_entry_yaw   = 0.0f;
         ctx->global_exit_lockout_cnt = 0;
         ctx->track_idx        = 0;
-        ctx->track_table_enabled = 0;
+        ctx->track_table_enabled = 1;
         ctx->offtrack_active     = 0;
         ctx->offtrack_start_tick = 0;
         ctx->braking_frame_cnt   = 0;
@@ -1267,9 +1267,9 @@ void Element_Init(ElementCtx_t *ctx)
      * 3. 环岛 RING — 默认值 & Debug 注册
      * ================================================================ */
     /* 进入 ADC 阈值 */
-    RingEntrance[0] = 1000.0f;
+    RingEntrance[0] = 1050.0f;
     RingEntrance[1] = 0.0f;
-    RingEntrance[2] = 1000.0f;
+    RingEntrance[2] = 1050.0f;
     RingEntrance[3] = 0.0f;
     Debug_Register("El_RingEn0", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingEntrance[0]);
     Debug_Register("El_RingEn1", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &RingEntrance[1]);
@@ -1355,8 +1355,8 @@ void Element_Init(ElementCtx_t *ctx)
     /* 峰值 > 75° (投票窗滤波) */
     barrel_peak_tilt = 70.0f;
     vote_win_barrel_peak.len          = 10;
-    vote_win_barrel_peak.entry_thresh = 7;
-    vote_win_barrel_peak.exit_thresh  = 7;
+    vote_win_barrel_peak.entry_thresh = 5;
+    vote_win_barrel_peak.exit_thresh  = 5;
     Debug_Register("El_BarPeakTilt", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &barrel_peak_tilt);
 
     /* 超时 */
@@ -1369,9 +1369,9 @@ void Element_Init(ElementCtx_t *ctx)
 
     //经观察陀螺仪解算出的倾角数据波形良好，可以不加时间滤波
     cross_entry_sum = 800.0f;
-    cross_exit_sum  = 600.0f;
+    cross_exit_sum  = 400.0f;
     cross_all_sum   = 2100.0f;
-    cross_all_exit_sum = 1700.0f;
+    cross_all_exit_sum = 100.0f;
     Debug_Register("El_CrossEnSum",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &cross_entry_sum);
     Debug_Register("El_CrossExSum",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &cross_exit_sum);
     Debug_Register("El_CrossAllSum",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &cross_all_sum);
@@ -1383,16 +1383,16 @@ void Element_Init(ElementCtx_t *ctx)
      * 7. 跷跷板 SKIP — 默认值 & Debug 注册
      * ================================================================ */
     /* 进入: tilt_fb < -16° && |tilt_lr| <= 10° && adc[1]+adc[3] < 300 && ADC和 < 500 */
-    skip_entry_tilt          = -16.0f;
+    skip_entry_tilt          = -20.0f;
     skip_entry_tilt_lr       = 10.0f;   /* 左右倾角上限: 超过此值否决进入, 防颠簸/十字误判 */
-    skip_entry_adc_sum       = 500.0f;  /* 进入ADC和阈值: 四通道之和 < 此值 → 判定车轮离地 */
-    skip_entry_adc13_sum     = 300.0f;  /* 进入竖向电感和阈值: adc[1]+adc[3] < 此值 → 防十字误判 (十字竖向电感高) */
+    skip_entry_adc_sum       = 5000.0f; /* 进入ADC和阈值: 四通道之和 < 此值 → 判定车轮离地 */
+    skip_entry_adc13_sum     = 5000.0f; /* 进入竖向电感和阈值: adc[1]+adc[3] < 此值 → 防十字误判 (十字竖向电感高) */
     skip_airborne_exit_tilt  = 10.0f;
     skip_landing_adc_min     = 600.0f;
     skip_landing_adc_max     = 1000.0f;
-    vote_win_skip.len          = 20;    /* 投票窗滤波, 20帧窗口抑制噪声 */
-    vote_win_skip.entry_thresh = 19;
-    vote_win_skip.exit_thresh  = 19;    /* 落地退出严格投票 */
+    vote_win_skip.len          = 10;    /* 投票窗滤波, 10帧窗口抑制噪声 */
+    vote_win_skip.entry_thresh = 7;
+    vote_win_skip.exit_thresh  = 7;     /* 落地退出投票 */
     Debug_Register("El_SkpEnTilt",  DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt);
     Debug_Register("El_SkpEnTltLR", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_tilt_lr);
     Debug_Register("El_SkpEnAdc",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &skip_entry_adc_sum);
@@ -1479,9 +1479,9 @@ void Element_Init(ElementCtx_t *ctx)
     vote_win_ring.exit_thresh  = 5;
     vote_win_cross.len         = 0;
     vote_win_cross_tilt.len    = 0;
-    vote_win_skip.len          = 20;
-    vote_win_skip.entry_thresh = 19;
-    vote_win_skip.exit_thresh  = 19;
+    vote_win_skip.len          = 10;
+    vote_win_skip.entry_thresh = 7;
+    vote_win_skip.exit_thresh  = 7;
 
     if (ctx != NULL) {
         ctx->vote_ring         = vote_win_ring;

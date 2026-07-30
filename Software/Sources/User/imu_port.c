@@ -255,7 +255,7 @@ void IMU_Init() {
     memset(&IMU_Dat,      0, sizeof(IMU_Dat));
 
     /* 初始化 IMU 滤波器默认参数 */
-    g_imu_filter.Kp = 0.5f;
+    g_imu_filter.Kp = 1.0f;
     g_imu_filter.Ki = 0.029999999329447746f;
     g_imu_filter.bias_gx = 0.0f;
     g_imu_filter.bias_gy = 0.0f;

@@ -297,11 +297,11 @@ void SPI3_Callback(void *pvParameters)
 float xdata g_pid_a_kp = 0.0f;
 float xdata g_pid_a_ki = 0.0f;
 float xdata g_pid_a_kd = 0.0f;
-float xdata g_pid_a_ilim = 3.0f;
+float xdata g_pid_a_ilim = 4.0f;
 float xdata g_pid_b_kp = 0.0f;
 float xdata g_pid_b_ki = 0.0f;
 float xdata g_pid_b_kd = 0.0f;
-float xdata g_pid_b_ilim = 3.0f;
+float xdata g_pid_b_ilim = 4.0f;
 /* ================================================================
  * 电机寄存器 读/写 回调 (供 Debug 系统 PERI_TYPE 使用)
  *   上位机请求 STATIC_REFRESH 时触发读, 写变量时触发写
@@ -440,8 +440,8 @@ static void EC_MA_Write_Cb(uint32_t peri_addr, void *pData, uint8_t len)
     if (count > 50) count = 50;
     *(char *)(peri_addr) = (char)count;
 }
-static float normalized_adc_k[4] = {0.7416725158691406f, 0.8736371397972107f, 0.9320777058601379f, 0.9962461590766907f}; // ADC 归一化系数数组
-float user_calib_k[4] = {1.0f, 1.0f, 1.0f, 1.0f};  /* 用户个性化校准系数 [横左,竖左,横右,竖右] 逻辑位置索引 */
+static float normalized_adc_k[4] = {0.934334933757782f, 0.8288039565086365f, 1.07004976272583f, 0.950910210609436f}; // ADC 归一化系数数组
+float user_calib_k[4] = {1.100000023841858f, 1.100000023841858f, 1.0f, 1.0f};  /* 用户个性化校准系数 [横左,竖左,横右,竖右] 逻辑位置索引 */
 static uint8_t normalize_index = 0;
 static uint8_t adc_start_normalize = 0;
 static uint8_t change_inductor = 0;
@@ -714,7 +714,7 @@ uint8_t Motor_HandleCommand(const char* cmd)
     return 1;
 }
 
-static float common_speed=70.0f;
+static float common_speed=0.0f;
 /* 外环带宽限制: 斜率限制 + 低通滤波 — 参数g_params + 状态g_state */
 
 /* PI 已移入 g_params.inner + g_state.inner */
@@ -1640,7 +1640,7 @@ void Main_Control_Task_Init(void)
      * ================================================================ */
     /* 默认参数 (g_params.adc) */
     g_params.adc.err_A_K = 3.0f;
-    g_params.adc.err_B_K = 7.5f;
+    g_params.adc.err_B_K = 7.699999809265137f;
     g_params.adc.err_C_K = 5.0f;
     g_params.adc.err_D_K = 8.75f;
     Debug_Register("Str_ADC_KA", DBG_FLOAT | STATIC_TYPE, VAR_CAT_ADC_ERR, VAR_ELEM_STRAIGHT, &g_params.adc.err_A_K);
@@ -1687,21 +1687,21 @@ void Main_Control_Task_Init(void)
      * 3. 外环控制参数 (OuterLoop) — 默认值 & Debug 注册
      * ================================================================ */
     g_params.outer.outer_slew_max  = 100.0f;
-    g_params.outer.outer_lpf_fc    = 40.0f;   /* 第一节 40Hz */
-    g_params.outer.outer_lpf_fc2   = 60.0f;   /* 第二节 60Hz */
+    g_params.outer.outer_lpf_fc    = 70.0f;   /* 第一节 70Hz */
+    g_params.outer.outer_lpf_fc2   = 100.0f;  /* 第二节 100Hz */
     g_params.outer.gyro_lpf_fc     = 100.0f;
-    g_params.outer.gyro_damp_k     = 0.0f;
-    g_params.outer.gyro_damp_fade  = 0.0f;
+    g_params.outer.gyro_damp_k     = 0.6000000238418579f;
+    g_params.outer.gyro_damp_fade  = 30.0f;
     g_params.outer.Kd_diff_thresh  = 100.0f;
     g_params.outer.Kd_diff_high  = 0.0f;
     g_params.outer.Kd_diff_low   = 0.0f;
     g_params.outer.diff_deadband   = 0.5f;
     g_params.outer.d_ma_window     = 80;
-    g_params.outer.outer_Ki        = 0.05f;    /* 外环积分增益 */
-    g_params.outer.outer_i_limit   = 30.0f;    /* 外环积分限幅 */
-    g_params.outer.outer_i_sep_hi  = 500.0f;   /* 积分分离上限 (|err|>此值清I) */
-    g_params.outer.outer_i_sep_lo  = 20.0f;    /* 积分分离下限 (|err|<此值清I) */
-    g_params.outer.err_brake_max  = 75.0f;
+    g_params.outer.outer_Ki        = 0.007000000216066837f;    /* 外环积分增益 */
+    g_params.outer.outer_i_limit   = 1.0f;     /* 外环积分限幅 */
+    g_params.outer.outer_i_sep_hi  = 60.0f;    /* 积分分离上限 (|err|>此值清I) */
+    g_params.outer.outer_i_sep_lo  = 0.0f;     /* 积分分离下限 (|err|<此值清I) */
+    g_params.outer.err_brake_max  = 100.0f;
     g_params.outer.err_brake_safe = 55.0f;
     g_params.outer.outer_brake_k_err  = 0.0f;
     Debug_Register("Str_Out_SlewMax",   DBG_FLOAT  | STATIC_TYPE, VAR_CAT_OUTER_LOOP, VAR_ELEM_STRAIGHT, &g_params.outer.outer_slew_max);
@@ -1770,11 +1770,11 @@ void Main_Control_Task_Init(void)
     /* ================================================================
      * 5. 内环 PI — 默认值 & Debug 注册
      * ================================================================ */
-    g_params.inner.Kp = 7.300000190734863f;
-    g_params.inner.Ki = 0.12999999523162842f;
+    g_params.inner.Kp = 9.699999809265137f;
+    g_params.inner.Ki = 0.11999999731779099f;
     g_params.inner.Kd = 0.10000000149011612f;
-    g_params.inner.error_sum_max = 24.0f;    /* 内环积分上限 */
-    g_params.inner.Kc = 0.0f;   /* 反算跟踪增益 (0=旁路) */
+    g_params.inner.error_sum_max = 30.0f;    /* 内环积分上限 */
+    g_params.inner.Kc = 0.5f;   /* 反算跟踪增益 (0=旁路) */
     g_params.inner.out_max = 0.0f;  /* 差速输出上限 (0=不限幅, 调参时配 ~100) */
     g_state.inner.error_sum  = 0.0f;
     g_state.inner.last_error = 0.0f;
@@ -1812,12 +1812,12 @@ void Main_Control_Task_Init(void)
     /* ================================================================
      * 5b. 速度输出后处理 — 默认值 & Debug 注册
      * ================================================================ */
-    g_params.speed_out.max_output = 250.0f;
+    g_params.speed_out.max_output = 110.0f;
     g_params.speed_out.min_output = 2.0f;
-    g_params.speed_out.slew_rate_up   = 40.0f;
-    g_params.speed_out.slew_rate_down = 40.0f;
-    g_params.speed_out.max_reverse  = 20.0f;  /* 内侧轮最大反转速度, 0=禁止反转 */
-    g_params.speed_out.max_overdrive = 80.0f;  /* 外侧轮最大超速幅值 */
+    g_params.speed_out.slew_rate_up   = 10.0f;
+    g_params.speed_out.slew_rate_down = 10.0f;
+    g_params.speed_out.max_reverse  = 5.0f;   /* 内侧轮最大反转速度, 0=禁止反转 */
+    g_params.speed_out.max_overdrive = 10.0f;  /* 外侧轮最大超速幅值 */
     g_state.last_spd_l = 0.0f;
     g_state.last_spd_r = 0.0f;
     Debug_Register("Str_Spd_MaxOut",  DBG_FLOAT | STATIC_TYPE, VAR_CAT_SPEED_OUT, VAR_ELEM_STRAIGHT, &g_params.speed_out.max_output);
@@ -1854,20 +1854,22 @@ void Main_Control_Task_Init(void)
     /* ================================================================
      * 6. 模糊 PID — 默认值 & Debug 注册 (三套独立: 默认 / 十字 / 环岛)
      * ================================================================ */
-    g_params.fuzzy.e_max    = 70.0f;
-    g_params.fuzzy.Kp0      = 0.1550000011920929f;
+    g_params.fuzzy.e_max    = 74.0f;
+    g_params.fuzzy.Kp0      = 0.14499999582767487f;
     g_params.fuzzy.setpoint = 0.0f;
+    g_params.fuzzy.Kp_excess = 0.0f;
     FuzzyPID_Init(&g_params.fuzzy, g_params.fuzzy.Kp0, g_params.fuzzy.e_max);
+    g_params.fuzzy.Kp_excess = 0.0f;  /* 覆盖 FuzzyPID_Init 的自动计算值 */
     /* 覆盖模糊 Kp 单点值 (FKp NB~PB, 9 档) */
-    g_params.fuzzy.kp_singletons[FUZZY_NB] = 2.200000047683716f;
-    g_params.fuzzy.kp_singletons[FUZZY_NM] = 2.0f;
-    g_params.fuzzy.kp_singletons[FUZZY_NS] = 1.7999999523162842f;
+    g_params.fuzzy.kp_singletons[FUZZY_NB] = 2.25f;
+    g_params.fuzzy.kp_singletons[FUZZY_NM] = 2.0999999046325684f;
+    g_params.fuzzy.kp_singletons[FUZZY_NS] = 2.0f;
     g_params.fuzzy.kp_singletons[FUZZY_NZ] = 1.2000000476837158f;
-    g_params.fuzzy.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
-    g_params.fuzzy.kp_singletons[FUZZY_PZ] = 1.2999999523162842f;
-    g_params.fuzzy.kp_singletons[FUZZY_PS] = 1.7999999523162842f;
-    g_params.fuzzy.kp_singletons[FUZZY_PM] = 2.0f;
-    g_params.fuzzy.kp_singletons[FUZZY_PB] = 2.200000047683716f;
+    g_params.fuzzy.kp_singletons[FUZZY_ZO] = 1.0f;
+    g_params.fuzzy.kp_singletons[FUZZY_PZ] = 1.2000000476837158f;
+    g_params.fuzzy.kp_singletons[FUZZY_PS] = 2.0f;
+    g_params.fuzzy.kp_singletons[FUZZY_PM] = 2.0999999046325684f;
+    g_params.fuzzy.kp_singletons[FUZZY_PB] = 2.25f;
 
     /* 默认 */
     Debug_Register("Str_Fzy_Kp0",   DBG_FLOAT | STATIC_TYPE, VAR_CAT_FUZZY_PID, VAR_ELEM_STRAIGHT, &g_params.fuzzy.Kp0);
@@ -1963,7 +1965,8 @@ void Main_Control_Task_Init(void)
     copy_params(&g_params_cross, &g_params);
     copy_params(&g_params_ring, &g_params);
     copy_params(&g_params_wall, &g_params);
-    g_params_wall.adc.err_B_K = 4.0f;
+    g_params_wall.adc.err_B_K = 7.0f;
+    g_params_ring.adc.err_B_K  = 6.5f;
     g_params_cross.adc.err_B_K = 0.0f;
     g_params_cross.adc.err_D_K = 0.0f;
 
@@ -1972,33 +1975,61 @@ void Main_Control_Task_Init(void)
     g_params_ring.outer.outer_brake_k_err   = 0.0f;
     g_params_wall.outer.outer_brake_k_err   = 0.0f;
 
+    /* 非直道元素旁路外环积分 (十字/环岛/上墙不使用外环I) */
+    g_params_cross.outer.outer_Ki       = 0.0f;
+    g_params_cross.outer.outer_i_limit  = 0.0f;
+    g_params_cross.outer.outer_i_sep_hi = 0.0f;
+    g_params_cross.outer.outer_i_sep_lo = 0.0f;
+    g_params_ring.outer.outer_Ki        = 0.0f;
+    g_params_ring.outer.outer_i_limit   = 0.0f;
+    g_params_ring.outer.outer_i_sep_hi  = 0.0f;
+    g_params_ring.outer.outer_i_sep_lo  = 0.0f;
+    g_params_wall.outer.outer_Ki        = 0.0f;
+    g_params_wall.outer.outer_i_limit   = 0.0f;
+    g_params_wall.outer.outer_i_sep_hi  = 0.0f;
+    g_params_wall.outer.outer_i_sep_lo  = 0.0f;
+
+    /* 环岛专用外环阻尼 (不同于直道) */
+    g_params_ring.outer.gyro_damp_k    = 0.4000000059604645f;
+    g_params_ring.outer.gyro_damp_fade = 27.5f;
+
     /* 十字/环岛/上墙 继承固化前的环路参数, 不做改动 */
-    g_params_cross.inner.Kp = 5.800000190734863f;
-    g_params_cross.inner.Ki = 0.0f;
-    g_params_cross.inner.error_sum_max = 50.0f;
+    g_params_cross.inner.Kp = 9.0f;
+    g_params_cross.inner.Ki = 0.17000000178813934f;
+    g_params_cross.inner.error_sum_max = 30.0f;
     g_params_ring.inner.Kp = 5.800000190734863f;
     g_params_ring.inner.Ki = 0.0f;
-    g_params_ring.inner.error_sum_max = 50.0f;
-    g_params_wall.inner.Kp = 5.800000190734863f;
-    g_params_wall.inner.Ki = 0.0f;
-    g_params_wall.inner.error_sum_max = 50.0f;
+    g_params_ring.inner.error_sum_max = 30.0f;
+    g_params_wall.inner.Kp = 9.699999809265137f;
+    g_params_wall.inner.Ki = 0.11999999731779099f;
+    g_params_wall.inner.error_sum_max = 30.0f;
 
-    /* 环岛专用模糊 PID 固化 (来自 改一下环岛.json 调参结果, 9档插值) */
-    g_params_ring.fuzzy.Kp0 = 0.15000000596046448f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_NB] = 1.5f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_NM] = 1.399999976158142f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_NS] = 1.100000023841858f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_NZ] = 1.0f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_PZ] = 1.0f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_PS] = 1.100000023841858f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_PM] = 1.399999976158142f;
-    g_params_ring.fuzzy.kp_singletons[FUZZY_PB] = 1.5f;
+    /* 非直道元素速度输出后处理 (独立于直道) */
+    g_params_cross.speed_out.max_output    = 110.0f;
+    g_params_cross.speed_out.max_overdrive = 30.0f;
+    g_params_ring.speed_out.max_output     = 100.0f;
+    g_params_ring.speed_out.slew_rate_up   = 5.0f;
+    g_params_ring.speed_out.slew_rate_down = 5.0f;
+    g_params_wall.speed_out.max_output     = 100.0f;
+    g_params_wall.speed_out.slew_rate_up   = 5.0f;
+    g_params_wall.speed_out.slew_rate_down = 5.0f;
+
+    /* 环岛专用模糊 PID 固化 (来自 环岛完美通过.json 调参结果, 9档插值) */
+    g_params_ring.fuzzy.Kp0 = 0.12999999523162842f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_NB] = 2.25f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_NM] = 2.0999999046325684f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_NS] = 1.899999976158142f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_NZ] = 1.2999999523162842f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_ZO] = 1.0f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_PZ] = 1.2999999523162842f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_PS] = 1.899999976158142f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_PM] = 2.0999999046325684f;
+    g_params_ring.fuzzy.kp_singletons[FUZZY_PB] = 2.25f;
     g_params_ring.fuzzy.e_max = 70.0f;
 
-    /* 十字专用模糊 PID 固化 (来自 完赛参数.json, 与直线默认值不同, 需显式覆盖) */
-    g_params_cross.fuzzy.Kp0 = 0.17000000178813934f;
-    g_params_cross.fuzzy.e_max = 50.0f;
+    /* 十字专用模糊 PID 固化 (来自 环岛完美通过.json, 与直线默认值不同, 需显式覆盖) */
+    g_params_cross.fuzzy.Kp0 = 0.15000000596046448f;
+    g_params_cross.fuzzy.e_max = 65.0f;
     g_params_cross.fuzzy.kp_singletons[FUZZY_NB] = 2.200000047683716f;
     g_params_cross.fuzzy.kp_singletons[FUZZY_NM] = 1.600000023841858f;
     g_params_cross.fuzzy.kp_singletons[FUZZY_NS] = 1.399999976158142f;
@@ -2009,18 +2040,18 @@ void Main_Control_Task_Init(void)
     g_params_cross.fuzzy.kp_singletons[FUZZY_PM] = 1.600000023841858f;
     g_params_cross.fuzzy.kp_singletons[FUZZY_PB] = 2.200000047683716f;
 
-    /* 上墙专用模糊 PID 固化 (来自 完赛参数.json, 与直线默认值不同, 需显式覆盖) */
-    g_params_wall.fuzzy.Kp0 = 0.17000000178813934f;
-    g_params_wall.fuzzy.e_max = 50.0f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_NB] = 2.200000047683716f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_NM] = 1.600000023841858f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_NS] = 1.399999976158142f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_NZ] = 1.149999976158142f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_ZO] = 0.8999999761581421f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_PZ] = 1.149999976158142f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_PS] = 1.399999976158142f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_PM] = 1.600000023841858f;
-    g_params_wall.fuzzy.kp_singletons[FUZZY_PB] = 2.200000047683716f;
+    /* 上墙专用模糊 PID 固化 (来自 环岛完美通过.json, 与直线默认值不同, 需显式覆盖) */
+    g_params_wall.fuzzy.Kp0 = 0.14499999582767487f;
+    g_params_wall.fuzzy.e_max = 74.0f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_NB] = 2.25f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_NM] = 2.0999999046325684f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_NS] = 1.899999976158142f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_NZ] = 1.2999999523162842f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_ZO] = 1.0f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_PZ] = 1.2999999523162842f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_PS] = 1.899999976158142f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_PM] = 2.0999999046325684f;
+    g_params_wall.fuzzy.kp_singletons[FUZZY_PB] = 1.25f;
 
     /* 初始化 SPI3, ADC */
     SPI3_Init(SPI3_Callback);
