@@ -122,9 +122,14 @@ uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜�
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
  *   启用后, STRAIGHT 下只对表指定的方向投票, 杜绝方向误判
  * ================================================================ */
-#define TRACK_TABLE_LEN  8
+#define TRACK_TABLE_LEN  12
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
+    ELEMENT_SKIP,
+    ELEMENT_BARREL,
+    ELEMENT_RING_RIGHT_ENTRANCE,
+    ELEMENT_WALL,
+
     ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
@@ -142,6 +147,63 @@ static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
    /* ELEMENT_BARREL */
 };
 
+/* 反向有环岛: 元素顺序颠倒, 环岛方向翻转 RIGHT↔LEFT */
+static const unsigned char g_track_table_rev[TRACK_TABLE_LEN] = {
+    ELEMENT_WALL,
+    ELEMENT_RING_LEFT_ENTRANCE,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+
+    ELEMENT_WALL,
+    ELEMENT_RING_LEFT_ENTRANCE,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+
+    ELEMENT_WALL,
+    ELEMENT_RING_LEFT_ENTRANCE,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+};
+
+/* 正向无环岛: 去掉环岛元素, 4 组 SKIP→BARREL→WALL */
+static const unsigned char g_track_table_noring[TRACK_TABLE_LEN] = {
+    ELEMENT_SKIP,
+    ELEMENT_BARREL,
+    ELEMENT_WALL,
+
+    ELEMENT_SKIP,
+    ELEMENT_BARREL,
+    ELEMENT_WALL,
+
+    ELEMENT_SKIP,
+    ELEMENT_BARREL,
+    ELEMENT_WALL,
+
+    ELEMENT_SKIP,
+    ELEMENT_BARREL,
+    ELEMENT_WALL,
+};
+
+/* 反向无环岛: 顺序颠倒 */
+static const unsigned char g_track_table_noring_rev[TRACK_TABLE_LEN] = {
+    ELEMENT_WALL,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+
+    ELEMENT_WALL,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+
+    ELEMENT_WALL,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+
+    ELEMENT_WALL,
+    ELEMENT_BARREL,
+    ELEMENT_SKIP,
+};
+
+static unsigned char g_track_table_sel = 0;   /* 赛道表选择: 0=正向, 1=反向, 2=正向无环岛, 3=反向无环岛 */
 static element_t g_single_element_debug = ELEMENT_RING_LEFT_ENTRANCE; /* 单元素调试: track_table_enabled=0时反复触发 */
 
 /* ---- 投票窗缓冲区容量 ---- */
@@ -238,9 +300,16 @@ static void Track_Advance(ElementCtx_t *ctx)
 
 static element_t Track_GetExpected(ElementCtx_t *ctx)
 {
+    const unsigned char *table;
     if (ctx->track_table_enabled) {
         if (ctx->track_idx < TRACK_TABLE_LEN) {
-            return (element_t)g_track_table[ctx->track_idx];
+            switch (g_track_table_sel) {
+            case 1:  table = g_track_table_rev;        break;
+            case 2:  table = g_track_table_noring;     break;
+            case 3:  table = g_track_table_noring_rev; break;
+            default: table = g_track_table;            break;
+            }
+            return (element_t)table[ctx->track_idx];
         }
         return ELEMENT_STRAIGHT;
     } else {
@@ -1237,6 +1306,7 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_BrkFrames",DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_braking_frames);
     Debug_Register("El_BrkSpeed", DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_brake_speed);
     Debug_Register("El_TblEnable",DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->track_table_enabled);
+    Debug_Register("El_TblSel",   DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_track_table_sel);
     Debug_Register("El_DbgElem",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_single_element_debug);
     Debug_Register("El_PushMode", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->push_mode);
     Debug_Register("Index",    DBG_UINT8 | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &ctx->track_idx);
