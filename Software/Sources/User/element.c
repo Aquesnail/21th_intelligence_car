@@ -7,6 +7,7 @@
 #include "lpf.h"
 #include "fan_control.h"
 #include <string.h>
+#include <stdio.h>
 extern unsigned char manual_control_flag;
 extern float user_calib_k[4];  /* app_main_control.c 中定义, 用户校准系数 [横左,竖左,横右,竖右] */
 extern float g_total_distance; /* app_main_control.c 中定义, 总行驶距离 (m) */
@@ -119,30 +120,29 @@ float    g_brake_speed          = 0.1f;    /* 刹车目标速度 (rad/s), 非零
 uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜像, 供上位机 HIGH_FREQ 上传) */
 
 /* ================================================================
+ * 盲盒停车任务 配置变量 (上位机可读写)
+ * ================================================================ */
+static uint8_t  g_blindbox_enable            = 0;      /* 盲盒使能: 0=关闭, 1=开启 */
+static uint8_t  g_blindbox_target_occurrence = 1;      /* 第几次进入目标元素时停车 (1-based) */
+static uint8_t  g_blindbox_target_elem       = 0;      /* 目标元素类型 (element_t 枚举值) */
+static uint8_t  g_blindbox_stop_mode         = 0;      /* 0=进入元素立即刹车, 1=驶入延迟后刹车 */
+static float    g_blindbox_delay             = 0.0f;   /* stop_mode=1时, 延迟距离阈值 (与 g_total_distance 同量纲, 手推标定) */
+
+/* ================================================================
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
  *   启用后, STRAIGHT 下只对表指定的方向投票, 杜绝方向误判
  * ================================================================ */
-#define TRACK_TABLE_LEN  8
+#define TRACK_TABLE_LEN  4
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
     ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
     ELEMENT_WALL,
-
-    ELEMENT_SKIP,
-    ELEMENT_BARREL,
-    ELEMENT_RING_RIGHT_ENTRANCE,
-    ELEMENT_WALL,
-    
-    
-   /* ELEMENT_CROSS, */
-   /* ELEMENT_CROSS, */
-   /* ELEMENT_WALL,  */
-   /* ELEMENT_BARREL */
 };
 
 static element_t g_single_element_debug = ELEMENT_RING_LEFT_ENTRANCE; /* 单元素调试: track_table_enabled=0时反复触发 */
+static uint8_t  g_track_table_wrap = 1;  /* 赛道表回绕: 1=循环回绕 (默认开启, 支持多圈) */
 
 /* ---- 投票窗缓冲区容量 ---- */
 #define WALL_WIN_MAX         20
@@ -231,14 +231,22 @@ void VoteWin_SetLen(VoteWindow_t *w, unsigned char len)
 
 static void Track_Advance(ElementCtx_t *ctx)
 {
-    if (ctx->track_table_enabled && ctx->track_idx < TRACK_TABLE_LEN) {
+    if (ctx->track_table_enabled) {
         ctx->track_idx++;
+        if (g_track_table_wrap) {
+            if (ctx->track_idx >= TRACK_TABLE_LEN) {
+                ctx->track_idx = 0;
+            }
+        }
     }
 }
 
 static element_t Track_GetExpected(ElementCtx_t *ctx)
 {
     if (ctx->track_table_enabled) {
+        if (g_track_table_wrap) {
+            return (element_t)g_track_table[ctx->track_idx % TRACK_TABLE_LEN];
+        }
         if (ctx->track_idx < TRACK_TABLE_LEN) {
             return (element_t)g_track_table[ctx->track_idx];
         }
@@ -1212,6 +1220,9 @@ void Element_Init(ElementCtx_t *ctx)
         ctx->offtrack_start_tick = 0;
         ctx->braking_frame_cnt   = 0;
         ctx->push_mode           = 0;
+        ctx->blindbox_occurrence_cnt = 0;
+        ctx->blindbox_active     = 0;
+        ctx->blindbox_dist_start = 0.0f;
         ctx->current = ELEMENT_STRAIGHT;
         ctx->prev    = ELEMENT_STRAIGHT;
         ctx->tilt_fb      = 0.0f;
@@ -1239,6 +1250,14 @@ void Element_Init(ElementCtx_t *ctx)
     Debug_Register("El_TblEnable",DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->track_table_enabled);
     Debug_Register("El_DbgElem",  DBG_UINT16 | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_single_element_debug);
     Debug_Register("El_PushMode", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &ctx->push_mode);
+    /* 盲盒停车任务 */
+    Debug_Register("BB_Enable",   DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_blindbox_enable);
+    Debug_Register("BB_TgtOcc",   DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_blindbox_target_occurrence);
+    Debug_Register("BB_TgtElem",  DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_blindbox_target_elem);
+    Debug_Register("BB_StopMode", DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_blindbox_stop_mode);
+    Debug_Register("BB_Delay",    DBG_FLOAT  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_blindbox_delay);
+    Debug_Register("BB_OccCnt",   DBG_UINT8  | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &ctx->blindbox_occurrence_cnt);
+    Debug_Register("BB_TblWrap",  DBG_UINT8  | STATIC_TYPE, VAR_CAT_ELEMENT, VAR_ELEM_GLOBAL, &g_track_table_wrap);
     Debug_Register("Index",    DBG_UINT8 | HIGH_FREQ_TYPE, VAR_CAT_OBSERVE, VAR_ELEM_GLOBAL, &ctx->track_idx);
     Debug_Register("El_TiltOffFB", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_tilt_fb_offset);
     Debug_Register("El_TiltOffLR", DBG_FLOAT | STATIC_TYPE, VAR_CAT_SYSTEM, VAR_ELEM_GLOBAL, &g_tilt_lr_offset);
@@ -1510,6 +1529,51 @@ void Element_ResetOfftrackTimer(ElementCtx_t *ctx)
 void Element_ResetTrackIndex(ElementCtx_t *ctx)
 {
     ctx->track_idx = 0;
+    ctx->blindbox_occurrence_cnt = 0;
+    ctx->blindbox_active = 0;
+}
+
+/* ---- 盲盒停车任务 命令处理 (上位机命令 "bbtask") ---- */
+uint8_t Element_BlindBoxHandleCommand(const char* cmd)
+{
+    unsigned int occ, elem;
+    float delay;
+    int n;
+
+    /* bbtask off → 关闭盲盒 */
+    if (strcmp(cmd, "bbtask off") == 0) {
+        g_blindbox_enable = 0;
+        Debug_Log("BB: disabled");
+        return 1;
+    }
+    /* bbtask status → 回显当前配置 */
+    if (strcmp(cmd, "bbtask status") == 0) {
+        Debug_Log("BB: occ=%u elem=%u mode=%u delay=%.4f en=%u",
+                  g_blindbox_target_occurrence, g_blindbox_target_elem,
+                  g_blindbox_stop_mode, g_blindbox_delay, g_blindbox_enable);
+        return 1;
+    }
+    /* bbtask <出现次数> <元素类型> [延迟阈值] → 一键配置并开启 */
+    n = sscanf(cmd, "bbtask %u %u %f", &occ, &elem, &delay);
+    if (n >= 2) {
+        g_blindbox_target_occurrence = (uint8_t)occ;
+        g_blindbox_target_elem       = (uint8_t)elem;
+        g_blindbox_stop_mode         = (n >= 3 && delay > 0.0f) ? 1 : 0;
+        g_blindbox_delay             = (n >= 3) ? delay : 0.0f;
+        g_blindbox_enable            = 1;
+        Debug_Log("BB: occ=%u elem=%u mode=%u delay=%.4f -> OK",
+                  occ, elem, g_blindbox_stop_mode, g_blindbox_delay);
+        return 1;
+    }
+    /* bbtask <出现次数> → 仅设出现次数 */
+    n = sscanf(cmd, "bbtask %u", &occ);
+    if (n == 1) {
+        g_blindbox_target_occurrence = (uint8_t)occ;
+        g_blindbox_enable            = 1;
+        Debug_Log("BB: occ=%u -> OK", occ);
+        return 1;
+    }
+    return 0;  /* 未匹配 */
 }
 
 /* ---- 手动触发倾角校准 (上位机命令 "tcalib") ---- */
@@ -1867,6 +1931,45 @@ element_t Element_Update(ElementCtx_t *ctx)
 
     /* ---- 4. 状态转移评估 (遍历转移表) ---- */
     Element_EvaluateTransitions(ctx);
+
+    /* ---- 4.5 盲盒停车任务检查 ---- */
+    if (g_blindbox_enable
+        && ctx->current != ELEMENT_BRAKING
+        && ctx->current != ELEMENT_SAFETY_STOP
+        && ctx->current != ELEMENT_STRAIGHT       /* 仅当已进入非直道元素 */
+        && ctx->prev    == ELEMENT_STRAIGHT) {    /* 且刚进入 (prev==STRAIGHT) */
+
+        if ((element_t)g_blindbox_target_elem == ctx->current) {
+            ctx->blindbox_occurrence_cnt++;
+
+            if (ctx->blindbox_occurrence_cnt == g_blindbox_target_occurrence) {
+                if (g_blindbox_stop_mode == 0) {
+                    /* 模式0: 立即刹车 */
+                    ctx->braking_frame_cnt = g_braking_frames;
+                    ctx->current = ELEMENT_BRAKING;
+                    Debug_Log("BB_STOP");
+                } else {
+                    /* 模式1: 记录起始里程, 延迟刹车 */
+                    ctx->blindbox_active = 1;
+                    ctx->blindbox_dist_start = g_total_distance;
+                    Debug_Log("BB_DELAY");
+                }
+            }
+        }
+    }
+
+    /* 盲盒距离延迟刹车: 在目标元素内持续检测里程 */
+    if (ctx->blindbox_active) {
+        /* 安全兜底: 若未达到距离就退出元素, 清除盲盒状态防止误触发 */
+        if (ctx->current == ELEMENT_STRAIGHT) {
+            ctx->blindbox_active = 0;
+        } else if ((g_total_distance - ctx->blindbox_dist_start) >= g_blindbox_delay) {
+            ctx->blindbox_active = 0;
+            ctx->braking_frame_cnt = g_braking_frames;
+            ctx->current = ELEMENT_BRAKING;
+            Debug_Log("BB_STOP_DIST");
+        }
+    }
 
     g_current_element_u8 = (uint8_t)ctx->current;
     return ctx->current;

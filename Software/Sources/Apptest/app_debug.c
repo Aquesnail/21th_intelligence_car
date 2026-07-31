@@ -80,6 +80,7 @@ extern uint8_t CPUStatus_HandleCommand(const char* cmd);
 extern uint8_t Motor_HandleCommand(const char* cmd);
 extern uint8_t ADC_NormalizeCommand(const char* cmd);
 extern uint8_t TiltCalib_HandleCommand(const char* cmd);
+extern uint8_t Element_BlindBoxHandleCommand(const char* cmd);
 
 void Debug_OnTextReceived(char* str, uint8_t len)
 {
@@ -95,7 +96,9 @@ void Debug_OnTextReceived(char* str, uint8_t len)
     if(TiltCalib_HandleCommand(str)){
         return;
     }
-    
+    if(Element_BlindBoxHandleCommand(str)){
+        return;
+    }
 
     sprintf(echoBuf, "Echo: %s", str);
     Debug_Log(echoBuf);

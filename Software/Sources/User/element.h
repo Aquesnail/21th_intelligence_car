@@ -154,6 +154,11 @@ typedef struct {
     
     unsigned char  push_mode;         /* 推车调试模式: 1=关电机+关风扇 */
 
+    /* ---- 盲盒停车任务 ---- */
+    unsigned char  blindbox_occurrence_cnt;  /* 目标元素已出现次数 (进入时+1, 与 BB_TgtOcc 比较) */
+    unsigned char  blindbox_active;          /* 盲盒已进入目标元素, 等待距离触发 */
+    float          blindbox_dist_start;      /* 进入目标元素时的总里程快照 */
+
     /* ---- 当前/前一状态 ---- */
     element_t current;
     element_t prev;
@@ -178,6 +183,7 @@ ControlStrategy_t Element_GetEffectiveCtrl(element_t e, ElementCtx_t *ctx);
 void Element_ResetOfftrackTimer(ElementCtx_t *ctx);
 void Element_ResetTrackIndex(ElementCtx_t *ctx);
 void Element_TriggerTiltCalib(ElementCtx_t *ctx);
+uint8_t Element_BlindBoxHandleCommand(const char* cmd);
 void Element_FeedSensors(ElementCtx_t *ctx,
     const float adc[4], float ax, float ay, float az,
     float yaw, float err_raw, float err_filtered);
