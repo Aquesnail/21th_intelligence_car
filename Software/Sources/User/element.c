@@ -122,7 +122,7 @@ uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜�
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
  *   启用后, STRAIGHT 下只对表指定的方向投票, 杜绝方向误判
  * ================================================================ */
-#define TRACK_TABLE_LEN  12
+#define TRACK_TABLE_LEN  9
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
     ELEMENT_SKIP,
