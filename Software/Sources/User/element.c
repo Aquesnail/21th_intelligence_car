@@ -128,17 +128,17 @@ static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
     ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
-    ELEMENT_WALL,
+    //ELEMENT_WALL,
 
     ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
 
     ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
     
     
    /* ELEMENT_CROSS, */
@@ -149,17 +149,17 @@ static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
 
 /* 反向有环岛: 元素顺序颠倒, 环岛方向翻转 RIGHT↔LEFT */
 static const unsigned char g_track_table_rev[TRACK_TABLE_LEN] = {
-    ELEMENT_WALL,
+    //ELEMENT_WALL,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_BARREL,
     ELEMENT_SKIP,
 
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_BARREL,
     ELEMENT_SKIP,
 
-    ELEMENT_WALL,
+  //  ELEMENT_WALL,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_BARREL,
     ELEMENT_SKIP,
@@ -169,38 +169,42 @@ static const unsigned char g_track_table_rev[TRACK_TABLE_LEN] = {
 static const unsigned char g_track_table_noring[TRACK_TABLE_LEN] = {
     ELEMENT_SKIP,
     ELEMENT_BARREL,
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
 
     ELEMENT_SKIP,
     ELEMENT_BARREL,
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
 
     ELEMENT_SKIP,
     ELEMENT_BARREL,
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
 
     ELEMENT_SKIP,
     ELEMENT_BARREL,
-    ELEMENT_WALL,
+
+    ELEMENT_SKIP,
+  //  ELEMENT_WALL,
 };
 
 /* 反向无环岛: 顺序颠倒 */
 static const unsigned char g_track_table_noring_rev[TRACK_TABLE_LEN] = {
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
     ELEMENT_BARREL,
     ELEMENT_SKIP,
 
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
     ELEMENT_BARREL,
     ELEMENT_SKIP,
 
-    ELEMENT_WALL,
+   // ELEMENT_WALL,
     ELEMENT_BARREL,
     ELEMENT_SKIP,
 
-    ELEMENT_WALL,
+  //  ELEMENT_WALL,
     ELEMENT_BARREL,
     ELEMENT_SKIP,
+
+    ELEMENT_BARREL,
 };
 
 static unsigned char g_track_table_sel = 0;   /* 赛道表选择: 0=正向, 1=反向, 2=正向无环岛, 3=反向无环岛 */
