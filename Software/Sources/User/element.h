@@ -124,6 +124,7 @@ typedef struct {
     float          ring_entry_yaw;
     unsigned short global_exit_lockout_cnt; /* 全局退出锁存: 退赛道元素后禁止立即进入新赛道元素 */
     unsigned short ring_frame_cnt;      /* 环岛链总帧计数 (ENTRANCE→PASS→IN_RING 超时兜底) */
+    unsigned char  in_ring_entry_count; /* IN_RING 进入次数计数, 第3次触发刹车 */
 
     /* ---- 直角转弯专用状态 ---- */
     float          frozen_err;           /* 进入冻结时记录的 err_angle_filtered */

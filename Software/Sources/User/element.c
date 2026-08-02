@@ -122,20 +122,20 @@ uint8_t  g_current_element_u8;            /* 当前元素枚举值 (uint8_t 镜�
  * 赛道元素顺序表 (写死在 flash 中, 按赛道实际顺序排列)
  *   启用后, STRAIGHT 下只对表指定的方向投票, 杜绝方向误判
  * ================================================================ */
-#define TRACK_TABLE_LEN  9
+#define TRACK_TABLE_LEN  6
 
 static const unsigned char g_track_table[TRACK_TABLE_LEN] = {
-    ELEMENT_SKIP,
+  //  ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
     //ELEMENT_WALL,
 
-    ELEMENT_SKIP,
+ //   ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
    // ELEMENT_WALL,
 
-    ELEMENT_SKIP,
+  //  ELEMENT_SKIP,
     ELEMENT_BARREL,
     ELEMENT_RING_RIGHT_ENTRANCE,
    // ELEMENT_WALL,
@@ -152,37 +152,41 @@ static const unsigned char g_track_table_rev[TRACK_TABLE_LEN] = {
     //ELEMENT_WALL,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_BARREL,
-    ELEMENT_SKIP,
+    //ELEMENT_SKIP,
 
    // ELEMENT_WALL,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_BARREL,
-    ELEMENT_SKIP,
+ //   ELEMENT_SKIP,
 
   //  ELEMENT_WALL,
     ELEMENT_RING_LEFT_ENTRANCE,
     ELEMENT_BARREL,
-    ELEMENT_SKIP,
+  //  ELEMENT_SKIP,
 };
 
 /* 正向无环岛: 去掉环岛元素, 4 组 SKIP→BARREL→WALL */
 static const unsigned char g_track_table_noring[TRACK_TABLE_LEN] = {
-    ELEMENT_SKIP,
+    //ELEMENT_SKIP,
     ELEMENT_BARREL,
    // ELEMENT_WALL,
 
-    ELEMENT_SKIP,
+   // ELEMENT_SKIP,
     ELEMENT_BARREL,
    // ELEMENT_WALL,
 
-    ELEMENT_SKIP,
+  //  ELEMENT_SKIP,
     ELEMENT_BARREL,
    // ELEMENT_WALL,
 
-    ELEMENT_SKIP,
+    //ELEMENT_SKIP,
     ELEMENT_BARREL,
 
-    ELEMENT_SKIP,
+    ELEMENT_BARREL,
+
+    ELEMENT_BARREL,
+
+   // ELEMENT_SKIP,
   //  ELEMENT_WALL,
 };
 
@@ -190,19 +194,21 @@ static const unsigned char g_track_table_noring[TRACK_TABLE_LEN] = {
 static const unsigned char g_track_table_noring_rev[TRACK_TABLE_LEN] = {
    // ELEMENT_WALL,
     ELEMENT_BARREL,
-    ELEMENT_SKIP,
+  //  ELEMENT_SKIP,
 
    // ELEMENT_WALL,
     ELEMENT_BARREL,
-    ELEMENT_SKIP,
+  //  ELEMENT_SKIP,
 
    // ELEMENT_WALL,
     ELEMENT_BARREL,
-    ELEMENT_SKIP,
+   // ELEMENT_SKIP,
 
   //  ELEMENT_WALL,
     ELEMENT_BARREL,
-    ELEMENT_SKIP,
+  //  ELEMENT_SKIP,
+
+    ELEMENT_BARREL,
 
     ELEMENT_BARREL,
 };
@@ -550,6 +556,15 @@ static void Enter_InRing(ElementCtx_t *ctx)
     }
     ctx->ring_entry_yaw = ctx->yaw;
     VoteWin_Reset(&ctx->vote_ring);
+
+    /* 第三次进入 IN_RING 触发刹车 */
+    ctx->in_ring_entry_count++;
+    if (ctx->in_ring_entry_count >= 3) {
+        ctx->current = ELEMENT_BRAKING;
+        ctx->braking_frame_cnt = g_braking_frames;
+        Debug_Log(Element_GetProp(ELEMENT_BRAKING)->name);
+        g_current_element_u8 = (uint8_t)ctx->current;
+    }
 }
 
 static void Enter_RingExit(ElementCtx_t *ctx)
@@ -1276,6 +1291,7 @@ void Element_Init(ElementCtx_t *ctx)
     if (ctx != NULL) {
         ctx->ring_side        = 0;
         ctx->ring_frame_cnt   = 0;
+        ctx->in_ring_entry_count = 0;
         ctx->elem_frame_cnt   = 0;
         ctx->ring_entry_yaw   = 0.0f;
         ctx->global_exit_lockout_cnt = 0;
@@ -1775,6 +1791,7 @@ element_t Element_Update(ElementCtx_t *ctx)
             return ctx->current;
         }
         ctx->current = ELEMENT_SAFETY_STOP;
+        ctx->in_ring_entry_count = 0;
         Debug_Log(Element_GetProp(ELEMENT_SAFETY_STOP)->name);
         ctx->offtrack_active = 0;
         g_current_element_u8 = (uint8_t)ctx->current;
